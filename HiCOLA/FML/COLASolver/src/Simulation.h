@@ -21,6 +21,7 @@
 #include "COLA.h"
 #include "Cosmology.h"
 #include "GravityModel.h"
+#include "Lightcone/Lightcone.h"
 
 #include <array>
 #include <cmath>
@@ -62,6 +63,7 @@ class NBodySimulation {
     /// Everything related to gravity: growth factors, computing forces
     //=============================================================================
     std::shared_ptr<GravityModel<NDIM>> grav;
+    std::shared_ptr<GravityModel<NDIM>> grav_ic;
 
     //=============================================================================
     /// Everything related to linear perturbations, transfer functions, initial pofk
@@ -95,6 +97,11 @@ class NBodySimulation {
     FFTWGrid<NDIM> phi_3LPTa_ini_fourier;
     FFTWGrid<NDIM> phi_3LPTb_ini_fourier;
 
+    //=============================================================================
+    /// The lightcone construction
+    //=============================================================================
+    std::shared_ptr<Lightcone<NDIM, T>> lightcone;
+
     // Do timings of the code
     FML::UTILS::Timings timer;
 
@@ -111,11 +118,13 @@ class NBodySimulation {
     double simulation_boxsize;               // The boxsize in Mpc/h
     bool simulation_use_cola;                // Use the cola method?
     bool simulation_use_scaledependent_cola; // If cola, use cola with scaledependent growth?
+    bool simulation_enforce_LPT_trajectories; // Do not include the PM force, just let particles follow LPT trajectores
+                                              // This requires COLA to be on, otherwise the particles do not change
+    int simulation_cola_LPT_order;            // The LPT order for COLA
 
     // Force and density assignment
     int force_nmesh;                             // The gridsize to bin particles to and compute PM forces
     std::string force_density_assignment_method; // Density assignment (NGP,CIC,TSC,PCS,PQS)
-    std::string force_kernel;                    // The force kernel (see relevant files)
     bool force_linear_massive_neutrinos;         // Include the effects of massive neutrinos using linear theory
 
     // Initial conditions
@@ -128,6 +137,7 @@ class NBodySimulation {
 
     // Initial conditions: input file (power-spectrum / transfer functions)
     std::string ic_type_of_input;  // Type of input (powerspectrum, transferfuntion, transferinfofile)
+    std::string ic_type_of_input_fileformat; // Format, CAMB, CLASS (with format=camb), ..., for transfer files 
     std::string ic_input_filename; // The filename
     double ic_input_redshift;      // The redshift of P(k,z) / T(k,z) that we read in
     bool ic_use_gravity_model_GR;  // Input power-spectrum is for LCDM so if MG use LCDM to set the IC
@@ -152,6 +162,7 @@ class NBodySimulation {
     std::string ic_reconstruct_smoothing_filter;   // Smoothing filter (tophat, sharpk, gaussian)
     double ic_reconstruct_dimless_smoothing_scale; // Smoothing scales R/boxsize
     bool ic_reconstruct_interlacing;               // Use interlacing (probably not)?
+    bool ic_reconstruct_exact;
 
     // Particles
     int particle_Npart_1D;             // Number of particles per dimension (total is N^3)
@@ -478,14 +489,29 @@ void NBodySimulation<NDIM, T>::read_parameters(ParameterMap & param) {
     // General parameters
     simulation_name = param.get<std::string>("simulation_name");
     simulation_boxsize = param.get<double>("simulation_boxsize");
+    
+    // COLA
     simulation_use_cola = param.get<bool>("simulation_use_cola");
     simulation_use_scaledependent_cola = param.get<bool>("simulation_use_scaledependent_cola");
-
+    simulation_enforce_LPT_trajectories = simulation_use_cola ? param.get<bool>("simulation_enforce_LPT_trajectories", false) : false;
+    simulation_cola_LPT_order = simulation_use_cola ? param.get<int>("simulation_cola_LPT_order", 2) : 2;
+    if(simulation_use_cola and simulation_cola_LPT_order > param.get<int>("ic_LPT_order")) 
+      FML::assert_mpi(false, "The highest COLA LPT order is ic_LPT_order (i.e. simulation_cola_LPT_order must be <= ic_LPT_order)"); 
+    if(simulation_cola_LPT_order < 1 and simulation_use_cola) {
+      simulation_use_cola = simulation_use_scaledependent_cola = false;
+      if (FML::ThisTask == 0)
+        std::cout << "NB: simulation_cola_LPT_order < 1 so turning off COLA\n";
+    }
+ 
     if (FML::ThisTask == 0) {
         std::cout << "simulation_name                          : " << simulation_name << "\n";
         std::cout << "simulation_boxsize                       : " << simulation_boxsize << "\n";
         std::cout << "simulation_use_cola                      : " << simulation_use_cola << "\n";
         std::cout << "simulation_use_scaledependent_cola       : " << simulation_use_scaledependent_cola << "\n";
+        if (simulation_use_cola) {
+            std::cout << "simulation_enforce_LPT_trajectories      : " << simulation_enforce_LPT_trajectories << "\n";
+            std::cout << "simulation_cola_LPT_order                : " << simulation_cola_LPT_order << "\n";
+        }
 
         // We cannot use COLA if the particle type is not compatible with it
         if (simulation_use_cola and not FML::PARTICLE::has_get_D_1LPT<T>()) {
@@ -496,18 +522,24 @@ void NBodySimulation<NDIM, T>::read_parameters(ParameterMap & param) {
     // Computing forces
     force_nmesh = param.get<int>("force_nmesh");
     force_density_assignment_method = param.get<std::string>("force_density_assignment_method");
-    force_kernel = param.get<std::string>("force_kernel");
     force_linear_massive_neutrinos = param.get<bool>("force_linear_massive_neutrinos");
+   
+    auto force_greens_function_kernel = param.get<std::string>("force_greens_function_kernel");
+    auto force_gradient_kernel = param.get<std::string>("force_gradient_kernel");
+    FML::NBODY::set_fiducial_greens_functions_kernel(force_greens_function_kernel);
+    FML::NBODY::set_fiducial_gradient_kernel(force_gradient_kernel);
 
     if (FML::ThisTask == 0) {
         std::cout << "force_nmesh                              : " << force_nmesh << "\n";
-        std::cout << "force_kernel                             : " << force_kernel << "\n";
+        std::cout << "force_greens_function_kernel             : " << force_greens_function_kernel << "\n";
+        std::cout << "force_gradient_kernel                    : " << force_gradient_kernel << "\n";
         std::cout << "force_density_assignment_method          : " << force_density_assignment_method << "\n";
         std::cout << "force_linear_massive_neutrinos           : " << force_linear_massive_neutrinos << "\n";
     }
 
     // Initial conditions
     ic_type_of_input = param.get<std::string>("ic_type_of_input");
+    ic_type_of_input_fileformat = param.get<std::string>("ic_type_of_input_fileformat", "CAMB");
     ic_input_filename = param.get<std::string>("ic_input_filename");
     ic_random_field_type = param.get<std::string>("ic_random_field_type");
     ic_input_redshift = param.get<double>("ic_input_redshift");
@@ -535,10 +567,12 @@ void NBodySimulation<NDIM, T>::read_parameters(ParameterMap & param) {
         ic_reconstruct_smoothing_filter = param.get<std::string>("ic_reconstruct_smoothing_filter");
         ic_reconstruct_dimless_smoothing_scale = param.get<double>("ic_reconstruct_dimless_smoothing_scale");
         ic_reconstruct_interlacing = param.get<bool>("ic_reconstruct_interlacing");
+        ic_reconstruct_exact =  param.get<bool>("ic_reconstruct_exact");
     }
 
     if (FML::ThisTask == 0) {
         std::cout << "ic_type_of_input                         : " << ic_type_of_input << "\n";
+        std::cout << "ic_type_of_input_fileformat              : " << ic_type_of_input_fileformat << "\n";
         std::cout << "ic_input_filename                        : " << ic_input_filename << "\n";
         std::cout << "ic_random_field_type                     : " << ic_random_field_type << "\n";
         std::cout << "ic_input_redshift                        : " << ic_input_redshift << "\n";
@@ -563,6 +597,7 @@ void NBodySimulation<NDIM, T>::read_parameters(ParameterMap & param) {
             std::cout << "ic_reconstruct_dimless_smoothing_scale   : " << ic_reconstruct_dimless_smoothing_scale
                       << "\n";
             std::cout << "ic_reconstruct_interlacing               : " << ic_reconstruct_interlacing << "\n";
+            std::cout << "ic_reconstruct_exact                     : " << ic_reconstruct_exact << "\n";
         }
     }
 
@@ -741,7 +776,6 @@ void NBodySimulation<NDIM, T>::init() {
 
     // If we have a MG model and want exactly the same IC as for LCDM
     // we can supply LCDM P(k) and use the GR growth factors to scale it back
-    std::shared_ptr<GravityModel<NDIM>> grav_ic;
     if (ic_use_gravity_model_GR) {
         grav_ic = std::make_shared<GravityModelGR<NDIM>>(cosmo);
         grav_ic->read_parameters(*parameters);
@@ -853,10 +887,12 @@ void NBodySimulation<NDIM, T>::init() {
         if (not transferdata) {
             transferdata = std::make_shared<LinearTransferData>(cosmo->get_Omegab(),
                                                                 cosmo->get_OmegaCDM(),
+                                                                cosmo->get_OmegaMNu(),
                                                                 cosmo->get_kpivot_mpc(),
                                                                 cosmo->get_As(),
                                                                 cosmo->get_ns(),
-                                                                cosmo->get_h());
+                                                                cosmo->get_h(),
+                                                                ic_type_of_input_fileformat);
             transferdata->read_transfer(ic_input_filename);
 
             // Make sure the gravity model also gets a pointer to this
@@ -1133,13 +1169,13 @@ void NBodySimulation<NDIM, T>::init() {
                                            fac * grav_ic->get_f_3LPTb(aini)};
         timer.StartTiming("InitialConditions");
 
-        // Store the LPT potentials we need from the IC (max 2LPT)
+        // Store the LPT potentials we need from the IC (max 3LPT)
         // We store 2LPT, 3LPTa, 3LPTb depending on the size of the vector we send in
         std::vector<FFTWGrid<NDIM>> phi_nLPT_potentials;
         if (simulation_use_cola and simulation_use_scaledependent_cola) {
-            if (FML::PARTICLE::has_get_D_2LPT<T>())
+            if (FML::PARTICLE::has_get_D_2LPT<T>() and simulation_cola_LPT_order >= 2)
                 phi_nLPT_potentials.resize(1);
-            if (FML::PARTICLE::has_get_D_3LPTa<T>() and FML::PARTICLE::has_get_D_3LPTb<T>())
+            if (FML::PARTICLE::has_get_D_3LPTa<T>() and FML::PARTICLE::has_get_D_3LPTb<T>() and simulation_cola_LPT_order >= 3)
                 phi_nLPT_potentials.resize(3);
         }
 
@@ -1155,7 +1191,7 @@ void NBodySimulation<NDIM, T>::init() {
 
         // Store potential in the class
         if (simulation_use_cola and simulation_use_scaledependent_cola) {
-            if (FML::PARTICLE::has_get_D_1LPT<T>()) {
+            if (FML::PARTICLE::has_get_D_1LPT<T>() and simulation_cola_LPT_order >= 1) {
                 // Store phi_1LPT (D^2 phi_1LPT = -delta)
                 phi_1LPT_ini_fourier = delta_ini_fourier;
                 phi_1LPT_ini_fourier.add_memory_label("phi_1LPT(k,zini)");
@@ -1180,13 +1216,13 @@ void NBodySimulation<NDIM, T>::init() {
                 if (Local_x_start == 0)
                     phi_1LPT_ini_fourier.set_fourier_from_index(0, 0.0);
             }
-            if (FML::PARTICLE::has_get_D_2LPT<T>()) {
+            if (FML::PARTICLE::has_get_D_2LPT<T>() and simulation_cola_LPT_order >= 2) {
                 if (FML::ThisTask == 0)
                     std::cout << "Storing initial 2LPT potential \n";
                 phi_2LPT_ini_fourier = phi_nLPT_potentials[0];
                 phi_2LPT_ini_fourier.add_memory_label("phi_2LPT(k,zini)");
             }
-            if (FML::PARTICLE::has_get_D_3LPTa<T>() and FML::PARTICLE::has_get_D_3LPTb<T>()) {
+            if (FML::PARTICLE::has_get_D_3LPTa<T>() and FML::PARTICLE::has_get_D_3LPTb<T>() and simulation_cola_LPT_order >= 3) {
                 if (FML::ThisTask == 0)
                     std::cout << "Storing initial 3LPT potentials \n";
                 phi_3LPTa_ini_fourier = phi_nLPT_potentials[1];
@@ -1205,11 +1241,39 @@ void NBodySimulation<NDIM, T>::init() {
     if (simulation_use_cola) {
         cola_initialize_velocities<NDIM, T>(part);
     }
+    
+    //============================================================
+    // Set up the lightcone
+    //============================================================
+    std::vector<std::string> particle_types_lightcone{"cb"};
+    lightcone = std::make_shared<Lightcone<NDIM,T>>(cosmo);
+    lightcone->read_parameters(*parameters);
+    lightcone->init(particle_types_lightcone);
 }
 
 template <int NDIM, class T>
 void NBodySimulation<NDIM, T>::run() {
     timer.StartTiming("Timestepping");
+    
+    // Used for lightcone to add on COLA velocity
+    auto add_on_LPT_velocity = [&](double addsubtract_sign, double a) {
+        const double aini = 1.0 / (1.0 + ic_initial_redshift);
+        if (simulation_use_scaledependent_cola) {
+            cola_add_on_LPT_velocity_scaledependent<NDIM, T>(part,
+                                                             grav,
+                                                             simulation_cola_LPT_order, 
+                                                             phi_1LPT_ini_fourier,
+                                                             phi_2LPT_ini_fourier,
+                                                             phi_3LPTa_ini_fourier,
+                                                             phi_3LPTb_ini_fourier,
+                                                             grav->H0_hmpc * simulation_boxsize,
+                                                             aini,
+                                                             a,
+                                                             addsubtract_sign);
+        } else {
+            cola_add_on_LPT_velocity<NDIM, T>(part, grav, simulation_cola_LPT_order, aini, a, addsubtract_sign);
+        }
+    };
 
     // Number of extra slices we need for density assignement
     const auto nleftright =
@@ -1334,7 +1398,7 @@ void NBodySimulation<NDIM, T>::run() {
 
                 // Compute forces
                 std::array<FFTWGrid<NDIM>, NDIM> force_real;
-                if (delta_time_kick != 0.0) {
+                if (delta_time_kick != 0.0 and not simulation_enforce_LPT_trajectories) {
                     timer.StartTiming("ComputeForce");
                     grav->compute_force(apos,
                                         grav->H0_hmpc * simulation_boxsize,
@@ -1344,8 +1408,12 @@ void NBodySimulation<NDIM, T>::run() {
                     timer.EndTiming("ComputeForce");
                 }
 
+                if(simulation_enforce_LPT_trajectories and FML::ThisTask == 0) {
+                  std::cout << "Enforcing LPT trajectories so we do not compute forces and apply (non COLA) KICK/DRIFT operators\n";
+                }
+
                 // Kick particles (updates velocity)
-                if (delta_time_kick != 0.0) {
+                if (delta_time_kick != 0.0 and not simulation_enforce_LPT_trajectories) {
                     timer.StartTiming("Kick");
                     FML::NBODY::KickParticles<NDIM>(force_real, part, delta_time_kick, force_density_assignment_method);
                     timer.EndTiming("Kick");
@@ -1354,12 +1422,11 @@ void NBodySimulation<NDIM, T>::run() {
                 // For COLA we can do the kick and drift at the same time
                 if (simulation_use_cola) {
                     timer.StartTiming("COLA");
-                    // If the growth factors are scaledependent then we use the scaledependent version
-                    // unless simulation_use_scaledependent_cola is set to false
                     const double aini = 1.0 / (1.0 + ic_initial_redshift);
-                    if (simulation_use_scaledependent_cola and grav->scaledependent_growth) {
+                    if (simulation_use_scaledependent_cola) {
                         cola_kick_drift_scaledependent<NDIM, T>(part,
                                                                 grav,
+                                                                simulation_cola_LPT_order, 
                                                                 phi_1LPT_ini_fourier,
                                                                 phi_2LPT_ini_fourier,
                                                                 phi_3LPTa_ini_fourier,
@@ -1371,13 +1438,36 @@ void NBodySimulation<NDIM, T>::run() {
                                                                 delta_time_kick,
                                                                 delta_time_drift);
                     } else {
-                        cola_kick_drift<NDIM, T>(part, grav, aini, apos, apos_new, delta_time_kick, delta_time_drift);
+                        cola_kick_drift<NDIM, T>(part, grav, simulation_cola_LPT_order, aini, apos, apos_new, delta_time_kick, delta_time_drift);
                     }
                     timer.EndTiming("COLA");
                 }
+                
+                // Build the lightcone
+                if (lightcone->lightcone_active() and delta_time_drift != 0.0) {
+                    if (simulation_use_cola) {
+                        timer.StartTiming("COLA output");
+                        add_on_LPT_velocity(+1.0, avel_new);
+                        timer.EndTiming("COLA output");
+                    }
+
+                    timer.StartTiming("Lightcone");
+                    lightcone->create_lightcone(part,
+                                                apos,
+                                                apos_new,
+                                                avel_new,
+                                                delta_time_drift);
+                    timer.EndTiming("Lightcone");
+                    
+                    if (simulation_use_cola) {
+                        timer.StartTiming("COLA output");
+                        add_on_LPT_velocity(-1.0, avel_new);
+                        timer.EndTiming("COLA output");
+                    }
+                }
 
                 // Drift particles (updates positions)
-                if (delta_time_drift != 0.0) {
+                if (delta_time_drift != 0.0 and not simulation_enforce_LPT_trajectories) {
                     timer.StartTiming("Drift");
                     FML::NBODY::DriftParticles<NDIM, T>(part, delta_time_drift);
                     timer.EndTiming("Drift");
@@ -1396,6 +1486,13 @@ void NBodySimulation<NDIM, T>::run() {
         analyze_and_output(ioutput, output_redshifts[ioutput]);
     }
     timer.EndTiming("Timestepping");
+    
+    //=============================================================
+    // Lightcone create kappa maps
+    //=============================================================
+    if(lightcone->lightcone_active()) {
+      lightcone->create_weak_lensing_maps();
+    }
 
     //=============================================================
     // Print all timings
@@ -1449,7 +1546,7 @@ void NBodySimulation<NDIM, T>::compute_density_field_fourier(FFTWGrid<NDIM> & de
     // We need to have transfer functions for what follows and for that we
     // check [transferdata] which is created if "transferinfofile" is used
     //=============================================================
-    if (force_linear_massive_neutrinos and cosmo->get_OmegaMNu() > 0.0 and transferdata) {
+    if (force_linear_massive_neutrinos and cosmo->get_fMNu() > 0.0 and transferdata) {
 
         // First step we store the initial  density field
         if (not initial_density_field_fourier) {
@@ -1472,9 +1569,7 @@ void NBodySimulation<NDIM, T>::compute_density_field_fourier(FFTWGrid<NDIM> & de
         };
 
         // We compute the total matter density-field deltaM = (OmegaCB deltaCB + OmegaMNu deltaMNu)/OmegaM
-        const double OmegaM = cosmo->get_OmegaM();
-        const double OmegaMNu = cosmo->get_OmegaMNu();
-        const double fMNu = OmegaMNu / OmegaM;
+        const double fMNu = cosmo->get_fMNu();
 
         auto Local_nx = initial_density_field_fourier.get_local_nx();
 #ifdef USE_OMP
@@ -1540,9 +1635,10 @@ void NBodySimulation<NDIM, T>::analyze_and_output(int ioutput, double redshift) 
     auto add_on_LPT_velocity = [&](double addsubtract_sign) {
         const double aini = 1.0 / (1.0 + ic_initial_redshift);
         const double a = 1.0 / (1.0 + redshift);
-        if (simulation_use_scaledependent_cola and grav->scaledependent_growth) {
+        if (simulation_use_scaledependent_cola) {
             cola_add_on_LPT_velocity_scaledependent<NDIM, T>(part,
                                                              grav,
+                                                             simulation_cola_LPT_order, 
                                                              phi_1LPT_ini_fourier,
                                                              phi_2LPT_ini_fourier,
                                                              phi_3LPTa_ini_fourier,
@@ -1552,7 +1648,7 @@ void NBodySimulation<NDIM, T>::analyze_and_output(int ioutput, double redshift) 
                                                              a,
                                                              addsubtract_sign);
         } else {
-            cola_add_on_LPT_velocity<NDIM, T>(part, grav, aini, a, addsubtract_sign);
+            cola_add_on_LPT_velocity<NDIM, T>(part, grav, simulation_cola_LPT_order, aini, a, addsubtract_sign);
         }
     };
 
@@ -1676,7 +1772,7 @@ void NBodySimulation<NDIM, T>::read_phases(FFTWGrid<NDIM> & delta_fourier) {
     // Move them into MPIParticles
     MPIParticles<T> temppart;
     temppart.move_from(std::move(externalpart));
-
+    
     FML::INTERPOLATION::particles_to_fourier_grid(temppart.get_particles_ptr(),
                                                   temppart.get_npart(),
                                                   temppart.get_npart_total(),
@@ -1736,6 +1832,95 @@ void NBodySimulation<NDIM, T>::read_ic() {
 
     // Move them into MPIParticles
     part.move_from(std::move(externalpart));
+    
+    // Only *if* IC is 1LPT
+    // ...or *if* the initial q-distribution is a regular grid (i/N,j/N,k/N)
+    // then we can do it exactly for 2LPT also
+    auto exact_1LPT_reconstruction = [&](bool regular_q_grid_and_2LPT) {
+
+      // v_code = a^2 E f Psi_code
+      double disp_factor = 1.0 / (scale_factor * scale_factor 
+          * cosmo->HoverH0_of_a(scale_factor) * grav_ic->get_f_1LPT(scale_factor));
+      double f2_over_f1 = grav_ic->get_f_2LPT(scale_factor) / grav_ic->get_f_1LPT(scale_factor);
+      double v_factor_2LPT = 1.0 / (1.0 - f2_over_f1);
+      int Npart_1D = std::round(std::pow(part.get_npart_total(), 1.0 / NDIM));
+      auto * part_ptr = part.get_particles_ptr();
+#ifdef USE_OMP
+#pragma omp parallel for
+#endif
+      for (size_t ind = 0; ind < part.get_npart(); ind++) {
+        auto * pos = FML::PARTICLE::GetPos(part_ptr[ind]);
+        auto * v = FML::PARTICLE::GetVel(part_ptr[ind]);
+        std::array<double,NDIM> disp{}, disp2{}, q_vec{};
+        for (int idim = 0; idim < NDIM; idim++) {
+          disp[idim] = v[idim] * disp_factor;
+          q_vec[idim] = pos[idim] - disp[idim];
+          if(q_vec[idim] >= 1.0) q_vec[idim] -= 1.0;
+          if(q_vec[idim] < 0.0) q_vec[idim] += 1.0;
+        }
+
+        // At this point we have:
+        // q_vec == q + Psi2LPT(1 - f2LPT/f1LPT)
+        // disp == Psi1LPT + (f2LPT/f1LPT) * Psi2LPT
+
+        if(regular_q_grid_and_2LPT) {
+          std::array<double, NDIM> q_exact;
+          for (int idim = 0; idim < NDIM; idim++) {
+            // Compute exact q
+            q_exact[idim] = std::round(q_vec[idim] * Npart_1D) / double(Npart_1D);
+            // Compute exact D2
+            disp2[idim] = (q_vec[idim] - q_exact[idim]) * v_factor_2LPT;
+            if(disp2[idim] >= 0.5) disp2[idim] -= 1.0;
+            if(disp2[idim] < -0.5) disp2[idim] += 1.0;
+            // Compute exact D1
+            disp[idim] -= f2_over_f1 * disp2[idim];
+            if(disp[idim] >= 0.5) disp[idim] -= 1.0;
+            if(disp[idim] < -0.5) disp[idim] += 1.0;
+            //...and finally wrap q_exact
+            if(q_exact[idim] >= 1.0) q_exact[idim] -= 1.0;
+            if(q_exact[idim] < 0.0) q_exact[idim] += 1.0;
+          }
+          q_vec = q_exact;
+        }
+
+        if constexpr (FML::PARTICLE::has_get_q<T>()) {
+          auto * q = FML::PARTICLE::GetLagrangianPos(part_ptr[ind]);
+          for (int idim = 0; idim < NDIM; idim++) {
+            q[idim] = q_vec[idim];
+          }
+        }
+        if(simulation_cola_LPT_order >= 1)
+            if constexpr (FML::PARTICLE::has_get_D_1LPT<T>()) {
+              auto * D = FML::PARTICLE::GetD_1LPT(part_ptr[ind]);
+              for (int idim = 0; idim < NDIM; idim++) {
+                D[idim] = disp[idim];
+              }
+            }
+        if(simulation_cola_LPT_order >= 2)
+            if constexpr (FML::PARTICLE::has_get_D_2LPT<T>()) {
+              auto * D2 = FML::PARTICLE::GetD_2LPT(part_ptr[ind]);
+              for (int idim = 0; idim < NDIM; idim++) {
+                D2[idim] = disp2[idim];
+              }
+            }
+      }
+    };
+
+    // This method does the reconstruction exactly using the data in the gadget-files
+    // For 1LPT IC this always works. For 2LPT IC this assumes the q-grid the IC 
+    // was created on is a regular grid (i.e. does not work for a glass)
+    // When using this with COLA we assume the COLA LPT order is the same as in the IC
+    // If you have 1LPT IC and want 2LPT COLA then the D2LPT fields are put to zero!
+    // Only works with scaleindependent COLA
+    const bool regular_q_grid_and_2LPT = ic_LPT_order > 1;
+    if(ic_reconstruct_exact) {
+      if(FML::ThisTask == 0) 
+        std::cout << "# Doing exact reconstruction\n";
+      FML::assert_mpi(simulation_use_scaledependent_cola == false,
+          "Exact 1LPT reconstruction only implemented for scaleindependent cola");
+      exact_1LPT_reconstruction(regular_q_grid_and_2LPT);
+      return;
+    }
 
     // Assign particles to grid
     const auto nleftright =
@@ -1766,7 +1951,7 @@ void NBodySimulation<NDIM, T>::read_ic() {
 
         // Doing 1LPT displacementfields
         // For scaledependent we also set the Lagrangian position
-        if constexpr (FML::PARTICLE::has_get_D_1LPT<T>()) {
+        if (FML::PARTICLE::has_get_D_1LPT<T>() and simulation_cola_LPT_order >= 1) {
 
             if (FML::ThisTask == 0) {
                 std::cout << "Reconstructing 1LPT potential...\n";
@@ -1812,7 +1997,7 @@ void NBodySimulation<NDIM, T>::read_ic() {
         }
 
         // Doing 2LPT displacementfields
-        if constexpr (FML::PARTICLE::has_get_D_2LPT<T>()) {
+        if (FML::PARTICLE::has_get_D_2LPT<T>() and simulation_cola_LPT_order >= 2) {
 
             if (FML::ThisTask == 0) {
                 std::cout << "Reconstructing 2LPT potential...\n";

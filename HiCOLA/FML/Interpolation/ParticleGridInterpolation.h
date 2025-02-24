@@ -514,16 +514,19 @@ namespace FML {
                 mean_mass /= double(NumPartTot);
                 norm_fac /= mean_mass;
             }
-            double mass = 1.0;
 
             // Loop over all particles and add them to the grid
-            // OpenMP will not be very good due to critical section needed in add_real
+            auto * density_raw = density.get_real_grid();
+#ifdef USE_OMP
+#pragma omp parallel for
+#endif
             for (size_t i = 0; i < NumPart; i++) {
 
                 // Particle position
                 const auto * pos = FML::PARTICLE::GetPos(const_cast<T *>(part)[i]);
 
                 // Fetch mass if this is availiable
+                double mass = 1.0;
                 if constexpr (has_mass)
                     mass = FML::PARTICLE::GetMass(part[i]);
 
@@ -569,7 +572,7 @@ namespace FML {
                 }
 
                 // Loop over all nbor cells
-                double sumweights = 0.0;
+                [[maybe_unused]] double sumweights = 0.0;
                 for (int i = 0; i < widthtondim; i++) {
                     double w = 1.0;
                     std::array<int, N> icoord;
@@ -597,10 +600,26 @@ namespace FML {
                             if (icoord[idim] < 0)
                                 icoord[idim] += Nmesh;
                         }
+
+                        // If only 1 task then we should wrap
+                        if (FML::NTasks == 1) {
+                            if (icoord[0] >= Nmesh)
+                                icoord[0] -= Nmesh;
+                            if (icoord[0] < 0)
+                                icoord[0] += Nmesh;
+                        }
                     }
 
                     // Add particle to grid
-                    density.add_real(icoord, w * norm_fac * mass);
+                    // Old version when we did not use OMP: density.add_real(icoord, w * norm_fac * mass);
+                    auto index = density.get_index_real(icoord);
+                    double mass_to_add = w * norm_fac * mass;
+#ifdef USE_OMP
+#pragma omp atomic
+#endif
+                    density_raw[index] += mass_to_add;
+                   
+                    // Sum up and unsure weights sum to unity
                     sumweights += w;
                 }
 
@@ -612,7 +631,9 @@ namespace FML {
 #endif
             }
 
-            add_contribution_from_extra_slices<N>(density);
+            // Extra slices only relevant if we have more than 1 task
+            if (FML::NTasks > 1)
+                add_contribution_from_extra_slices<N>(density);
         }
 
         template <int N, int ORDER, class T>
@@ -711,7 +732,7 @@ namespace FML {
                 // Interpolation
                 std::array<double, N> value;
                 value.fill(0.0);
-                double sumweight = 0;
+                [[maybe_unused]] double sumweight = 0;
                 for (int i = 0; i < widthtondim; i++) {
                     double w = 1.0;
                     for (int idim = 0, n = 1; idim < N; idim++, n *= ORDER) {
@@ -857,7 +878,7 @@ namespace FML {
 
                 // Interpolation
                 FloatType value = 0;
-                double sumweight = 0;
+                [[maybe_unused]] double sumweight = 0;
                 for (int i = 0; i < widthtondim; i++) {
                     double w = 1.0;
                     std::array<int, N> icoord;

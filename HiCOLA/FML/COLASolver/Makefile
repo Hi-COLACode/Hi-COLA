@@ -13,6 +13,9 @@ MPICC   = mpicxx -std=c++1z -O3 -Wall -Wextra -march=native
 # Options
 #===================================================
 
+# Number of dimensions of space
+NDIM_SPACE = 3
+
 # Use MPI 
 USE_MPI          = true
 # Use OpenMP threads
@@ -30,6 +33,10 @@ USE_GSL          = true
 # Use LUA (required to use parameterfile)
 # One can edit ReadParameters.h to do without it
 USE_LUA          = true
+# Use Healpix (required to create weak lensing maps)
+USE_HEALPIX      = false
+# Use chunkpix to store healpix maps
+USE_CHUNKPIX     = false
 
 #===================================================
 # Include and library paths
@@ -55,6 +62,14 @@ LUA_INCLUDE    = $(HOME)/local/include
 LUA_LIB        = $(HOME)/local/lib
 LUA_LINK       = -llua -ldl
 
+# HEALPIX
+HP_INCLUDE     = $(HOME)/local/Healpix_3.82_gcc/include/healpix_cxx/
+HP_LIB         = $(HOME)/local/Healpix_3.82_gcc/lib
+CFITSIO_INCLUDE = $(HOME)/local/include
+CFITSIO_LIB    = $(HOME)/local/lib
+HP_LINK_C      = -lchealpix -lcfitsio
+HP_LINK        = -lhealpix_cxx -lsharp -lcfitsio
+
 #===================================================
 # Compile up all library defines from options above
 #===================================================
@@ -62,7 +77,7 @@ LUA_LINK       = -llua -ldl
 INC     = -I$(FML_INCLUDE) 
 LIB     =
 LINK    = 
-OPTIONS = 
+OPTIONS = -DNDIM_SPACE=$(NDIM_SPACE)
 
 ifeq ($(USE_MPI),true)
 CC       = $(MPICC)
@@ -112,12 +127,22 @@ LIB     += -L$(LUA_LIB)
 LINK    += $(LUA_LINK)
 endif
 
+ifeq ($(USE_HEALPIX),true)
+OPTIONS += -DUSE_HEALPIX
+INC     += -I$(HP_INCLUDE) -I$(CFITSIO_INCLUDE)
+LIB     += -L$(HP_LIB) -L$(CFITSIO_LIB)
+LINK    += $(HP_LINK)
+ifeq ($(USE_CHUNKPIX),true)
+OPTIONS += -DUSE_CHUNKPIX
+endif
+endif
+
 #===================================================
 # Object files to be compiled
 #===================================================
 
-VPATH := $(FML_INCLUDE)/FML/Global/:$(FML_INCLUDE)/FML/Spline/:$(FML_INCLUDE)/FML/ODESolver/:$(FML_INCLUDE)/FML/GadgetUtils/:$(FML_INCLUDE)/FML/ParameterMap/:$(FML_INCLUDE)/FML/FileUtils/:src/
-OBJS = Main.o Global.o Spline.o ODESolver.o GadgetUtils.o ParameterMap.o FileUtils.o
+VPATH := $(FML_INCLUDE)/FML/Global/:$(FML_INCLUDE)/FML/Spline/:$(FML_INCLUDE)/FML/ODESolver/:$(FML_INCLUDE)/FML/GadgetUtils/:$(FML_INCLUDE)/FML/ParameterMap/:$(FML_INCLUDE)/FML/FileUtils/:src/:$(FML_INCLUDE)/FML/Math/
+OBJS = Main.o Global.o Spline.o ODESolver.o GadgetUtils.o ParameterMap.o FileUtils.o Math.o
 
 TARGETS := nbody
 all: $(TARGETS)

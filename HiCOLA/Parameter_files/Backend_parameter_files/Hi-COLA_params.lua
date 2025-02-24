@@ -1,3 +1,4 @@
+<<<<<<< HEAD:HiCOLA/Parameter_files/Backend_parameter_files/Hi-COLA_params.lua
 ------------------------------------------------------------
 -- Simulation parameter file
 -- This is a LUA script so you can write simple code
@@ -29,6 +30,16 @@ simulation_use_cola = true
 -- If gravity model has scaledependent growth. If this is false
 -- then we use the k=0 limit of the growth factors when doing COLA
 simulation_use_scaledependent_cola = true
+-- Let the particles follow the LPT trajectories during the simulation
+-- i.e. we do not compute any forces
+-- NB: for normal simulations make sure this is set to false
+if simulation_use_cola then
+  simulation_enforce_LPT_trajectories = false
+
+  -- The LPT order of COLA: 1 = 1LPT, 2 = 2LPT, 3 = 3LPT. Has to be <= ic_LPT_order
+  -- If < 1 then we turn off COLA
+  simulation_cola_LPT_order = 2
+end
 
 ------------------------------------------------------------
 -- Choose the cosmology
@@ -43,12 +54,12 @@ cosmology_OmegaCDM = 0.26067
 cosmology_Omegab = 0.04897
 -- Massive neutrino density
 cosmology_OmegaMNu = 0.0
--- Total dark energy density
-cosmology_OmegaLambda = 0.69036
+-- Curvature parameter (-k/H0^2)
+cosmology_OmegaK = 0.0
 -- Effective number of relativistic species
 cosmology_Neffective = 3.046
 -- Temperature of CMB today
-cosmology_TCMB_kelvin = 2.7260
+cosmology_TCMB_kelvin = 2.7255
 -- Hubble parameter
 cosmology_h = 0.6766
 -- Primodial amplitude
@@ -75,18 +86,25 @@ if cosmology_model == "DGP" then
   cosmology_dgp_OmegaRC = 0.11642
 end
 
--- Jordan-Brans-Dicke
-if cosmology_model == "JBD" then
-  -- The JBD parameter
-  cosmology_JBD_wBD = 1000.0
-  -- The IC is set as to produce G_N / phi(a=1) = GeffG_today
+-- Jordan-Brans-Dicke. Connection to the hi-class implementation:
+-- If hi-class is run with M_pl_today_smg = ... and normalize_G_NR = no then we should use:
+-- cosmology_JBD_wBD = 100.0
+-- cosmology_JBD_GeffG_today = (4+2*cosmology_JBD_wBD)/(3+2*cosmology_JBD_wBD) / M_pl_today_smg
+-- cosmology_JBD_density_parameter_definition = "hi-class"
+-- If we run hi-class with normalize_G_NR = yes then we need
+-- cosmology_JBD_wBD = 100.0
+-- cosmology_JBD_GeffG_today = 1.0
+-- cosmology_JBD_density_parameter_definition = "hi-class"
+if cosmology_model == "JBD" then 
+  -- The JBD parameter (wBD -> infty gives us GR)
+  cosmology_JBD_wBD = 100.0 
+  -- The value of G today ("should" by unity). We have G_N = G / phi_* where phi_* = (4+2w)/(3+2w).
+  -- G_today = G/phi(a=1) so GeffG_today = phi_*/phi(a=1) so if GeffG_today != 1.0
+  -- we effectively have a different Newtons constant
   cosmology_JBD_GeffG_today = 1.0
-  -- We require physical parameters. h is a derived quantity
-  cosmology_JBD_Omegabh2 = 0.025
-  cosmology_JBD_OmegaMNuh2 = 0.0
-  cosmology_JBD_OmegaCDMh2 = 0.12
-  cosmology_JBD_OmegaLambdah2 = 0.3
-  cosmology_JBD_OmegaKh2 = 0.0
+  -- Density parameter definition Omega = 8pi G_* rho / 3H0^2
+  -- Different choices for G_* (Gbare, Gnewton, Gtoday, hi-class)
+  cosmology_JBD_density_parameter_definition = "hi-class"
 end
 
 ------------------------------------------------------------
@@ -113,8 +131,36 @@ if gravity_model == "HiCOLA" then
   gravity_model_screening_linear_scale_hmpc = 0.2
 end
 
+-- General Geff/G(a) models (mu-parametrization)
+if gravity_model == "Geff" then 
+  -- File with the format [a, Geff/G(a)]
+  gravity_model_geff_geffofa_filename = "GeffoverG_of_a.txt"
+end
+
+-- (m(a),beta(a)) models
+if gravity_model == "mbeta" then 
+  
+  -- The parameters defining m(a) and beta(a)
+  -- In this example implementation we have beta(a) = beta0 a^n, m(a) = m0*H0*a^m
+  -- where (beta0, n, m0, m) are the parameters
+  gravity_model_mbeta_params = {0.5, 0.0, 1e3, -2.0}
+
+  -- Approximate screening model (otherwise linear)
+  gravity_model_screening = true
+  -- Screening efficiency (1.0 is standard)
+  -- This can be used to increase or decrease the amount of screening if using gravity_model_screening
+  gravity_model_screening_efficiency = 1.0
+  -- Combine screeneed solution with linear solution to enforce correct
+  -- linear evolution on large scales
+  gravity_model_screening_enforce_largescale_linear = true
+  -- The fourier scale for which we use the linear solution for k < k*
+  -- and the screened solution for k > k*
+  gravity_model_screening_linear_scale_hmpc = 0.1
+
+end
+
 -- Hu-Sawicky f(R) model
-if gravity_model == "f(R)" then
+if gravity_model == "f(R)" then 
   -- f_R0 value
   gravity_model_fofr_fofr0 = 1e-5
   -- The index n
@@ -124,13 +170,15 @@ if gravity_model == "f(R)" then
   gravity_model_fofr_exact_solution = false
   -- Approximate screening model (otherwise linear)
   gravity_model_screening = true
+  -- Screening efficiency (1.0 is standard)
+  -- This can be used to increase or decrease the amount of screening if using gravity_model_screening
+  gravity_model_screening_efficiency = 1.0
   -- Combine screeneed solution with linear solution to enforce correct
   -- linear evolution on large scales
-  gravity_model_screening_enforce_largescale_linear = false
+  gravity_model_screening_enforce_largescale_linear = true
   -- The fourier scale for which we use the linear solution for k < k*
   -- and the screened solution for k > k*
   gravity_model_screening_linear_scale_hmpc = 0.1
-
 
   -- Options for the multigrid solver in case we solve exact equation:
   multigrid_solver_residual_convergence = 1e-7
@@ -142,7 +190,7 @@ if gravity_model == "f(R)" then
 end
 
 -- Symmetron model
-if gravity_model == "Symmetron" then
+if gravity_model == "Symmetron" then 
   -- Symmetry breaking scalefactor (no fifth-force for a < assb)
   gravity_model_symmetron_assb = 0.333
   -- Coupling strength relative to gravity
@@ -154,6 +202,9 @@ if gravity_model == "Symmetron" then
   gravity_model_symmetron_exact_solution = false
   -- Approximate screening model (otherwise linear)
   gravity_model_screening = false
+  -- Screening efficiency (1.0 is standard)
+  -- This can be used to increase or decrease the amount of screening if using gravity_model_screening
+  gravity_model_screening_efficiency = 1.0
   -- Combine screeneed solution with linear solution to enforce correct
   -- linear evolution on large scales
   gravity_model_screening_enforce_largescale_linear = false
@@ -266,6 +317,7 @@ ic_LPT_order = 2
 -- transferinfofile (file containing paths to a bunch of T(k,z) files from CAMB)
 -- read_particles   (read GADGET file and use that for sim - reconstruct LPT fields if COLA)
 ic_type_of_input = "powerspectrum"
+ic_type_of_input_fileformat = "CAMB" -- Format for transferinfofile: CAMB, CLASS (run this with format=camb), AXIONCAMB. Easy to add more in CAMBReader.h
 -- Path to the input (NB: the LCDM spectrum below is an example that comes with Hi-COLA)
 ic_input_filename = "<install_dir>/Hi-COLA/HiCOLA/Parameter_files/Backend_parameter_files/LCDM_1306dot3219_matterpower_z0.000.dat"
 -- The redshift of the P(k), T(k) we give as input
@@ -291,7 +343,7 @@ end
 
 -- For reading IC from an external file
 -- If COLA then we reconstruct the LPT fields
-if ic_random_field_type == "read_particles" then
+if ic_random_field_type == "read_particles" or ic_random_field_type == "read_phases" then
   -- Path to GADGET files
   ic_reconstruct_gadgetfilepath = "<existing_simulation_snapshot>/gadget"
   -- COLA settings to (naively) reconstruct the LPT fields:
@@ -304,6 +356,15 @@ if ic_random_field_type == "read_particles" then
   -- some reason you want ic_nmesh to be larger than the grid it was created on)
   ic_reconstruct_smoothing_filter = "sharpk"
   ic_reconstruct_dimless_smoothing_scale = 1.0 /(2.0 * math.pi * ic_nmesh / 2)
+    
+  -- This method does the reconstruction exactly using the data in the gadget-files
+  -- Overrides the options above
+  -- For 1LPT IC this always works. For 2LPT IC this assumes the q-grid the IC
+  -- was created on is a regular grid (i.e. does not work for a glass)
+  -- When using this with COLA we assume the COLA LPT order is the same as in the IC ( set in ic_LPT_order )
+  -- If you have 1LPT IC and want 2LPT COLA then the D2LPT fields are simply put to zero
+  -- Only works with scaleindependent COLA
+  ic_reconstruct_exact = true
 end
 
 ------------------------------------------------------------
@@ -313,12 +374,68 @@ end
 force_nmesh = 3072
 -- Density assignment method: NGP, CIC, TSC, PCS, PQS
 force_density_assignment_method = "CIC"
--- The kernel to use when solving the Poisson equation
-force_kernel = "continuous_greens_function"
+-- The kernel to use for D^2 when solving the Poisson equation
+-- Options: (fiducial = continuous, discrete_2pt, discrete_4pt)
+force_greens_function_kernel = "fiducial"
+-- The kernel to use for D when computing forces (with fourier)
+-- Options: (fiducial = continuous, discrete_2pt, discrete_4pt)
+force_gradient_kernel = "fiducial"
 -- Include the effects of massive neutrinos when computing
 -- the density field (density of mnu is the linear prediction)
 -- Requires: transferinfofile above (we need all T(k,z))
 force_linear_massive_neutrinos = true
+
+-- Experimental feature: Use finite difference on the gravitational 
+-- potential to compute forces instead of using Fourier transforms.
+force_use_finite_difference_force = false
+force_finite_difference_stencil_order = 4
+
+------------------------------------------------------------
+-- Lightcone option
+------------------------------------------------------------
+lightcone = false
+if lightcone then
+  -- The origin of the lightcone in units of the boxsize (e.g. 0.5,0.5,0.5 is the center of the box in 3D)
+  plc_pos_observer = {0.0, 0.0, 0.0}
+  -- The boundary region we use around the shell to ensure we get all particles belonging to the lightcone
+  plc_boundary_mpch = 20.0
+  -- The redshift we turn on the lightcone
+  plc_z_init = 1.0
+  -- The redshift when we stop recording the lightcone
+  plc_z_finish = 0.0
+  -- Replicate the box to match the sky coverage we want?
+  -- If not then we need to make sure boxsize is big enough to cover the sky at z_init
+  plc_use_replicas = true
+  -- Number of dimensions where we do replicas in both + and - direction
+  -- The sky fraction is fsky = 1/2^(ndim_rep - NDIM)
+  -- For 3D: if 0 we get an octant and 3 we get the full sky
+  plc_ndim_rep = 3
+  -- Output gadget (NB: with output_in_batches = true then NumPartTotal == NumPart in the gadget files as we don't have an
+  -- easy way to compute this on the fly)
+  plc_output_gadgetfile = false
+  -- Output ascii
+  plc_output_asciifile = false
+  -- To save memory output in batches (we only alloc as many particles as we already have to reduce memory consumption)
+  plc_output_in_batches = true
+
+  -- Make delta(z, theta) maps? This is Healpix maps in 3D where we always use the RING scheme for the maps
+  -- For 2D we use output textfiles with the binning
+  plc_make_onion_density_maps = true
+  if plc_make_onion_density_maps then
+    -- Roughly the size of the size of the bins you want in a
+    -- The exact value we use will depend on the time-steps (but not bigger than 2x this value)
+    -- At minimum we make one map per timestep
+    plc_da_maps = 0.025
+    -- Number of pixels (npix = 4*nside^2). The largest lmax we can get from
+    -- the maps is lmax ~ 2nside
+    plc_nside = 512
+    -- Use chunkpix. Only useful for very sparse maps
+    plc_use_chunkpix = false
+    if plc_use_chunkpix then
+      plc_nside_chunks = 256
+    end
+  end
+end
 
 ------------------------------------------------------------
 -- On the fly analysis
@@ -336,6 +453,8 @@ fof_linking_length = 0.2 / particle_Npart_1D
 -- Limit the maximum grid to use to bin particles to
 -- to speed up the fof linking. 0 means we let the code choose this
 fof_nmesh_max = 0
+-- The size of the buffer region larger than largest halo, 2-3Mpc/h should be fine)
+fof_buffer_length_mpch = 3.0
 
 ------------------------------------------------------------
 -- Power-spectrum evaluation

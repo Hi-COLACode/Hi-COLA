@@ -31,6 +31,10 @@ void read_parameterfile(ParameterMap & param, std::string filename) {
     //=============================================================
     param["simulation_use_cola"] = lfp.read_bool("simulation_use_cola", false, OPTIONAL);
     param["simulation_use_scaledependent_cola"] = lfp.read_bool("simulation_use_scaledependent_cola", true, OPTIONAL);
+    if (param.get<bool>("simulation_use_cola")) {
+        param["simulation_enforce_LPT_trajectories"] = lfp.read_bool("simulation_enforce_LPT_trajectories", false, OPTIONAL);
+        param["simulation_cola_LPT_order"] = lfp.read_int("simulation_cola_LPT_order", 2, OPTIONAL);
+    }
 
     //=============================================================
     // Cosmology options
@@ -39,7 +43,7 @@ void read_parameterfile(ParameterMap & param, std::string filename) {
     param["cosmology_Omegab"] = lfp.read_double("cosmology_Omegab", 0.0, REQUIRED);
     param["cosmology_OmegaMNu"] = lfp.read_double("cosmology_OmegaMNu", 0.0, OPTIONAL);
     param["cosmology_OmegaCDM"] = lfp.read_double("cosmology_OmegaCDM", 0.0, REQUIRED);
-    param["cosmology_OmegaLambda"] = lfp.read_double("cosmology_OmegaLambda", 0.0, REQUIRED);
+    param["cosmology_OmegaK"] = lfp.read_double("cosmology_OmegaK", 0.0, REQUIRED);
     param["cosmology_Neffective"] = lfp.read_double("cosmology_Neffective", 3.046, REQUIRED);
     param["cosmology_TCMB_kelvin"] = lfp.read_double("cosmology_TCMB_kelvin", 2.7255, REQUIRED);
     param["cosmology_h"] = lfp.read_double("cosmology_h", 0.0, REQUIRED);
@@ -49,12 +53,8 @@ void read_parameterfile(ParameterMap & param, std::string filename) {
     //=============================================================
     if (param.get<std::string>("cosmology_model") == "JBD") {
         param["cosmology_JBD_wBD"] = lfp.read_double("cosmology_JBD_wBD", 10000.0, REQUIRED);
-        param["cosmology_JBD_OmegaLambdah2"] = lfp.read_double("cosmology_JBD_OmegaLambdah2", 0.0, REQUIRED);
-        param["cosmology_JBD_OmegaCDMh2"] = lfp.read_double("cosmology_JBD_OmegaCDMh2", 0.0, REQUIRED);
-        param["cosmology_JBD_OmegaKh2"] = lfp.read_double("cosmology_JBD_OmegaKh2", 0.0, REQUIRED);
-        param["cosmology_JBD_OmegaMNuh2"] = lfp.read_double("cosmology_JBD_OmegaMNuh2", 0.0, REQUIRED);
-        param["cosmology_JBD_Omegabh2"] = lfp.read_double("cosmology_JBD_Omegabh2", 0.0, REQUIRED);
         param["cosmology_JBD_GeffG_today"] = lfp.read_double("cosmology_JBD_GeffG_today", 1.0, OPTIONAL);
+        param["cosmology_JBD_density_parameter_definition"] = lfp.read_string("cosmology_JBD_density_parameter_definition", "hi-class", OPTIONAL);
     }
 
     //=============================================================
@@ -92,6 +92,24 @@ void read_parameterfile(ParameterMap & param, std::string filename) {
         if (param.get<std::string>("gravity_model") == "Geff") {
             param["gravity_model_geff_geffofa_filename"] = lfp.read_string("gravity_model_geff_geffofa_filename", "", REQUIRED);
         }
+        
+        //=============================================================
+        // (m(a),beta(a)) model
+        //=============================================================
+        if (param.get<std::string>("gravity_model") == "mbeta") {
+            param["gravity_model_mbeta_params"] = lfp.read_number_array<double>("gravity_model_mbeta_params", {}, REQUIRED);
+
+            // Screening approximation
+            param["gravity_model_screening"] = lfp.read_bool("gravity_model_screening", true, OPTIONAL);
+            if (param.get<bool>("gravity_model_screening")) {
+                param["gravity_model_screening_enforce_largescale_linear"] =
+                    lfp.read_bool("gravity_model_screening_enforce_largescale_linear", false, OPTIONAL);
+                param["gravity_model_screening_linear_scale_hmpc"] =
+                    lfp.read_double("gravity_model_screening_linear_scale_hmpc", 0.05, OPTIONAL);
+                param["gravity_model_screening_efficiency"] =
+                    lfp.read_double("gravity_model_screening_efficiency", 1.0, OPTIONAL);
+            }
+        }
 
         //=============================================================
         // f(R) model
@@ -107,6 +125,8 @@ void read_parameterfile(ParameterMap & param, std::string filename) {
                     lfp.read_bool("gravity_model_screening_enforce_largescale_linear", false, OPTIONAL);
                 param["gravity_model_screening_linear_scale_hmpc"] =
                     lfp.read_double("gravity_model_screening_linear_scale_hmpc", 0.05, OPTIONAL);
+                param["gravity_model_screening_efficiency"] =
+                    lfp.read_double("gravity_model_screening_efficiency", 1.0, OPTIONAL);
             }
 
             // Solving the exact equation
@@ -235,6 +255,7 @@ void read_parameterfile(ParameterMap & param, std::string filename) {
     param["ic_random_generator"] = lfp.read_string("ic_random_generator", "MT19937", OPTIONAL);
     param["ic_nmesh"] = lfp.read_int("ic_nmesh", 0, REQUIRED);
     param["ic_type_of_input"] = lfp.read_string("ic_type_of_input", "powerspectrum", REQUIRED);
+    param["ic_type_of_input_fileformat"] = lfp.read_string("ic_type_of_input_fileformat", "CAMB", OPTIONAL);
     param["ic_input_filename"] = lfp.read_string("ic_input_filename", "", REQUIRED);
     param["ic_input_redshift"] = lfp.read_double("ic_input_redshift", 0.0, REQUIRED);
     param["ic_fix_amplitude"] = lfp.read_bool("ic_fix_amplitude", true, OPTIONAL);
@@ -266,6 +287,7 @@ void read_parameterfile(ParameterMap & param, std::string filename) {
         param["ic_reconstruct_dimless_smoothing_scale"] =
             lfp.read_double("ic_reconstruct_dimless_smoothing_scale", 0.0, OPTIONAL);
         param["ic_reconstruct_interlacing"] = lfp.read_bool("ic_reconstruct_interlacing", false, OPTIONAL);
+        param["ic_reconstruct_exact"] = lfp.read_bool("ic_reconstruct_exact", false, OPTIONAL);
     }
 
     //=============================================================
@@ -273,8 +295,38 @@ void read_parameterfile(ParameterMap & param, std::string filename) {
     //=============================================================
     param["force_nmesh"] = lfp.read_int("force_nmesh", 0, REQUIRED);
     param["force_density_assignment_method"] = lfp.read_string("force_density_assignment_method", "CIC", OPTIONAL);
-    param["force_kernel"] = lfp.read_string("force_kernel", "continuous_greens_function", OPTIONAL);
+    param["force_greens_function_kernel"] = lfp.read_string("force_greens_function_kernel", "fiducial", OPTIONAL);
+    param["force_gradient_kernel"] = lfp.read_string("force_gradient_kernel", "fiducial", OPTIONAL);
     param["force_linear_massive_neutrinos"] = lfp.read_bool("force_linear_massive_neutrinos", false, OPTIONAL);
+
+    // Experimental option
+    param["force_use_finite_difference_force"] = lfp.read_bool("force_use_finite_difference_force", false, lfp.optional);
+    param["force_finite_difference_stencil_order"] = lfp.read_int("force_finite_difference_stencil_order", 4, lfp.optional);
+    
+    //=============================================================
+    // Lightcone
+    //=============================================================
+    param["lightcone"] = lfp.read_bool("lightcone", false, OPTIONAL);
+    if (param.get<bool>("lightcone")) {
+        param["plc_pos_observer"] = lfp.read_number_array<double>("plc_pos_observer", {0.0, 0.0, 0.0}, OPTIONAL);
+        param["plc_z_init"] = lfp.read_double("plc_z_init", 0.0, OPTIONAL);
+        param["plc_z_finish"] = lfp.read_double("plc_z_finish", 0.0, OPTIONAL);
+        param["plc_boundary_mpch"] = lfp.read_double("plc_boundary_mpch", 20.0, OPTIONAL);
+        param["plc_use_replicas"] = lfp.read_bool("plc_use_replicas", 0, OPTIONAL);
+        param["plc_ndim_rep"] = lfp.read_int("plc_ndim_rep", 0, OPTIONAL);
+        param["plc_output_gadgetfile"] = lfp.read_bool("plc_output_gadgetfile", false, OPTIONAL);
+        param["plc_output_asciifile"] = lfp.read_bool("plc_output_asciifile", false, OPTIONAL);
+        param["plc_output_in_batches"] = lfp.read_bool("plc_output_in_batches", false, OPTIONAL);
+        param["plc_make_onion_density_maps"] = lfp.read_bool("plc_make_onion_density_maps", false, OPTIONAL);
+        if (param.get<bool>("plc_make_onion_density_maps")) {
+            param["plc_nside"] = lfp.read_int("plc_nside", 256, OPTIONAL);
+            param["plc_da_maps"] = lfp.read_double("plc_da_maps", 0.02, OPTIONAL);
+            param["plc_use_chunkpix"] = lfp.read_bool("plc_use_chunkpix", false, OPTIONAL);
+            if (param.get<bool>("plc_use_chunkpix")) {
+                param["plc_nside_chunks"] = lfp.read_int("plc_nside_chunks", 8, OPTIONAL);
+            }
+        }
+    }
 
     //=============================================================
     // Output
