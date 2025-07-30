@@ -1,0 +1,4 @@
+numpy
+scipy>=1.12
+furo
+sphinx-simplepdf

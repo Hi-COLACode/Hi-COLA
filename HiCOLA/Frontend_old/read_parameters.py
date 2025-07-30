@@ -1,9 +1,10 @@
 from configobj import ConfigObj
 import sympy as sym
 import numpy as np
-import HiCOLA.Frontend.expression_builder as eb
+import HiCOLA.Frontend_old.expression_builder as eb
 from HiCOLA.Utilities.Other.support import generate_scan_array as gsa
 from HiCOLA.Utilities.Other.support import make_scan_array as msa
+
 
 def read_in_parameters(horndeski_path, numerical_path):
     read_out = {}
@@ -26,7 +27,6 @@ def read_in_parameters(horndeski_path, numerical_path):
     if numerical_read["Omega_m0"] == "None":
         Omega_b0h2 = numerical_read.as_float("Omega_b0h2")
         Omega_c0h2 = numerical_read.as_float("Omega_c0h2")
-
 
         Omega_m0 = Omega_b0h2/h/h + Omega_c0h2/h/h
     else:
@@ -450,14 +450,3 @@ def read_in_scan_parameters(path_to_scan_parameters):
     read_out_dict.update(parameters_dict)
 
     return read_out_dict
-
-
-#####
-# float_vars = ['a','b1','Om','Ol','Or']
-# integer_vars = ['integer constant']
-
-# params = params_read.copy()
-# for key in float_vars:
-#     params[key] = params_read.as_float(key)
-# for key in integer_vars:
-#     params[key] = params_read.as_int(key)

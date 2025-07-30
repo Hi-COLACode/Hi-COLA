@@ -11,26 +11,11 @@ Created on Fri Jul  9 01:55:07 2021
 ###################
 
 import numpy as np
-import scipy.integrate as integrate
-from scipy.integrate import odeint
-from scipy.optimize import fsolve
-from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.cm as cm
-from matplotlib.widgets import Slider, Button, RadioButtons
-from matplotlib.colors import LogNorm
-from matplotlib.ticker import LogFormatterMathtext
-from HiCOLA.Frontend import expression_builder as eb
-import HiCOLA.Frontend.numerical_solver as ns
-import sympy as sym
-import sys
-import itertools as it
-import time
+from HiCOLA.Frontend_old import expression_builder as eb
+import HiCOLA.Frontend_old.numerical_solver as ns
 import os
 from HiCOLA.Utilities.Other import support as sp
-from configobj import ConfigObj
-from HiCOLA.Frontend.read_parameters import read_in_parameters
+from HiCOLA.Frontend_old.read_parameters import read_in_parameters
 from argparse import ArgumentParser
 
 to_exec = eb.declare_symbols()

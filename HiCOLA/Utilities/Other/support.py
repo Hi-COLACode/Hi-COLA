@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from scipy.integrate import odeint
 from scipy.optimize import fsolve
 import sys
-from HiCOLA.Frontend.numerical_solver import comp_E_LCDM, comp_param_close
-import matplotlib.pyplot as plt
+from HiCOLA.Frontend_old.numerical_solver import comp_E_LCDM, comp_param_close
 import itertools as it
 
 # writing to file

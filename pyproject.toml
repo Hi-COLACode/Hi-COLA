@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>61.0.0", "wheel", "numpy>=1.22,<1.27"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Hi-COLA"
+description = "Hi-COLA simulates cosmological large-scale structure for a wide class of Horndeski theories. Built using a COLA solver forked from FML by HAWinther. "
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name="Hi-COLA team", email="team.hicola@gmail.com"}]
+maintainers = [{name = "Hi-COLA team", email="team.hicola@gmail.com"}]
+keywords = ["astronomy", "cosmology", "modified gravity", "horndeski"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "sympy",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/Hi-COLACode/Hi-COLA"
+Repository = "https://github.com/Hi-COLACode/Hi-COLA"
+Documentation = "https://github.com/Hi-COLACode/Hi-COLA"
+"Bug Tracker" = "https://github.com/Hi-COLACode/Hi-COLA/issues"
+Changelog = "https://github.com/Hi-COLACode/Hi-COLA/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = ["black", "flake8", "ipython", "jupyter", "mypy"]
+docs = ["numpydoc", "sphinx", "sphinx-rtd-theme"]
+test = [
+    "nose",
+    "pytest>=6.0",
+    "pytest-cov"
+]
+
+[tool.setuptools.dynamic]
+version = {file = ["VERSION"]}
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["build", "docs", "tests", "tutorials"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+skysegmentor = ["*.json", "*.md", "*.txt"]

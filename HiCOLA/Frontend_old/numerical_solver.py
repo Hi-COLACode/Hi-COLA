@@ -4,61 +4,47 @@
 
 import numpy as np
 import scipy.integrate as integrate
-from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
-from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.cm as cm
-from matplotlib.widgets import Slider, Button, RadioButtons
-from matplotlib.colors import LogNorm
-from matplotlib.ticker import LogFormatterMathtext
-from HiCOLA.Frontend.expression_builder import *
-import sympy as sym
-import sys
-import itertools as it
-import time
-import os
+from HiCOLA.Frontend_old.expression_builder import *
 from HiCOLA.Utilities.Other.suppressor import *
-
 
 ##########################
 # Cosmological functions #
 ##########################
 
-def comp_H_LCDM(z, Omega_r0, Omega_m0, H0):
-    Omega_L0 = 1.-Omega_m0-Omega_r0
-    H = H0*np.sqrt(Omega_m0*(1.+z)**3. + Omega_r0*(1.+z)**4. + Omega_L0)
-    return H
+# def comp_H_LCDM(z, Omega_r0, Omega_m0, H0):
+#     Omega_L0 = 1.-Omega_m0-Omega_r0
+#     H = H0*np.sqrt(Omega_m0*(1.+z)**3. + Omega_r0*(1.+z)**4. + Omega_L0)
+#     return H
 
-def comp_E_LCDM(z, Omega_r0, Omega_m0):
-    Omega_L0 = 1.-Omega_m0-Omega_r0
-    E = np.sqrt(Omega_m0*(1.+z)**3. + Omega_r0*(1.+z)**4. + Omega_L0)
-    return E
+# def comp_E_LCDM(z, Omega_r0, Omega_m0):
+#     Omega_L0 = 1.-Omega_m0-Omega_r0
+#     E = np.sqrt(Omega_m0*(1.+z)**3. + Omega_r0*(1.+z)**4. + Omega_L0)
+#     return E
 
-def comp_E_LCDM_DE(z, Omega_r0, Omega_m0):
-    Omega_L0 = 1.-Omega_m0-Omega_r0
-    E = np.sqrt(Omega_m0*(1.+z)**3. + Omega_r0*(1.+z)**4. + Omega_L0)
-    return E
+# def comp_E_LCDM_DE(z, Omega_r0, Omega_m0):
+#     Omega_L0 = 1.-Omega_m0-Omega_r0
+#     E = np.sqrt(Omega_m0*(1.+z)**3. + Omega_r0*(1.+z)**4. + Omega_L0)
+#     return E
 
-def comp_Omega_r_LCDM(z, Omega_r0, Omega_m0):
-    Omega_L0 = 1.-Omega_m0-Omega_r0
-    E = comp_E_LCDM(z, Omega_r0, Omega_m0)
-    Omega_r = Omega_r0*(1.+z)**4./E/E
-    return Omega_r
+# def comp_Omega_r_LCDM(z, Omega_r0, Omega_m0):
+#     Omega_L0 = 1.-Omega_m0-Omega_r0
+#     E = comp_E_LCDM(z, Omega_r0, Omega_m0)
+#     Omega_r = Omega_r0*(1.+z)**4./E/E
+#     return Omega_r
 
-def comp_Omega_m_LCDM(z, Omega_r0, Omega_m0):
-    Omega_L0 = 1.-Omega_m0-Omega_r0
-    E = comp_E_LCDM(z, Omega_r0, Omega_m0)
-    Omega_m = Omega_m0*(1.+z)**3./E/E
-    return Omega_m
+# def comp_Omega_m_LCDM(z, Omega_r0, Omega_m0):
+#     Omega_L0 = 1.-Omega_m0-Omega_r0
+#     E = comp_E_LCDM(z, Omega_r0, Omega_m0)
+#     Omega_m = Omega_m0*(1.+z)**3./E/E
+#     return Omega_m
 
-def comp_Omega_L_LCDM(z, Omega_r0, Omega_m0):
-    Omega_L0 = 1.-Omega_m0-Omega_r0
-    E = comp_E_LCDM(z, Omega_r0, Omega_m0)
-    Omega_L = Omega_L0/E/E
-    return Omega_L
+# def comp_Omega_L_LCDM(z, Omega_r0, Omega_m0):
+#     Omega_L0 = 1.-Omega_m0-Omega_r0
+#     E = comp_E_LCDM(z, Omega_r0, Omega_m0)
+#     Omega_L = Omega_L0/E/E
+#     return Omega_L
 
 def comp_Omega_DE_LCDM(x, Omega_r0, Omega_m0):
     Omega_DE0 = 1. - Omega_m0 - Omega_r0
@@ -77,22 +63,22 @@ def comp_Omega_DE_prime_LCDM(E_prime_E, Omega_DE):
     Omega_DE_prime = -2.*E_prime_E*Omega_DE
     return Omega_DE_prime
 
-def comp_alpha_M_propto_Omega_DE_LCDM(c_M, Omega_DE):
-    alpha_M_DE = c_M*Omega_DE
-    return alpha_M_DE
+# def comp_alpha_M_propto_Omega_DE_LCDM(c_M, Omega_DE):
+#     alpha_M_DE = c_M*Omega_DE
+#     return alpha_M_DE
 
-def comp_alpha_M_prime_propto_Omega_DE_LCDM(c_M, Omega_DE_prime):
-    alpha_M_prime_DE = c_M*Omega_DE_prime
-    return alpha_M_prime_DE
+# def comp_alpha_M_prime_propto_Omega_DE_LCDM(c_M, Omega_DE_prime):
+#     alpha_M_prime_DE = c_M*Omega_DE_prime
+#     return alpha_M_prime_DE
 
-def alpha_M_int_propto_Omega_DE_LCDM(x, Omega_r0, Omega_m0, c_M):
-    Omega_DE = comp_Omega_DE_LCDM(x, Omega_r0, Omega_m0)
-    alpha_M_int = c_M * Omega_DE
-    return alpha_M_int
+# def alpha_M_int_propto_Omega_DE_LCDM(x, Omega_r0, Omega_m0, c_M):
+#     Omega_DE = comp_Omega_DE_LCDM(x, Omega_r0, Omega_m0)
+#     alpha_M_int = c_M * Omega_DE
+#     return alpha_M_int
 
-def comp_Meffsq_x2_x1_propto_Omega_DE_LCDM(x1, x2, Omega_r0, Omega_m0, c_M):
-    Meffsq_x2_x1 = np.exp(integrate.quad(alpha_M_int_propto_Omega_DE_LCDM, x1, x2, args=(Omega_r0, Omega_m0, c_M))[0])
-    return Meffsq_x2_x1
+# def comp_Meffsq_x2_x1_propto_Omega_DE_LCDM(x1, x2, Omega_r0, Omega_m0, c_M):
+#     Meffsq_x2_x1 = np.exp(integrate.quad(alpha_M_int_propto_Omega_DE_LCDM, x1, x2, args=(Omega_r0, Omega_m0, c_M))[0])
+#     return Meffsq_x2_x1
 
 def comp_Omega_r_prime(Omega_r, E, E_prime):
     E_prime_E = E_prime/E
@@ -163,14 +149,12 @@ def comp_param_close(fried_closure_lambda, cl_declaration, E0, phi_prime0, Omega
 
 def comp_primes(x, Y, E0, Omega_r0, Omega_m0, Omega_l0, E_prime_E_lambda, E_prime_E_safelambda, phi_primeprime_lambda, phi_primeprime_safelambda, A_lambda, cl_declaration, parameters,threshold=1e-3,GR_flag=False): #x, Y swapped for solve_ivp ###ADD LAMBDA FUNCTION AS ARGUMENT###
 
-
     phi_primeY, EUY, Omega_rY, Omega_mY, Omega_lY = Y
     A_value = A_lambda(EUY,phi_primeY,*parameters)
     if A_value - abs(A_value) == 0:
         A_sign = 1.
     elif A_value - abs(A_value) != 0:
         A_sign = -1.
-
 
     if (abs(A_value) >= threshold and GR_flag==False) or (threshold==0. and GR_flag==False):
         E_prime_E_evaluated = E_prime_E_lambda(EUY,phi_primeY,Omega_rY,Omega_lY,*parameters)
@@ -195,13 +179,13 @@ def comp_primes(x, Y, E0, Omega_r0, Omega_m0, Omega_l0, E_prime_E_lambda, E_prim
     Omega_l_prime = comp_Omega_l_prime(Omega_l0,EY, EYprime)
     return [phi_primeprime_evaluated, E_prime_evaluated, Omega_r_prime, Omega_m_prime, Omega_l_prime]
 
+
 def chi_over_delta(a_arr, E_arr, calB_arr, calC_arr, Omega_m0): #the E_arr is actual E, not U! Convert U_arr to E_arr!
     chioverdelta = np.array(calB_arr)*np.array(calC_arr)*Omega_m0/np.array(E_arr)/np.array(E_arr)/np.array(a_arr)/np.array(a_arr)/np.array(a_arr)
     return chioverdelta
 
 
 def run_solver(read_out_dict):
-
 
     [Omega_r0, Omega_m0, Omega_l0] = read_out_dict['cosmological_parameters']
     [Hubble0, phi_prime0] = read_out_dict['initial_conditions']
@@ -231,8 +215,6 @@ def run_solver(read_out_dict):
     x_arr_inv = x_arr[::-1]
     a_arr_inv = a_arr[::-1]
 
-
-
     if GR_flag is True:
         phi_prime0 = 0.
 
@@ -257,7 +239,6 @@ def run_solver(read_out_dict):
     if cl_declaration[0] == 'parameters':
         parameters[cl_declaration[1]] = cl_var
         Y0 = [phi_prime0,Hubble0,Omega_r0,Omega_m0,Omega_l0]
-
 
     if suppression_flag is True:
         with stdout_redirected():
@@ -293,7 +274,6 @@ def run_solver(read_out_dict):
     for Ev, phiprimev in zip(Hubble_arr,phi_prime_arr):
         Omega_phi_arr.append(omega_phi_lambda(Ev,phiprimev,*parameters))
 
-
     Omega_DE_arr = []
     Omega_phi_diff_arr = []
     Omega_r_prime_arr = []
@@ -305,7 +285,6 @@ def run_solver(read_out_dict):
         Omega_r_prime_arr.append(comp_Omega_r_prime(Omega_rv, Ev, E_primev))
         Omega_m_prime_arr.append(comp_Omega_m_prime(Omega_mv, Ev, E_primev))
         Omega_l_prime_arr.append(comp_Omega_l_prime(Omega_l0,Ev, E_primev))
-
 
     array_output = []
     for i in [a_arr_inv, Hubble_arr, E_prime_E_arr, Hubble_prime_arr, phi_prime_arr,  phi_primeprime_arr, Omega_r_arr, Omega_m_arr, Omega_DE_arr, Omega_l_arr, Omega_phi_arr, Omega_phi_diff_arr, Omega_r_prime_arr, Omega_m_prime_arr, Omega_l_prime_arr, A_arr]:
