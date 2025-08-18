@@ -1,6 +1,7 @@
 import numpy as np
 import sympy as sym
 
+from . import lcdm, redshift
 
 class HorndeskiModel:
 
@@ -43,6 +44,17 @@ class HorndeskiModel:
         self.symfunc = {}
         # Lambda functions
         self.lambda_funcs = {}
+        # Parameter values
+        self.params = {}
+        self.params['mass_ratios'] = {
+            'M_pG4': 1, 
+            'M_KG4': 1, 
+            'M_G3s': 1, 
+            'M_sG4': 1, 
+            'M_G3G4': 1, 
+            'M_Ks': 1, 
+            'M_gp': 1 
+        }
 
     
     def _check_sym_key(self, key):
@@ -578,6 +590,38 @@ class HorndeskiModel:
         self.get_calC()
         self.symfunc['coupling'] = -1.*(self.symfunc['alpha1'] + self.symfunc['alpha2'])*self.symfunc['calC']
 
+    
+    def set_mass_ratios(self, M_pG4=1., M_KG4=1., M_G3s=1., M_sG4=1., M_G3G4=1., M_Ks=1., M_gp=1.):
+        """
+        Allows the users to assign specific values to mass ratios, those unchanged will be set to 1.
+
+        Parameters
+        ----------
+        M_pG4 : float, optional
+        
+        M_KG4 : float, optional
+
+        M_G3s : float, optional
+
+        M_sG4 : float, optional
+
+        M_G3G4 : float, optional
+
+        M_Ks : float, optional
+
+        M_gp : float, optional
+
+        """
+        self.params['mass_ratios'] = {
+            'M_pG4': M_pG4, 
+            'M_KG4': M_KG4, 
+            'M_G3s': M_G3s, 
+            'M_sG4': M_sG4, 
+            'M_G3G4': M_G3G4, 
+            'M_Ks': M_Ks, 
+            'M_gp': M_gp 
+        }
+
 
     def construct_model(self):
         """
@@ -587,56 +631,68 @@ class HorndeskiModel:
         if self._check_symfunc_keys(['K', 'G3', 'G4']) == False:
             assert False, 'Functions for K, G3 and G4 remain undefined.'
         else:
+            self._get_K_G3_G4_syms()
             self.get_K_derivatives()
             self.get_G3_derivatives()
             self.get_G4_derivatives()
 
             Xreal = 0.5*(self.sym['E']**2.)*self.sym['phiprime']**2.
 
+            sub_dict = {
+                self.sym['X']: Xreal,
+                self.sym['M_pG4']: self.params['mass_ratios']['M_pG4'],
+                self.sym['M_KG4']: self.params['mass_ratios']['M_KG4'],
+                self.sym['M_G3s']: self.params['mass_ratios']['M_G3s'],
+                self.sym['M_sG4']: self.params['mass_ratios']['M_sG4'],
+                self.sym['M_G3G4']: self.params['mass_ratios']['M_G3G4'],
+                self.sym['M_Ks']: self.params['mass_ratios']['M_Ks'],
+                self.sym['M_gp']: self.params['mass_ratios']['M_gp']
+            }
+
             self.get_EprimeE()
-            EprimeE = self.symfunc['EprimeE'].subs(self.sym['X'], Xreal)
+            EprimeE = self.symfunc['EprimeE'].subs(sub_dict)
 
             self.get_EprimeE_safe()
-            EprimeE_safe = self.symfunc['EprimeE_safe'].subs(self.sym['X'], Xreal)
+            EprimeE_safe = self.symfunc['EprimeE_safe'].subs(sub_dict)
 
             self.get_phiprimeprime()
-            phiprimeprime = self.symfunc['phiprimeprime'].subs(self.sym['X'], Xreal)
+            phiprimeprime = self.symfunc['phiprimeprime'].subs(sub_dict)
 
             self.get_phiprimeprime_safe()
-            phiprimeprime_safe = self.symfunc['phiprimeprime_safe'].subs(self.sym['X'], Xreal)
+            phiprimeprime_safe = self.symfunc['phiprimeprime_safe'].subs(sub_dict)
 
             self.get_A()
-            A_func = self.symfunc['A'].subs(self.sym['X'], Xreal)
+            A_func = self.symfunc['A'].subs(sub_dict)
 
             self.get_B2()
-            B2_func = self.symfunc['B2'].subs(self.sym['X'], Xreal)
+            B2_func = self.symfunc['B2'].subs(sub_dict)
 
             self.get_Omega_phi()
-            Omega_phi = self.symfunc['Omega_phi'].subs(self.sym['X'], Xreal)
+            Omega_phi = self.symfunc['Omega_phi'].subs(sub_dict)
 
             self.get_fried_closure()
-            fried_closure = self.symfunc['fried_closure'].subs(self.sym['X'], Xreal)
+            fried_closure = self.symfunc['fried_closure'].subs(sub_dict)
 
             self.get_alpha0()
-            alpha0_func = self.symfunc['alpha0'].subs(self.sym['X'], Xreal)
+            alpha0_func = self.symfunc['alpha0'].subs(sub_dict)
 
             self.get_alpha1()
-            alpha1_func = self.symfunc['alpha1'].subs(self.sym['X'], Xreal)
+            alpha1_func = self.symfunc['alpha1'].subs(sub_dict)
 
             self.get_alpha2()
-            alpha2_func = self.symfunc['alpha2'].subs(self.sym['X'], Xreal)
+            alpha2_func = self.symfunc['alpha2'].subs(sub_dict)
 
             self.get_beta0()
-            beta0_func = self.symfunc['beta0'].subs(self.sym['X'], Xreal)
+            beta0_func = self.symfunc['beta0'].subs(sub_dict)
 
             self.get_calB()
-            calB_func = self.symfunc['calB'].subs(self.sym['X'], Xreal)
+            calB_func = self.symfunc['calB'].subs(sub_dict)
 
             self.get_calC()
-            calC_func = self.symfunc['calC'].subs(self.sym['X'], Xreal)
+            calC_func = self.symfunc['calC'].subs(sub_dict)
 
             self.get_coupling_factor()
-            coupling_fac = self.symfunc['coupling'].subs(self.sym['X'], Xreal)
+            coupling_fac = self.symfunc['coupling'].subs(sub_dict)
 
             # Lambdify functions
             self.lambda_funcs['B2_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], B2_func, "scipy")
@@ -663,10 +719,131 @@ class HorndeskiModel:
             self.lambda_funcs['calB_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], calB_func)
             self.lambda_funcs['calC_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], calC_func)
             self.lambda_funcs['coupling_fac_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], coupling_fac)
-
     
-    def run_solver(self):
-        pass
+
+    def set_cosmo_params(self, H0, Omega_m0, Omega_r0, fphi, K_G3_G4_values):
+        """
+        Set cosmological and Horndeski parameters.
+
+        Parameters
+        ----------
+        H0 : float
+            Hubble constant.
+        Omega_m0 : float
+            Matter density at redshift zero.
+        Omega_r0 : float
+            Radiation density at redshift zero.
+        fphi : float
+            The fraction of the scalar field density as a fraction of the full dark energy density (including a cosmological constant).
+        K_G3_G4_values : list
+            A list of values for the Horndeski specific variables. This must match the length of the user defined variable. 
+            Check self.sym['K_G3_G4_syms'] to see what variables are expected.
+        """
+        self.params['H0'] = H0
+        self.params['Omega_m0'] = Omega_m0
+        self.params['Omega_r0'] = Omega_r0
+        self.params['fphi'] = fphi
+        self.params['Omega_phi0'] = fphi*(1. - self.params['Omega_r0'] - self.params['Omega_m0'])
+        self.params['Omega_l0'] = 1. - self.params['Omega_r0'] - self.params['Omega_m0'] - self.params['Omega_phi0']
+        assert len(K_G3_G4_values) == len(self.sym['K_G3_G4_syms']), "Length of Horndeski K_G3_G4_values must match number of defined K, G3, G4 variables."
+        self.params['K_G3_G4_values'] = K_G3_G4_values
+
+
+    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9):
+        """
+        Runs the numerical solver for a user defined Horndeski model.
+
+        Parameters
+        ----------
+        z_max : float, optional
+            Maximum redshift.
+        Npoints : int, optional
+            Number of points to evaluate numerical functions, from zmax to redshift 0.
+        forwards : bool, optional
+            Defines whether the solver runs forwards in time (high redshift to low) or backwards.
+        GR : bool, optional
+            Force to run with general relativity equations.
+        closure_variable : str, optional
+            Variable used to set the initial conditions.
+        """
+
+        from scipy.optimize import fsolve
+        from scipy.integrate import solve_ivp
+
+        # defining redshift range
+        z_min = 0.
+        x_max = redshift.z2x(z_max)
+        x_min = redshift.z2x(z_min)
+        x_arr = np.linspace(x_min, x_max, Npoints)
+        a_arr = redshift.x2a(x_arr)
+        z_arr = redshift.a2z(a_arr)
+
+        # this bit needs testing ---#
+        if forwards == False:
+            x_arr = x_arr[::-1]
+            a_arr = a_arr[::-1]
+            z_arr = z_arr[::-1]
+        # --------------------------#
+
+        x_start = x_arr[0]
+        a_start = a_arr[0]
+        z_start = z_arr[0]
+
+        # Let's guess the variables by assuming the solution lies close to LCDM, I think this only really works at z=0,
+        # since all Omega terms are dependent on E, and this only factors out at z=0.
+
+        E_ini = lcdm.compute_Ez_LCDM(z_start, self.params['Omega_r0'], self.params['Omega_m0'])
+        Omega_r_ini = lcdm.compute_Omega_r_z_LCDM(z_start, self.params['Omega_r0'], self.params['Omega_m0'])
+        Omega_m_ini = lcdm.compute_Omega_m_z_LCDM(z_start, self.params['Omega_r0'], self.params['Omega_m0'])
+        Omega_l_ini = (1.-self.params['fphi'])*lcdm.compute_Omega_L_z_LCDM(z_start, self.params['Omega_r0'], self.params['Omega_m0'])
+        
+        if closure_variable == 0:
+            closure_guess = E_ini
+        elif closure_variable == 1:
+            closure_guess = phi_prime_ini
+        elif closure_variable == 2:
+            closure_guess = Omega_r_ini
+        elif closure_variable == 3:
+            closure_guess = Omega_m_ini
+        elif closure_variable == 4:
+            closure_guess = Omega_l_ini
+        else:
+            # TODO: catch and assert error here.
+            pass
+
+        def fried_closure_wrapper(cl_val, cl_var, fried_closure_lambda, E_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, K_G3_G4_values):
+            if cl_var == 0:
+                return fried_closure_lambda(cl_val, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values) #Closure used to compute E0
+            if cl_var == 1:
+                return fried_closure_lambda(E_ini, cl_val, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values) #Closure used to compute phi0
+            if cl_var == 2:
+                return fried_closure_lambda(E_ini, phi_prime_ini, cl_val, Omega_m_ini, Omega_l_ini, *K_G3_G4_values) #Closure used to compute Omega_r0
+            if cl_var == 3:
+                return fried_closure_lambda(E_ini, phi_prime_ini, Omega_r_ini, cl_val, Omega_l_ini, *K_G3_G4_values) #Closure used to compute Omega_m0
+            if cl_var == 4:
+                return fried_closure_lambda(E_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, cl_val, *K_G3_G4_values) #Closure used to compute Omega_l0
+        
+        closure_value, fsolvedict, fsolveier, fsolvemsg = fsolve(fried_closure_wrapper, closure_guess, 
+            args=(closure_variable, self.lambda_funcs['fried_closure_lambda'], E_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini,  self.params['K_G3_G4_values']), 
+            xtol=1e-6, full_output=True) 
+            
+        if closure_variable == 0:
+            E_ini = closure_value
+        elif closure_variable == 1:
+            phi_prime_ini = closure_value
+        elif closure_variable == 2:
+            Omega_r_ini = closure_value
+        elif closure_variable == 3:
+            Omega_m_ini = closure_value
+        elif closure_variable == 4:
+            Omega_l_ini = closure_value
+        else:
+            # TODO: catch and assert error here.
+            pass
+
+        print(closure_value)
+
+
 
 
     def clean(self):

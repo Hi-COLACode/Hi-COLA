@@ -219,7 +219,9 @@ def run_solver(read_out_dict):
         phi_prime0 = 0.
 
     cl_var = comp_param_close(fried_RHS_lambda, cl_declaration, Hubble0, phi_prime0, Omega_r0, Omega_m0, Omega_l0, parameters)
-
+    
+    # stopped here
+    
     if cl_declaration[0] == 'odeint_parameters':
         if cl_declaration[1] == 0:
             Hubble0_closed = cl_var
