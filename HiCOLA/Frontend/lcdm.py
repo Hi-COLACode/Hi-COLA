@@ -100,7 +100,7 @@ def compute_Omega_m_z_LCDM(z, Omega_r0, Omega_m0):
     return Omega_m
 
 
-def compute_Omega_L_z_LCDM(z, Omega_r0, Omega_m0):
+def compute_Omega_l_z_LCDM(z, Omega_r0, Omega_m0):
     """
     Compute the fractional density for Lambda at a given redshift in LCDM. Assuming a flat universe.
 
@@ -145,7 +145,7 @@ def compute_EprimeE_x_LCDM(x, Omega_r0, Omega_m0):
         The derivative of the normalised Hubble function with respect to x, 
         divided by the normalised Hubble function.
     """
-    # Note: replaces comp_Omega_L_LCDM
+    # Note: replaces comp_E_prime_E_LCDM
     Omega_L0 = 1. - Omega_m0 - Omega_r0
     term1 = Omega_r0*np.exp(-4.*x) + Omega_m0*np.exp(-3.*x) + Omega_L0
     term2 = 4.*Omega_r0*np.exp(-4.*x) + 3.*Omega_m0*np.exp(-3.*x)
@@ -153,7 +153,31 @@ def compute_EprimeE_x_LCDM(x, Omega_r0, Omega_m0):
     return EprimeE
 
 
-def compute_Omega_L_prime_LCDM(EprimeE, Omega_L):
+def compute_Omega_l_x_LCDM(x, Omega_r0, Omega_m0):
+    """
+    Computes Eprime/E as a function of x = log(a).
+
+    Parameters
+    ----------
+    x : float or array
+        The natural logarithm of the scale factor a.
+    Omega_r0 : float
+        Radiation fractional density today (i.e. z=0).
+    Omega_m0 : float
+        Matter fractional density today (i.e. z=0).
+    
+    Returns
+    -------
+    Omega_l : float or array
+        The lambda (cosmological constant) fractional density.
+    """
+    Omega_l0 = 1. - Omega_m0 - Omega_r0
+    term1 = Omega_r0*np.exp(-4.*x) + Omega_m0*np.exp(-3.*x) + Omega_l0
+    Omega_l = Omega_l0/term1
+    return Omega_l
+
+
+def compute_Omega_l_prime_LCDM(EprimeE, Omega_l):
     """
     Compute the derivative of the fractional density for Lambda. Assuming a flat universe.
 
@@ -162,14 +186,14 @@ def compute_Omega_L_prime_LCDM(EprimeE, Omega_L):
     EprimeE : float or array
         The derivative of the normalised Hubble function with respect to x, 
         divided by the normalised Hubble function.
-    Omega_L : float or array
+    Omega_l : float or array
         Lambda fractional density at equivalent times to EprimeE (Not to be confused for Omega_L0).
     
     Returns
     -------
-    Omega_L_prime : float or array
+    Omega_l_prime : float or array
     """
     # Note: replaces comp_Omega_DE_prime_LCDM
-    Omega_DE_prime = -2.*EprimeE*Omega_L
-    return Omega_DE_prime
+    Omega_l_prime = -2.*EprimeE*Omega_l
+    return Omega_l_prime
 
