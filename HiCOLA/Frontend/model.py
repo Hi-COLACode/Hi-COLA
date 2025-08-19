@@ -907,7 +907,7 @@ class HorndeskiModel:
             Numerical solver threshold to switch to 'safe' functions.
         """
         
-        # _ used for current value.
+        # `_` used to denote current value.
         _phi_prime, _E, _Omega_r, _Omega_m, _Omega_l = Y
 
         # evaluate A and use this for diagnostic later, although unclear why...
@@ -943,7 +943,7 @@ class HorndeskiModel:
         return [phi_primeprime, E_prime, Omega_r_prime, Omega_m_prime, Omega_l_prime]
 
 
-    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, threshold=1e-3):
+    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, threshold=1e-3, method='RK45'):
         """
         Runs the numerical solver for a user defined Horndeski model.
 
@@ -963,6 +963,8 @@ class HorndeskiModel:
             phi_prime initial value, if the closure_variable=1 then this is used as an initial guess.
         threshold : float, optional
             Numerical solver threshold to switch to 'safe' functions.
+        method : str, optional
+            solve_ivp method for numerical integration, use 'RK45' for general settings but switch to 'LSODA' if the solver hangs.
         
         Returns
         -------
@@ -1040,12 +1042,10 @@ class HorndeskiModel:
             
             x_ini = x_start
             Y_ini = [phi_prime_ini, E_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini]
-
-            # TODO: present initial gueses better.
-            # print(Y_ini)
             
+
             ans = solve_ivp(
-                self._compute_primes, [x_ini, x_final], Y_ini, t_eval=x_arr, method='RK45', 
+                self._compute_primes, [x_ini, x_final], Y_ini, t_eval=x_arr, method=method, 
                 args=(self.params['Omega_r0'], self.params['Omega_m0'], self.params['Omega_l0'], self.params['K_G3_G4_values'], threshold), 
                 rtol = 1e-15
             )
@@ -1086,7 +1086,7 @@ class HorndeskiModel:
         
         else:
             
-            phi_prime_arr = None
+            phi_prime_arr = None # TODO == 0?
             E_arr = lcdm.compute_Ez_LCDM(z_arr, self.params['Omega_r0'], self.params['Omega_m0'])
             Omega_r_arr = lcdm.compute_Omega_r_z_LCDM(z_arr, self.params['Omega_r0'], self.params['Omega_m0'])
             Omega_m_arr = lcdm.compute_Omega_m_z_LCDM(z_arr, self.params['Omega_r0'], self.params['Omega_m0'])
@@ -1099,9 +1099,9 @@ class HorndeskiModel:
             E_prime_E_arr = np.copy(E_prime_E_LCDM_arr)
             E_prime_arr = E_prime_E_arr * E_arr
 
-            phi_primeprime_arr = None
+            phi_primeprime_arr = None # TODO == 0?
 
-            A_arr = None
+            A_arr = None # TODO == 0?
 
             Omega_phi_arr = np.zeros(len(z_arr))
             Omega_DE_arr = 1. - Omega_r_arr - Omega_m_arr
@@ -1111,11 +1111,11 @@ class HorndeskiModel:
             Omega_m_prime_arr = self.compute_Omega_m_prime(Omega_m_arr, E_arr, E_prime_arr)
             Omega_l_prime_arr = self.compute_Omega_l_prime(self.params['Omega_l0_LCDM'], E_arr, E_prime_arr)
 
-            calB_arr = None
-            calC_arr = None
-            coupling_factor_arr = None
+            calB_arr = None # TODO == 0?
+            calC_arr = None # TODO == 0?
+            coupling_factor_arr = None # TODO == 0?
 
-            chioverdelta_arr = None
+            chioverdelta_arr = None # TODO == 0?
 
             closure_variable = None
             closure_guess = None
