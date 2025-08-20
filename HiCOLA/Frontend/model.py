@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import sympy as sym
 
 from . import lcdm, redshift
@@ -56,7 +57,17 @@ class HorndeskiModel:
             'M_gp': 1 
         }
         self.outputs = {}
+        self.timer = {'t0': None}
+    
 
+    def _start_timer(self):
+        self.timer['t0'] = time.time()
+    
+
+    def _check_timer(self):
+        timenow = time.time()
+        return timenow - self.timer['t0']
+    
 
     def clean_params(self):
         """
@@ -607,19 +618,19 @@ class HorndeskiModel:
         Parameters
         ----------
         M_pG4 : float, optional
-        
+            TODO
         M_KG4 : float, optional
-
+            TODO
         M_G3s : float, optional
-
+            TODO
         M_sG4 : float, optional
-
+            TODO
         M_G3G4 : float, optional
-
+            TODO
         M_Ks : float, optional
-
+            TODO
         M_gp : float, optional
-
+            TODO
         """
         self.params['mass_ratios'] = {
             'M_pG4': M_pG4, 
@@ -671,10 +682,10 @@ class HorndeskiModel:
             phiprimeprime_safe = self.symfunc['phiprimeprime_safe'].subs(sub_dict)
 
             self.get_A()
-            A_func = self.symfunc['A'].subs(sub_dict)
+            A = self.symfunc['A'].subs(sub_dict)
 
             self.get_B2()
-            B2_func = self.symfunc['B2'].subs(sub_dict)
+            B2 = self.symfunc['B2'].subs(sub_dict)
 
             self.get_Omega_phi()
             Omega_phi = self.symfunc['Omega_phi'].subs(sub_dict)
@@ -683,78 +694,97 @@ class HorndeskiModel:
             fried_closure = self.symfunc['fried_closure'].subs(sub_dict)
 
             self.get_alpha0()
-            alpha0_func = self.symfunc['alpha0'].subs(sub_dict)
+            alpha0 = self.symfunc['alpha0'].subs(sub_dict)
 
             self.get_alpha1()
-            alpha1_func = self.symfunc['alpha1'].subs(sub_dict)
+            alpha1 = self.symfunc['alpha1'].subs(sub_dict)
 
             self.get_alpha2()
-            alpha2_func = self.symfunc['alpha2'].subs(sub_dict)
+            alpha2 = self.symfunc['alpha2'].subs(sub_dict)
 
             self.get_beta0()
-            beta0_func = self.symfunc['beta0'].subs(sub_dict)
+            beta0 = self.symfunc['beta0'].subs(sub_dict)
 
             self.get_calB()
-            calB_func = self.symfunc['calB'].subs(sub_dict)
+            calB = self.symfunc['calB'].subs(sub_dict)
 
             self.get_calC()
-            calC_func = self.symfunc['calC'].subs(sub_dict)
+            calC = self.symfunc['calC'].subs(sub_dict)
 
             self.get_coupling_factor()
-            coupling_fac = self.symfunc['coupling'].subs(sub_dict)
+            coupling = self.symfunc['coupling'].subs(sub_dict)
+
+            # well copy these substituted and simplified functions to functions stored in the class.
+            # avoided doing this before as some of these are re-called and redefined in the 'get' functions.
+            self.symfunc['EprimeE'] = EprimeE
+            self.symfunc['EprimeE_safe'] = EprimeE_safe
+            self.symfunc['phiprimeprime'] = phiprimeprime
+            self.symfunc['phiprimeprime_safe'] = phiprimeprime_safe
+            self.symfunc['A'] = A
+            self.symfunc['B2'] = B2
+            self.symfunc['Omega_phi'] = Omega_phi
+            self.symfunc['fried_closure'] = fried_closure
+            self.symfunc['alpha0'] = alpha0
+            self.symfunc['alpha1'] = alpha1
+            self.symfunc['alpha2'] = alpha2
+            self.symfunc['beta0'] = beta0
+            self.symfunc['calB'] = calB
+            self.symfunc['calC'] = calC
+            self.symfunc['coupling'] = coupling
 
             # Lambdify functions
-            self.lambda_funcs['B2_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], B2_func, "scipy")
+            self.lambda_funcs['B2_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['B2'], "scipy")
             self.lambda_funcs['fried_closure_lambda'] = sym.lambdify(
                 [self.sym['E'], self.sym['phiprime'], self.sym['Omega_r'], self.sym['Omega_m'], self.sym['Omega_l'], *self.sym['K_G3_G4_syms']],
-                fried_closure
+                self.symfunc['fried_closure']
             )
-            self.lambda_funcs['EprimeE_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], self.sym['Omega_r'], self.sym['Omega_l'], *self.sym['K_G3_G4_syms']], EprimeE, "scipy")
+            self.lambda_funcs['EprimeE_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], self.sym['Omega_r'], self.sym['Omega_l'], *self.sym['K_G3_G4_syms']], self.symfunc['EprimeE'], "scipy")
             self.lambda_funcs['EprimeE_safe_lambda'] = sym.lambdify(
                 [self.sym['E'], self.sym['phiprime'], self.sym['Omega_r'], self.sym['Omega_l'], self.sym['threshold'], self.sym['threshold_sign'], *self.sym['K_G3_G4_syms']],
-                EprimeE_safe, "scipy"
+                self.symfunc['EprimeE_safe'], "scipy"
             )
-            self.lambda_funcs['phiprimeprime_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], phiprimeprime, "scipy")
+            self.lambda_funcs['phiprimeprime_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['phiprimeprime'], "scipy")
             self.lambda_funcs['phiprimeprime_safe_lambda'] = sym.lambdify(
                 [self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['threshold'], self.sym['threshold_sign'], *self.sym['K_G3_G4_syms']], 
-                phiprimeprime_safe, "scipy"
+                self.symfunc['phiprimeprime_safe'], "scipy"
             )
-            self.lambda_funcs['Omega_phi_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], Omega_phi)
-            self.lambda_funcs['A_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], A_func, "scipy")
-            self.lambda_funcs['alpha0_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], alpha0_func)
-            self.lambda_funcs['alpha1_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], alpha1_func)
-            self.lambda_funcs['alpha2_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], alpha2_func)
-            self.lambda_funcs['beta0_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], beta0_func)
-            self.lambda_funcs['calB_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], calB_func)
-            self.lambda_funcs['calC_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], calC_func)
-            self.lambda_funcs['coupling_fac_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], coupling_fac)
+
+            self.lambda_funcs['Omega_phi_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['Omega_phi'])
+            self.lambda_funcs['A_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['A'], "scipy")
+            self.lambda_funcs['alpha0_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['alpha0'])
+            self.lambda_funcs['alpha1_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['alpha1'])
+            self.lambda_funcs['alpha2_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['alpha2'])
+            self.lambda_funcs['beta0_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['beta0'])
+            self.lambda_funcs['calB_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['calB'])
+            self.lambda_funcs['calC_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['calC'])
+            self.lambda_funcs['coupling_fac_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['coupling'])
     
 
-    def set_cosmo_params(self, H0, Omega_m0, Omega_r0, fphi, K_G3_G4_values):
+    def set_cosmo_params(self, H0_ref, Omega_m0_ref, Omega_r0_ref, fphi, K_G3_G4_values):
         """
         Set cosmological and Horndeski parameters.
 
         Parameters
         ----------
-        H0 : float
-            Hubble constant.
-        Omega_m0 : float
-            Matter density at redshift zero.
-        Omega_r0 : float
-            Radiation density at redshift zero.
+        H0_ref : float
+            Reference LCDM Hubble constant.
+        Omega_m0_ref : float
+            Reference LCDM matter density at redshift zero.
+        Omega_r0_ref : float
+            Reference LCDM radiation density at redshift zero.
         fphi : float
             The fraction of the scalar field density as a fraction of the full dark energy density (including a cosmological constant).
         K_G3_G4_values : list
             A list of values for the Horndeski specific variables. This must match the length of the user defined variable. 
             Check self.sym['K_G3_G4_syms'] to see what variables are expected.
         """
-        self.params['H0'] = H0
-        self.params['Omega_m0'] = Omega_m0
-        self.params['Omega_r0'] = Omega_r0
+        self.params['H0_ref'] = H0_ref
+        self.params['Omega_m0_ref'] = Omega_m0_ref
+        self.params['Omega_r0_ref'] = Omega_r0_ref
         self.params['fphi'] = fphi
-        self.params['Omega_phi0'] = fphi*(1. - self.params['Omega_r0'] - self.params['Omega_m0'])
-        self.params['Omega_l0'] = 1. - self.params['Omega_r0'] - self.params['Omega_m0'] - self.params['Omega_phi0']
-        self.params['Omega_l0_LCDM'] = 1. - self.params['Omega_r0'] - self.params['Omega_m0']
+        self.params['Omega_phi0_ref'] = fphi*(1. - self.params['Omega_r0_ref'] - self.params['Omega_m0_ref'])
+        self.params['Omega_l0_ref'] = 1. - self.params['Omega_r0_ref'] - self.params['Omega_m0_ref'] - self.params['Omega_phi0_ref']
+        self.params['Omega_l0_LCDM'] = 1. - self.params['Omega_r0_ref'] - self.params['Omega_m0_ref']
         assert len(K_G3_G4_values) == len(self.sym['K_G3_G4_syms']), "Length of Horndeski K_G3_G4_values must match number of defined K, G3, G4 variables."
         self.params['K_G3_G4_values'] = K_G3_G4_values
     
@@ -785,17 +815,22 @@ class HorndeskiModel:
             A list of values for the Horndeski specific variables. This must match the length of the user defined variable. 
             Check self.sym['K_G3_G4_syms'] to see what variables are expected.
         """
-        assert cl_var >= 0 and cl_var <= 4, "Closure variable unsupported, must be <= 4."
+        assert cl_var >= 0 and cl_var <= 4, "Closure variable unsupported, must be between 0 and 4 inclusive."
         if cl_var == 0:
-            return fried_closure_lambda(cl_val, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values) #Closure used to compute E0
+            #Closure used to compute E0
+            return fried_closure_lambda(cl_val, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values)
         if cl_var == 1:
-            return fried_closure_lambda(E_ini, cl_val, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values) #Closure used to compute phi0
+            #Closure used to compute phi0
+            return fried_closure_lambda(E_ini, cl_val, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values)
         if cl_var == 2:
-            return fried_closure_lambda(E_ini, phi_prime_ini, cl_val, Omega_m_ini, Omega_l_ini, *K_G3_G4_values) #Closure used to compute Omega_r0
+            #Closure used to compute Omega_r0
+            return fried_closure_lambda(E_ini, phi_prime_ini, cl_val, Omega_m_ini, Omega_l_ini, *K_G3_G4_values)
         if cl_var == 3:
-            return fried_closure_lambda(E_ini, phi_prime_ini, Omega_r_ini, cl_val, Omega_l_ini, *K_G3_G4_values) #Closure used to compute Omega_m0
+            #Closure used to compute Omega_m0
+            return fried_closure_lambda(E_ini, phi_prime_ini, Omega_r_ini, cl_val, Omega_l_ini, *K_G3_G4_values)
         if cl_var == 4:
-            return fried_closure_lambda(E_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, cl_val, *K_G3_G4_values) #Closure used to compute Omega_l0
+            #Closure used to compute Omega_l0
+            return fried_closure_lambda(E_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, cl_val, *K_G3_G4_values)
     
 
     def compute_Omega_r_prime(self, Omega_r, E, E_prime):
@@ -844,21 +879,23 @@ class HorndeskiModel:
         return Omega_m_prime
 
 
-    def compute_Omega_l_prime(self, Omega_l0, E, Eprime):
+    def compute_Omega_l_prime(self, Omega_l, E, E_prime):
         """
         Computes Omega lambda prime.
 
         Parameters
         ----------
-        Omega_l0 : float or array
-            Cosmological constant energy density at redshift zero.
+        Omega_l : float or array
+            Cosmological constant energy density.
         E : float or array
             Normalised Hubble expansion.
         E_prime : float or array
             Derivative of the normalised Hubble expansion.
         """
-        return -2.*Omega_l0*Eprime/E/E/E
-    
+        E_prime_E = E_prime/E
+        Omega_l_prime = -2.*Omega_l*E_prime_E
+        return Omega_l_prime
+
 
     def compute_chi_over_delta(self, a, E, calB, calC):
         """
@@ -880,11 +917,18 @@ class HorndeskiModel:
         chioverdelta : float or array   
             TODO
         """
-        chioverdelta = calB * calC * self.params['Omega_m0']/((E**2)*(a**3))
+        chioverdelta = calB * calC * self.params['Omega_m0']/((E**2)*(a**3)) # TODO: there's a G_G4/G_N in 3.14 in https://arxiv.org/pdf/2209.01666 which is not included here...
         return chioverdelta
     
+    
+    def _initiate_solver_status(self):
+        """
+        Initiate solver status monitor.
+        """
+        self._solver_success = None
 
-    def _compute_primes(self, x, Y, Omega_r0, Omega_m0, Omega_l0, K_G3_G4_values, threshold=1e-3):
+
+    def _compute_primes(self, x, Y, K_G3_G4_values, threshold=1e-3, timeout=5):
         """
         Compute prime functions for numerical solver.
 
@@ -894,19 +938,16 @@ class HorndeskiModel:
             Current value of log(a).
         Y : list
             List containing current [phi_prime, E, Omega_r, Omega_m, Omega_l] values.
-        Omega_r0 : float
-            Radiation density at redshift zero.
-        Omega_r0 : float
-            Matter density at redshift zero.
-        Omega_l0 : float
-            Lambda (cosmological constant) density at redshift zero.
         K_G3_G4_values : list
             A list of values for the Horndeski specific variables. This must match the length of the user defined variable. 
             Check self.sym['K_G3_G4_syms'] to see what variables are expected.
         threshold : float, optional
             Numerical solver threshold to switch to 'safe' functions.
+        timeout : float, optional
+            Time in seconds to force the solver to fail.
         """
-        
+        # Note2self: x is unused -- solve_ivp probably requires x so cannot remove this
+
         # `_` used to denote current value.
         _phi_prime, _E, _Omega_r, _Omega_m, _Omega_l = Y
 
@@ -927,23 +968,38 @@ class HorndeskiModel:
             E_prime = E_prime_E*_E
             phi_primeprime = self.lambda_funcs['phiprimeprime_safe_lambda'](_E, E_prime, _phi_prime, threshold, A_sign, *K_G3_G4_values)
 
-        # We will ignore this since we will be using the today formalism.
+        # We will ignore this since we will be using the today formalism. TODO remove once confirmed this method is no longer needed.
 
-        # if cl_declaration[0] == 'odeint_parameters': #usually indicates dS approach, so we must convert U back to E, since this is what the Omega_prime functions use
-        #     EY = EUY/E0
-        #     EYprime = E_prime_evaluated/E0
-        # if cl_declaration[0] == 'parameters': #usually indicates 'today' approach, no need to change the Hubble variable, it is already E
-        #     EY = EUY
-        #     EYprime = E_prime_evaluated
+        """
+        if cl_declaration[0] == 'odeint_parameters': #usually indicates dS approach, so we must convert U back to E, since this is what the Omega_prime functions use
+            EY = EUY/E0
+            EYprime = E_prime_evaluated/E0
+        if cl_declaration[0] == 'parameters': #usually indicates 'today' approach, no need to change the Hubble variable, it is already E
+            EY = EUY
+            EYprime = E_prime_evaluated
+        """
 
         Omega_r_prime = self.compute_Omega_r_prime(_Omega_r, _E, E_prime)
         Omega_m_prime = self.compute_Omega_m_prime(_Omega_m, _E, E_prime)
-        Omega_l_prime = self.compute_Omega_l_prime(Omega_l0, _E, E_prime)
+        Omega_l_prime = self.compute_Omega_l_prime(_Omega_l, _E, E_prime)
+
+        timenow = self._check_timer()
+
+        if timenow >= timeout:
+
+            phi_primeprime = np.nan
+            E_prime = np.nan
+            Omega_r_prime = np.nan
+            Omega_m_prime = np.nan
+            Omega_l_prime = np.nan
+
+        if np.isfinite([phi_primeprime, E_prime, Omega_r_prime, Omega_m_prime, Omega_l_prime]).all() == False:
+            self._solver_success = False
 
         return [phi_primeprime, E_prime, Omega_r_prime, Omega_m_prime, Omega_l_prime]
 
 
-    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, threshold=1e-3, method='RK45'):
+    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, threshold=1e-3, method='RK45', timeout=5):
         """
         Runs the numerical solver for a user defined Horndeski model.
 
@@ -965,6 +1021,8 @@ class HorndeskiModel:
             Numerical solver threshold to switch to 'safe' functions.
         method : str, optional
             solve_ivp method for numerical integration, use 'RK45' for general settings but switch to 'LSODA' if the solver hangs.
+        timeout : float, optional
+            Time in seconds to force the solver to fail.
         
         Returns
         -------
@@ -993,99 +1051,226 @@ class HorndeskiModel:
 
         z_start = z_arr[0]
 
-        # Let's guess the variables by assuming the solution lies close to LCDM, I think this only really works at z=0,
-        # since all Omega terms are dependent on E, and this only factors out at z=0.
+        # Let's guess the values of the variables by assuming the solution lies close to the reference LCDM values.
 
-        E_ini = lcdm.compute_Ez_LCDM(z_start, self.params['Omega_r0'], self.params['Omega_m0'])
-        Omega_r_ini = lcdm.compute_Omega_r_z_LCDM(z_start, self.params['Omega_r0'], self.params['Omega_m0'])
-        Omega_m_ini = lcdm.compute_Omega_m_z_LCDM(z_start, self.params['Omega_r0'], self.params['Omega_m0'])
-        Omega_l_ini = (1.-self.params['fphi'])*lcdm.compute_Omega_l_z_LCDM(z_start, self.params['Omega_r0'], self.params['Omega_m0'])
+        E_ini = lcdm.compute_Ez_LCDM(z_start, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
+        Omega_r_ini = lcdm.compute_Omega_r_z_LCDM(z_start, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
+        Omega_m_ini = lcdm.compute_Omega_m_z_LCDM(z_start, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
+        Omega_l_ini = (1.-self.params['fphi'])*lcdm.compute_Omega_l_z_LCDM(z_start, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
         
         if GR == False:
             
-            if closure_variable == 0:
-                closure_guess = E_ini
-            elif closure_variable == 1:
-                closure_guess = phi_prime_ini
-            elif closure_variable == 2:
-                closure_guess = Omega_r_ini
-            elif closure_variable == 3:
-                closure_guess = Omega_m_ini
-            elif closure_variable == 4:
-                closure_guess = Omega_l_ini
-            else:
-                # TODO: catch and assert error here.
-                pass
+            sub_dict = {}
             
-            closure_value, fsolvedict, fsolveier, fsolvemsg = fsolve(self._fried_closure_wrapper, closure_guess, 
-                args=(
-                    closure_variable, self.lambda_funcs['fried_closure_lambda'], E_ini, phi_prime_ini, Omega_r_ini, 
-                    Omega_m_ini, Omega_l_ini,  self.params['K_G3_G4_values']
-                ), 
-                xtol=1e-6, full_output=True) 
+            assert closure_variable >= 0 and closure_variable <= 4, "Closure variable unsupported, must be between 0 and 4 inclusive."
 
-            # TODO: add diagnostics for looking into the outputs, check convergence, etc.
+            if closure_variable != 0:
+                sub_dict[self.sym['E']] = E_ini
+            else:
+                closure_variable_sym = self.sym['E']
+            if closure_variable != 1:
+                sub_dict[self.sym['phiprime']] = phi_prime_ini
+            else:
+                closure_variable_sym = self.sym['phiprime']
+            if closure_variable != 2:
+                sub_dict[self.sym['Omega_r']] = Omega_r_ini
+            else:
+                closure_variable_sym = self.sym['Omega_r']
+            if closure_variable != 3:
+                sub_dict[self.sym['Omega_m']] = Omega_m_ini
+            else:
+                closure_variable_sym = self.sym['Omega_m']
+            if closure_variable != 4:
+                sub_dict[self.sym['Omega_l']] = Omega_l_ini
+            else:
+                closure_variable_sym = self.sym['Omega_l']
+            
+            for i in range(len(self.sym['K_G3_G4_syms'])):
+                sub_dict[self.sym['K_G3_G4_syms'][i]] = self.params['K_G3_G4_values'][i]
+            
+            fried_closure = sym.simplify(self.symfunc['fried_closure'].subs(sub_dict))
+            
+            roots_raw = sym.solve(sym.Eq(fried_closure, 0), closure_variable_sym)
+
+            roots = []
+            for root in roots_raw:
+                if root.is_real:
+                    roots.append(root)
+
+            if len(roots) > 0:
                 
-            if closure_variable == 0:
-                E_ini = closure_value[0]
-            elif closure_variable == 1:
-                phi_prime_ini = closure_value[0]
-            elif closure_variable == 2:
-                Omega_r_ini = closure_value[0]
-            elif closure_variable == 3:
-                Omega_m_ini = closure_value[0]
-            elif closure_variable == 4:
-                Omega_l_ini = closure_value[0]
+                solver_success = [False for r in roots]
+                phi_prime_arr = np.zeros((len(roots), len(x_arr)))
+                E_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_r_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_m_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_l_arr = np.zeros((len(roots), len(x_arr)))
+
+                Omega_r0 = [False for r in roots] 
+                Omega_m0 = [False for r in roots]
+                Omega_l0 = [False for r in roots]
+
+                E_prime_E_arr = np.zeros((len(roots), len(x_arr)))
+                E_prime_arr = np.zeros((len(roots), len(x_arr)))
+                phi_primeprime_arr = np.zeros((len(roots), len(x_arr)))
+                A_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_phi_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_DE_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_phi_via_closure_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_r_prime_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_m_prime_arr = np.zeros((len(roots), len(x_arr)))
+                Omega_l_prime_arr = np.zeros((len(roots), len(x_arr)))
+                calB_arr = np.zeros((len(roots), len(x_arr)))
+                calC_arr = np.zeros((len(roots), len(x_arr)))
+                coupling_factor_arr = np.zeros((len(roots), len(x_arr)))
+                chioverdelta_arr = np.zeros((len(roots), len(x_arr)))
+
+                # Not sure the LCDM arrays are necessary...
+                E_prime_E_LCDM_arr = lcdm.compute_EprimeE_x_LCDM(x_arr, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
+                Omega_l_LCDM_arr = lcdm.compute_Omega_l_x_LCDM(x_arr, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
+                Omega_l_prime_LCDM_arr = lcdm.compute_Omega_l_prime_LCDM(E_prime_E_LCDM_arr, 1-self.params['Omega_r0_ref']-self.params['Omega_m0_ref'])
+            
+                for (idx, root) in enumerate(roots):
+                    
+                    if closure_variable == 0:
+                        E_ini = root
+                    elif closure_variable == 1:
+                        phi_prime_ini = root
+                    elif closure_variable == 2:
+                        Omega_r_ini = root
+                    elif closure_variable == 3:
+                        Omega_m_ini = root
+                    elif closure_variable == 4:
+                        Omega_l_ini = root
+
+                    x_ini = x_start
+                    Y_ini = [phi_prime_ini, E_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini]
+
+                    self._initiate_solver_status()
+                    self._start_timer()
+
+                    ans = solve_ivp(
+                        self._compute_primes, [x_ini, x_final], Y_ini, t_eval=x_arr, method=method, 
+                        args=(self.params['K_G3_G4_values'], threshold, timeout), 
+                        rtol = 1e-15
+                    )
+
+                    if self._solver_success is None:
+                        self._solver_success = True
+                    
+                    solver_success[idx] = self._solver_success
+
+                    ans = ans["y"].T
+                    _phi_prime_arr = ans[:,0]
+                    _E_arr = ans[:,1]
+                    _Omega_r_arr = ans[:,2]
+                    _Omega_m_arr = ans[:,3]
+                    _Omega_l_arr = ans[:,4]
+
+                    if len(_phi_prime_arr) != len(x_arr):
+                        self._solver_success = False
+                    
+                    if self._solver_success == False:
+                        split = len(_phi_prime_arr)
+                    
+                    if self._solver_success:
+                        phi_prime_arr[idx] = _phi_prime_arr
+                        E_arr[idx] = _E_arr
+                        Omega_r_arr[idx] = _Omega_r_arr
+                        Omega_m_arr[idx] = _Omega_m_arr
+                        Omega_l_arr[idx] = _Omega_l_arr
+                    else:
+                        phi_prime_arr[idx][:split] = _phi_prime_arr
+                        phi_prime_arr[idx][split:] = np.nan
+                        E_arr[idx][:split] = _E_arr
+                        E_arr[idx][split:] = np.nan
+                        Omega_r_arr[idx][:split] = _Omega_r_arr
+                        Omega_r_arr[idx][split:] = np.nan
+                        Omega_m_arr[idx][:split] = _Omega_m_arr
+                        Omega_m_arr[idx][split:] = np.nan
+                        Omega_l_arr[idx][:split] = _Omega_l_arr
+                        Omega_l_arr[idx][split:] = np.nan
+
+                    if z_start == 0.:
+                        self.params['Omega_r0'] = Omega_r_arr[idx][0]
+                        self.params['Omega_m0'] = Omega_m_arr[idx][0]
+                        self.params['Omega_l0'] = Omega_l_arr[idx][0]
+                    else:
+                        if self._solver_success == True:
+                            self.params['Omega_r0'] = Omega_r_arr[idx][-1]
+                            self.params['Omega_m0'] = Omega_m_arr[idx][-1]
+                            self.params['Omega_l0'] = Omega_l_arr[idx][-1]
+                        else:
+                            self.params['Omega_r0'] = np.nan
+                            self.params['Omega_m0'] = np.nan
+                            self.params['Omega_l0'] = np.nan
+                    
+                    Omega_r0[idx] = self.params['Omega_r0']
+                    Omega_m0[idx] = self.params['Omega_m0']
+                    Omega_l0[idx] = self.params['Omega_l0']
+
+                    E_prime_E_arr[idx] = self.lambda_funcs['EprimeE_lambda'](E_arr[idx], phi_prime_arr[idx], Omega_r_arr[idx], Omega_l_arr[idx], *self.params['K_G3_G4_values'])
+                    E_prime_arr[idx] = E_prime_E_arr[idx] * E_arr[idx]
+                
+                    phi_primeprime_arr[idx] = self.lambda_funcs['phiprimeprime_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+
+                    A_arr[idx] = self.lambda_funcs['A_lambda'](E_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+
+                    Omega_phi_arr[idx] = self.lambda_funcs['Omega_phi_lambda'](E_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+
+                    Omega_DE_arr[idx] = 1. - Omega_r_arr[idx] - Omega_m_arr[idx]
+
+                    Omega_phi_via_closure_arr[idx] = 1 - Omega_r_arr[idx] - Omega_m_arr[idx] - Omega_l_arr[idx]
+
+                    Omega_r_prime_arr[idx] = self.compute_Omega_r_prime(Omega_r_arr[idx], E_arr[idx], E_prime_arr[idx])
+                    Omega_m_prime_arr[idx] = self.compute_Omega_m_prime(Omega_m_arr[idx], E_arr[idx], E_prime_arr[idx])
+                    Omega_l_prime_arr[idx] = self.compute_Omega_l_prime(Omega_l_arr[idx], E_arr[idx], E_prime_arr[idx])
+
+                    calB_arr[idx] = self.lambda_funcs['calB_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
+                    calC_arr[idx] = self.lambda_funcs['calC_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
+                    coupling_factor_arr[idx] = self.lambda_funcs['coupling_fac_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
+                    chioverdelta_arr[idx] = self.compute_chi_over_delta(a_arr, E_arr[idx], calB_arr[idx], calC_arr[idx])
+
             else:
-                # TODO: catch and assert error here.
-                pass
-            
-            x_ini = x_start
-            Y_ini = [phi_prime_ini, E_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini]
-            
-
-            ans = solve_ivp(
-                self._compute_primes, [x_ini, x_final], Y_ini, t_eval=x_arr, method=method, 
-                args=(self.params['Omega_r0'], self.params['Omega_m0'], self.params['Omega_l0'], self.params['K_G3_G4_values'], threshold), 
-                rtol = 1e-15
-            )
-
-            ans = ans["y"].T
-
-            phi_prime_arr = ans[:,0]
-            E_arr = ans[:,1]
-            Omega_r_arr = ans[:,2]
-            Omega_m_arr = ans[:,3]
-            Omega_l_arr = ans[:,4]
-
-            # Not sure this is necessary at all
-            E_prime_E_LCDM_arr = lcdm.compute_EprimeE_x_LCDM(x_arr, self.params['Omega_r0'], self.params['Omega_m0'])
-            Omega_l_LCDM_arr = lcdm.compute_Omega_l_x_LCDM(x_arr, self.params['Omega_r0'], self.params['Omega_m0'])
-            Omega_l_prime_LCDM_arr = lcdm.compute_Omega_l_prime_LCDM(E_prime_E_LCDM_arr, 1-self.params['Omega_r0']-self.params['Omega_m0'])
-
-            E_prime_E_arr = self.lambda_funcs['EprimeE_lambda'](E_arr, phi_prime_arr, self.params['Omega_r0'], self.params['Omega_l0'], *self.params['K_G3_G4_values'])
-            E_prime_arr = E_prime_E_arr * E_arr
-
-            phi_primeprime_arr = self.lambda_funcs['phiprimeprime_lambda'](E_arr, E_prime_arr, phi_prime_arr, *self.params['K_G3_G4_values'])
-
-            A_arr = self.lambda_funcs['A_lambda'](E_arr, phi_prime_arr, *self.params['K_G3_G4_values'])
-            
-            Omega_phi_arr = self.lambda_funcs['Omega_phi_lambda'](E_arr, phi_prime_arr, *self.params['K_G3_G4_values'])
-
-            Omega_DE_arr = 1. - Omega_r_arr - Omega_m_arr
-            Omega_phi_via_closure_arr = 1 - Omega_r_arr - Omega_m_arr - Omega_l_arr
-            Omega_r_prime_arr = self.compute_Omega_r_prime(Omega_r_arr, E_arr, E_prime_arr)
-            Omega_m_prime_arr = self.compute_Omega_m_prime(Omega_m_arr, E_arr, E_prime_arr)
-            Omega_l_prime_arr = self.compute_Omega_l_prime(self.params['Omega_l0'], E_arr, E_prime_arr)
-
-            calB_arr = self.lambda_funcs['calB_lambda'](E_arr, E_prime_arr, phi_prime_arr, phi_primeprime_arr, *self.params['K_G3_G4_values'])
-            calC_arr = self.lambda_funcs['calC_lambda'](E_arr, E_prime_arr, phi_prime_arr, phi_primeprime_arr, *self.params['K_G3_G4_values'])
-            coupling_factor_arr = self.lambda_funcs['coupling_fac_lambda'](E_arr, E_prime_arr, phi_prime_arr, phi_primeprime_arr, *self.params['K_G3_G4_values'])
-
-            chioverdelta_arr = self.compute_chi_over_delta(a_arr, E_arr, calB_arr, calC_arr)
-        
+                roots = None
+                solver_success = None
+                phi_prime_arr = None
+                E_arr = None
+                Omega_r_arr = None
+                Omega_m_arr = None
+                Omega_l_arr = None
+                x_arr = None
+                a_arr = None
+                z_arr = None
+                Omega_r0 = None
+                Omega_m0 = None
+                Omega_l0 = None
+                E_prime_E_LCDM_arr = None
+                Omega_l_LCDM_arr = None
+                Omega_l_prime_LCDM_arr = None
+                E_prime_E_arr = None
+                E_prime_arr = None
+                phi_primeprime_arr = None
+                A_arr = None
+                Omega_phi_arr = None
+                Omega_DE_arr = None
+                Omega_phi_via_closure_arr = None
+                Omega_r_prime_arr = None
+                Omega_m_prime_arr = None
+                Omega_l_prime_arr = None
+                calB_arr = None
+                calC_arr = None
+                coupling_factor_arr = None
+                chioverdelta_arr = None
         else:
             
+            self.params['Omega_r0'] = self.params['Omega_r0_ref']
+            Omega_r0 = self.params['Omega_r0']
+            self.params['Omega_m0'] = self.params['Omega_m0_ref']
+            Omega_m0 = self.params['Omega_m0']
+            self.params['Omega_l0'] = self.params['Omega_l0_ref']
+            Omega_l0 = self.params['Omega_l0']
+
             phi_prime_arr = None # TODO == 0?
             E_arr = lcdm.compute_Ez_LCDM(z_arr, self.params['Omega_r0'], self.params['Omega_m0'])
             Omega_r_arr = lcdm.compute_Omega_r_z_LCDM(z_arr, self.params['Omega_r0'], self.params['Omega_m0'])
@@ -1107,9 +1292,10 @@ class HorndeskiModel:
             Omega_DE_arr = 1. - Omega_r_arr - Omega_m_arr
 
             Omega_phi_via_closure_arr = 1 - Omega_r_arr - Omega_m_arr - Omega_l_arr
+
             Omega_r_prime_arr = self.compute_Omega_r_prime(Omega_r_arr, E_arr, E_prime_arr)
             Omega_m_prime_arr = self.compute_Omega_m_prime(Omega_m_arr, E_arr, E_prime_arr)
-            Omega_l_prime_arr = self.compute_Omega_l_prime(self.params['Omega_l0_LCDM'], E_arr, E_prime_arr)
+            Omega_l_prime_arr = self.compute_Omega_l_prime(Omega_l_arr, E_arr, E_prime_arr)
 
             calB_arr = None # TODO == 0?
             calC_arr = None # TODO == 0?
@@ -1118,17 +1304,19 @@ class HorndeskiModel:
             chioverdelta_arr = None # TODO == 0?
 
             closure_variable = None
-            closure_guess = None
-            closure_value = None
-            fsolvedict = None
-            fsolveier = None
-            fsolvemsg = None
+            roots_raw = None
+            roots = None
+
+            solver_success = None
             
         self.output = {
             'a': a_arr,
             'x': x_arr,
             'z': z_arr,
             'E': E_arr,
+            'Omega_r0': Omega_r0,
+            'Omega_m0': Omega_m0,
+            'Omega_l0': Omega_l0,
             'E_prime': E_prime_arr,
             'E_prime_E': E_prime_E_arr,
             'E_prime_E_LCDM': E_prime_E_LCDM_arr,
@@ -1144,7 +1332,7 @@ class HorndeskiModel:
             'Omega_m_prime': Omega_m_prime_arr,
             'Omega_r_prime': Omega_r_prime_arr,
             'Omega_l_prime': Omega_l_prime_arr,
-            'Omega_l_prime': Omega_l_prime_LCDM_arr,
+            'Omega_l_prime_LCDM': Omega_l_prime_LCDM_arr,
             'A': A_arr,
             'calB': calB_arr,
             'calC': calC_arr,
@@ -1153,15 +1341,11 @@ class HorndeskiModel:
             'initialiser': {
                 'z_start': z_start,
                 'forwards': forwards,
-                'closure_variable': closure_variable, 
-                'closure_guess': closure_guess,
-                'closure_value': closure_value,
-                'fsolve_outputs': {
-                    'fsolvedict': fsolvedict, 
-                    'fsolveier': fsolveier, 
-                    'fsolvemsg': fsolvemsg
-                },
-            }
+                'closure_variable': closure_variable,
+                'closure_values': roots,
+                'closure_values_raw': roots_raw,
+            },
+            'solver_success': solver_success
         }
         return self.output
     
