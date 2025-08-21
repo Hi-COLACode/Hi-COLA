@@ -601,14 +601,14 @@ class HorndeskiModel:
         self.symfunc['calC'] = (self.symfunc['alpha1'] + self.symfunc['alpha2'])/(self.symfunc['alpha0'] + 2.*self.symfunc['alpha1']*self.symfunc['alpha2'] + self.symfunc['alpha2']*self.symfunc['alpha2'])
 
 
-    def get_coupling_factor(self):
+    def get_beta(self):
         """
         The coupling in equation 3.13 in https://arxiv.org/abs/2209.01666, i.e. the deviation from 1.
         """
         self.get_alpha1()
         self.get_alpha2()
         self.get_calC()
-        self.symfunc['coupling'] = -1.*(self.symfunc['alpha1'] + self.symfunc['alpha2'])*self.symfunc['calC']
+        self.symfunc['beta'] = -1.*(self.symfunc['alpha1'] + self.symfunc['alpha2'])*self.symfunc['calC']
 
     
     def set_mass_ratios(self, M_pG4=1., M_KG4=1., M_G3s=1., M_sG4=1., M_G3G4=1., M_Ks=1., M_gp=1.):
@@ -711,11 +711,11 @@ class HorndeskiModel:
             self.get_calC()
             calC = self.symfunc['calC'].subs(sub_dict)
 
-            self.get_coupling_factor()
-            coupling = self.symfunc['coupling'].subs(sub_dict)
+            self.get_beta()
+            beta = self.symfunc['beta'].subs(sub_dict)
 
-            # well copy these substituted and simplified functions to functions stored in the class.
-            # avoided doing this before as some of these are re-called and redefined in the 'get' functions.
+            # we will copy these substituted and simplified functions to the class symfunc dictionary, we avoided 
+            # doing this before as some of these are re-called and redefined in the 'get' functions.
             self.symfunc['EprimeE'] = EprimeE
             self.symfunc['EprimeE_safe'] = EprimeE_safe
             self.symfunc['phiprimeprime'] = phiprimeprime
@@ -730,7 +730,7 @@ class HorndeskiModel:
             self.symfunc['beta0'] = beta0
             self.symfunc['calB'] = calB
             self.symfunc['calC'] = calC
-            self.symfunc['coupling'] = coupling
+            self.symfunc['beta'] = beta
 
             # Lambdify functions
             self.lambda_funcs['B2_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['B2'], "scipy")
@@ -757,7 +757,7 @@ class HorndeskiModel:
             self.lambda_funcs['beta0_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['beta0'])
             self.lambda_funcs['calB_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['calB'])
             self.lambda_funcs['calC_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['calC'])
-            self.lambda_funcs['coupling_fac_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['coupling'])
+            self.lambda_funcs['beta_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['beta'])
     
 
     def set_cosmo_params(self, H0_ref, Omega_m0_ref, Omega_r0_ref, fphi, K_G3_G4_values):
@@ -999,7 +999,266 @@ class HorndeskiModel:
         return [phi_primeprime, E_prime, Omega_r_prime, Omega_m_prime, Omega_l_prime]
 
 
-    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, threshold=1e-3, method='RK45', timeout=5):
+    def _linear_growth(self, x, y, Omega_m0):
+        """
+        Linear growth ODE system.
+
+        Parameters
+        ----------
+        x : float
+            Log of the scale factor.
+        y : float
+            The growth function and it's derivative [D, dD].
+        Omega_m0 : float
+            The matter density.
+        
+        Returns
+        -------
+        dD : float
+            Derivative of the growth function.
+        d2D : float
+            The second order derivative of the growth function.
+        """
+        D = y[0]
+        dD = y[1]
+        a = np.exp(x)
+        mu = 1 + self._linear_growth_int['interp_beta_vs_a'](a)
+        Bx = 2 + self._linear_growth_int['interp_Eprime_vs_a'](a)/self._linear_growth_int['interp_E_vs_a'](a)
+        Cx = 3.*Omega_m0*mu/(2.*(self._linear_growth_int['interp_E_vs_a'](a)**2)*(a**3))
+        d2D = Cx*D - Bx*D
+        return [dD, d2D]
+    
+
+    def get_linear_growth(self):
+        """
+        Compute the first order linear growth function.
+        """
+        
+        from scipy.interpolate import interp1d
+        from scipy.integrate import solve_ivp
+
+        # Run sanity checks to test whether linear growth functions can be computed
+
+        check = True
+        if self.output['E'] is None or np.isfinite(self.output['E']).all() == False:
+            check = False
+        if self.output['E_prime'] is None or np.isfinite(self.output['E_prime']).all() == False:
+            check = False
+        if self.output['beta'] is None or np.isfinite(self.output['beta']).all() == False:
+            check = False
+
+        if check:
+
+            if np.isscalar(self.output['Omega_m0']):
+
+                self._linear_growth_int = {}
+                self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'], kind='cubic', fill_value='extrapolate')
+                self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'], kind='cubic', fill_value='extrapolate')
+                self._linear_growth_int['interp_beta_vs_a'] = interp1d(self.output['a'], self.output['beta'], kind='cubic', fill_value='extrapolate')
+
+                # set up initial conditons, assuming matter domination.
+                
+                x_ini = self.output['x'][0]
+                D_ini = self.output['a'][0]
+                dD_ini = self.output['a'][0]
+                y_ini = [D_ini, dD_ini]
+
+                # End position
+                x_final = self.output['x'][-1]
+                
+                # Solve forward
+                ans = solve_ivp(self._linear_growth, (x_ini, x_final), y_ini, t_eval=self.output['x'], args=(self.output['Omega_m0'],))
+                    
+                # Combine solutions
+                _D1 = ans.y[0]
+                _dD1 = ans.y[1]
+
+                _D1_constant = np.copy(_D1[-1])
+                _D1 /= _D1_constant
+                _D1prime = _dD1
+                _D1prime /= _D1_constant
+
+                _f1 = _D1prime/_D1
+
+                D1, f1 = _D1, _f1
+
+            else:
+
+                D1 = np.zeros(np.shape(self.output['E']))
+                f1 = np.zeros(np.shape(self.output['E']))
+
+                for idx in range(0, len(self.output['Omega_m0'])):
+
+                    self._linear_growth_int = {}
+                    self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'][idx], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'][idx], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_beta_vs_a'] = interp1d(self.output['a'], self.output['beta'][idx], kind='cubic', fill_value='extrapolate')
+
+                    # set up initial conditons, assuming matter domination.
+                    
+                    x_ini = self.output['x'][0]
+                    D_ini = self.output['a'][0]
+                    dD_ini = self.output['a'][0]
+                    y_ini = [D_ini, dD_ini]
+
+                    # End position
+                    x_final = self.output['x'][-1]
+                    
+                    # Solve forward
+                    ans = solve_ivp(self._linear_growth, (x_ini, x_final), y_ini, t_eval=self.output['x'], args=(self.output['Omega_m0'][idx],))
+                        
+                    # Combine solutions
+                    _D1 = ans.y[0]
+                    _dD1 = ans.y[1]
+
+                    _D1_constant = np.copy(_D1[-1])
+                    _D1 /= _D1_constant
+                    _D1prime = _dD1
+                    _D1prime /= _D1_constant
+
+                    _f1 = _D1prime/_D1
+
+                    D1[idx], f1[idx] = _D1, _f1
+            
+            self.output['D1'] = D1
+            self.output['f1'] = f1
+
+        else:
+            
+            self.output['D1'] = None
+            self.output['f1'] = None
+
+    
+    def _linear_growth_2(self, x, y, Omega_m0):
+        """
+        Linear growth ODE system.
+
+        Parameters
+        ----------
+        x : float
+            Log of the scale factor.
+        y : float
+            The growth function and it's derivative [D, dD].
+        Omega_m0 : float
+            The matter density.
+        
+        Returns
+        -------
+        dD2 : float
+            Derivative of the second order growth function.
+        d2D2 : float
+            The second order derivative of the second order growth function.
+        """
+        D2 = y[0]
+        dD2 = y[1]
+        a = np.exp(x)
+        D1 = self._linear_growth_int['interp_D1_vs_a'](a)
+        # assuming mu2 == mu1
+        mu = 1 + self._linear_growth_int['interp_beta_vs_a'](a)
+        Bx = 2 + self._linear_growth_int['interp_Eprime_vs_a'](a)/self._linear_growth_int['interp_E_vs_a'](a)
+        Cx = 3.*Omega_m0*mu/(2.*(self._linear_growth_int['interp_E_vs_a'](a)**2)*(a**3))
+        d2D2 = Cx*(D2 - D1**2) - Bx*dD2
+        return [dD2, d2D2]
+
+
+    def get_linear_growth_2(self):
+        """
+        Compute the second order linear growth function assuming mu1 = mu2.
+        """
+        
+        from scipy.interpolate import interp1d
+        from scipy.integrate import solve_ivp
+
+        # Run sanity checks to test whether linear growth functions can be computed
+
+        check = True
+        if self.output['E'] is None or np.isfinite(self.output['E']).all() == False:
+            check = False
+        if self.output['E_prime'] is None or np.isfinite(self.output['E_prime']).all() == False:
+            check = False
+        if self.output['beta'] is None or np.isfinite(self.output['beta']).all() == False:
+            check = False
+        if self.output['D1'] is None or np.isfinite(self.output['D1']).all() == False:
+            check = False
+
+        if check:
+
+            if np.isscalar(self.output['Omega_m0']):
+
+                self._linear_growth_int = {}
+                self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'], kind='cubic', fill_value='extrapolate')
+                self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'], kind='cubic', fill_value='extrapolate')
+                self._linear_growth_int['interp_beta_vs_a'] = interp1d(self.output['a'], self.output['beta'], kind='cubic', fill_value='extrapolate')
+                self._linear_growth_int['interp_D1_vs_a'] = interp1d(self.output['a'], self.output['D1'], kind='cubic', fill_value='extrapolate')
+
+                # set up initial conditons, assuming matter domination.
+                
+                x_ini = self.output['x'][0]
+                D2_ini = -(3/7)*self.output['a'][0]**2
+                dD2_ini = -(6/7)*self.output['a'][0]**2
+                
+                y_ini = [D2_ini, dD2_ini]
+
+                # End position
+                x_final = self.output['x'][-1]
+                
+                # Solve forward
+                ans = solve_ivp(self._linear_growth_2, (x_ini, x_final), y_ini, t_eval=self.output['x'], args=(self.output['Omega_m0'],))
+                    
+                # Combine solutions
+                _D2 = ans.y[0]
+                _dD2 = ans.y[1]
+
+                _f2 = _dD2/_D2
+
+                D2, f2 = _D2, _f2
+
+            else:
+
+                D2 = np.zeros(np.shape(self.output['E']))
+                f2 = np.zeros(np.shape(self.output['E']))
+
+                for idx in range(0, len(self.output['Omega_m0'])):
+
+                    self._linear_growth_int = {}
+                    self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'][idx], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'][idx], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_beta_vs_a'] = interp1d(self.output['a'], self.output['beta'][idx], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_D1_vs_a'] = interp1d(self.output['a'], self.output['D1'][idx], kind='cubic', fill_value='extrapolate')
+
+                    # set up initial conditons, assuming matter domination.
+                    
+                    x_ini = self.output['x'][0]
+                    D2_ini = -(3/7)*self.output['a'][0]**2
+                    dD2_ini = -(6/7)*self.output['a'][0]**2
+
+                    y_ini = [D2_ini, dD2_ini]
+
+                    # End position
+                    x_final = self.output['x'][-1]
+                    
+                    # Solve forward
+                    ans = solve_ivp(self._linear_growth_2, (x_ini, x_final), y_ini, t_eval=self.output['x'], args=(self.output['Omega_m0'][idx],))
+                        
+                    # Combine solutions
+                    _D2 = ans.y[0]
+                    _dD2 = ans.y[1]
+
+                    _f2 = _dD2/_D2
+
+                    D2[idx], f2[idx] = _D2, _f2
+            
+            self.output['D2'] = D2
+            self.output['f2'] = f2
+            
+        else:
+            
+            self.output['D2'] = None
+            self.output['f2'] = None
+
+
+    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, threshold=1e-3, method='RK45', 
+        timeout=5, compute_growth=True):
         """
         Runs the numerical solver for a user defined Horndeski model.
 
@@ -1022,7 +1281,11 @@ class HorndeskiModel:
         method : str, optional
             solve_ivp method for numerical integration, use 'RK45' for general settings but switch to 'LSODA' if the solver hangs.
         timeout : float, optional
-            Time in seconds to force the solver to fail.
+            Time in seconds to force the solver to exit and return nan, this has been added to prvent `solve_ivp` from hanging due 
+            to certain variables approaching infinity. You can use different solvers, see method keyword arguement, but this will
+            only work if the reason for the failure is due to the equations becoming stiff.
+        compute_growth : bool, optional
+            Flag to instruct the solver to compute growth functions.
         
         Returns
         -------
@@ -1030,7 +1293,7 @@ class HorndeskiModel:
             Dictionary containing numerical solver solutions.
         """
 
-        from scipy.optimize import fsolve
+        # from scipy.optimize import fsolve # TODO remove
         from scipy.integrate import solve_ivp
 
         # defining redshift range
@@ -1106,6 +1369,7 @@ class HorndeskiModel:
                 Omega_m_arr = np.zeros((len(roots), len(x_arr)))
                 Omega_l_arr = np.zeros((len(roots), len(x_arr)))
 
+                H0 = [False for r in roots] 
                 Omega_r0 = [False for r in roots] 
                 Omega_m0 = [False for r in roots]
                 Omega_l0 = [False for r in roots]
@@ -1122,7 +1386,7 @@ class HorndeskiModel:
                 Omega_l_prime_arr = np.zeros((len(roots), len(x_arr)))
                 calB_arr = np.zeros((len(roots), len(x_arr)))
                 calC_arr = np.zeros((len(roots), len(x_arr)))
-                coupling_factor_arr = np.zeros((len(roots), len(x_arr)))
+                beta_arr = np.zeros((len(roots), len(x_arr)))
                 chioverdelta_arr = np.zeros((len(roots), len(x_arr)))
 
                 # Not sure the LCDM arrays are necessary...
@@ -1192,19 +1456,23 @@ class HorndeskiModel:
                         Omega_l_arr[idx][split:] = np.nan
 
                     if z_start == 0.:
+                        self.params['H0'] = self.params['H0_ref']*E_arr[idx][0]
                         self.params['Omega_r0'] = Omega_r_arr[idx][0]
                         self.params['Omega_m0'] = Omega_m_arr[idx][0]
                         self.params['Omega_l0'] = Omega_l_arr[idx][0]
                     else:
                         if self._solver_success == True:
+                            self.params['H0'] = self.params['H0_ref']*E_arr[idx][-1]
                             self.params['Omega_r0'] = Omega_r_arr[idx][-1]
                             self.params['Omega_m0'] = Omega_m_arr[idx][-1]
                             self.params['Omega_l0'] = Omega_l_arr[idx][-1]
                         else:
+                            self.params['H0'] = np.nan
                             self.params['Omega_r0'] = np.nan
                             self.params['Omega_m0'] = np.nan
                             self.params['Omega_l0'] = np.nan
                     
+                    H0[idx] = self.params['H0']
                     Omega_r0[idx] = self.params['Omega_r0']
                     Omega_m0[idx] = self.params['Omega_m0']
                     Omega_l0[idx] = self.params['Omega_l0']
@@ -1228,7 +1496,7 @@ class HorndeskiModel:
 
                     calB_arr[idx] = self.lambda_funcs['calB_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
                     calC_arr[idx] = self.lambda_funcs['calC_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
-                    coupling_factor_arr[idx] = self.lambda_funcs['coupling_fac_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
+                    beta_arr[idx] = self.lambda_funcs['beta_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
                     chioverdelta_arr[idx] = self.compute_chi_over_delta(a_arr, E_arr[idx], calB_arr[idx], calC_arr[idx])
 
             else:
@@ -1242,6 +1510,7 @@ class HorndeskiModel:
                 x_arr = None
                 a_arr = None
                 z_arr = None
+                H0 = None
                 Omega_r0 = None
                 Omega_m0 = None
                 Omega_l0 = None
@@ -1260,10 +1529,12 @@ class HorndeskiModel:
                 Omega_l_prime_arr = None
                 calB_arr = None
                 calC_arr = None
-                coupling_factor_arr = None
+                beta_arr = None
                 chioverdelta_arr = None
         else:
             
+            self.params['H0'] = self.params['H0_ref']
+            H0 = self.params['H0']
             self.params['Omega_r0'] = self.params['Omega_r0_ref']
             Omega_r0 = self.params['Omega_r0']
             self.params['Omega_m0'] = self.params['Omega_m0_ref']
@@ -1271,7 +1542,7 @@ class HorndeskiModel:
             self.params['Omega_l0'] = self.params['Omega_l0_ref']
             Omega_l0 = self.params['Omega_l0']
 
-            phi_prime_arr = None # TODO == 0?
+            phi_prime_arr = np.zeros(len(z_arr))
             E_arr = lcdm.compute_Ez_LCDM(z_arr, self.params['Omega_r0'], self.params['Omega_m0'])
             Omega_r_arr = lcdm.compute_Omega_r_z_LCDM(z_arr, self.params['Omega_r0'], self.params['Omega_m0'])
             Omega_m_arr = lcdm.compute_Omega_m_z_LCDM(z_arr, self.params['Omega_r0'], self.params['Omega_m0'])
@@ -1284,7 +1555,7 @@ class HorndeskiModel:
             E_prime_E_arr = np.copy(E_prime_E_LCDM_arr)
             E_prime_arr = E_prime_E_arr * E_arr
 
-            phi_primeprime_arr = None # TODO == 0?
+            phi_primeprime_arr = np.zeros(len(z_arr))
 
             A_arr = None # TODO == 0?
 
@@ -1299,7 +1570,7 @@ class HorndeskiModel:
 
             calB_arr = None # TODO == 0?
             calC_arr = None # TODO == 0?
-            coupling_factor_arr = None # TODO == 0?
+            beta_arr = np.zeros((len(z_arr)))
 
             chioverdelta_arr = None # TODO == 0?
 
@@ -1308,12 +1579,68 @@ class HorndeskiModel:
             roots = None
 
             solver_success = None
+        
+        if forwards == False:
+
+            # reverse direction of arrays...
+            a_arr = a_arr[::-1]
+            x_arr = x_arr[::-1]
+            z_arr = z_arr[::-1]
+
+            E_prime_E_LCDM_arr = E_prime_E_LCDM_arr[::-1]
+            Omega_l_LCDM_arr = Omega_l_LCDM_arr[::-1]
+            Omega_l_prime_LCDM_arr = Omega_l_prime_LCDM_arr[::-1]
+
+            if roots is None and GR:
+                E_arr = E_arr[::-1]
+                E_prime_arr = E_prime_arr[::-1]
+                E_prime_E_arr = E_prime_E_arr[::-1]
+                phi_prime_arr = phi_prime_arr[::-1]
+                phi_primeprime_arr = phi_prime_arr[::-1]
+                Omega_m_arr = Omega_m_arr[::-1]
+                Omega_r_arr = Omega_r_arr[::-1]
+                Omega_l_arr = Omega_l_arr[::-1]
+                Omega_phi_arr = Omega_phi_arr[::-1]
+                Omega_phi_via_closure_arr = Omega_phi_via_closure_arr[::-1]
+                Omega_DE_arr = Omega_DE_arr[::-1]
+                Omega_m_prime_arr = Omega_m_prime_arr[::-1]
+                Omega_r_prime_arr = Omega_r_prime_arr[::-1]
+                Omega_l_prime_arr = Omega_l_prime_arr[::-1]
+
+                # These are set to None currently TODO add the expectations under LCDM.
+                # A_arr = A_arr[::-1]
+                # calB_arr = calB_arr[::-1]
+                # calC_arr = calC_arr[::-1]
+                # beta_arr = beta_arr[::-1]
+                # chioverdelta_arr = chioverdelta_arr[::-1]
+
+            else:
+                E_arr = E_arr[:,::-1]
+                E_prime_arr = E_prime_arr[:,::-1]
+                E_prime_E_arr = E_prime_E_arr[:,::-1]
+                phi_prime_arr = phi_prime_arr[:,::-1]
+                phi_primeprime_arr = phi_prime_arr[:,::-1]
+                Omega_m_arr = Omega_m_arr[:,::-1]
+                Omega_r_arr = Omega_r_arr[:,::-1]
+                Omega_l_arr = Omega_l_arr[:,::-1]
+                Omega_phi_arr = Omega_phi_arr[:,::-1]
+                Omega_phi_via_closure_arr = Omega_phi_via_closure_arr[:,::-1]
+                Omega_DE_arr = Omega_DE_arr[:,::-1]
+                Omega_m_prime_arr = Omega_m_prime_arr[:,::-1]
+                Omega_r_prime_arr = Omega_r_prime_arr[:,::-1]
+                Omega_l_prime_arr = Omega_l_prime_arr[:,::-1]
+                A_arr = A_arr[:,::-1]
+                calB_arr = calB_arr[:,::-1]
+                calC_arr = calC_arr[:,::-1]
+                beta_arr = beta_arr[:,::-1]
+                chioverdelta_arr = chioverdelta_arr[:,::-1]
             
         self.output = {
             'a': a_arr,
             'x': x_arr,
             'z': z_arr,
             'E': E_arr,
+            'H0': H0,
             'Omega_r0': Omega_r0,
             'Omega_m0': Omega_m0,
             'Omega_l0': Omega_l0,
@@ -1336,8 +1663,8 @@ class HorndeskiModel:
             'A': A_arr,
             'calB': calB_arr,
             'calC': calC_arr,
-            'coupling_factor': coupling_factor_arr,
-            'chi_over_delta': chioverdelta_arr,
+            'beta': beta_arr,
+            'chi/delta': chioverdelta_arr,
             'initialiser': {
                 'z_start': z_start,
                 'forwards': forwards,
@@ -1347,8 +1674,13 @@ class HorndeskiModel:
             },
             'solver_success': solver_success
         }
+
+        if compute_growth:
+            self.get_linear_growth()
+            self.get_linear_growth_2()
+
         return self.output
-    
+
 
     def clean(self):
         self.__init__()
