@@ -1539,11 +1539,11 @@ class HorndeskiModel:
             Omega_m_prime_arr = self.compute_Omega_m_prime(Omega_m_arr, E_arr, E_prime_arr)
             Omega_l_prime_arr = self.compute_Omega_l_prime(Omega_l_arr, E_arr, E_prime_arr)
 
-            calB_arr = None # TODO == 0?
-            calC_arr = None # TODO == 0?
-            beta_arr = np.zeros((len(z_arr)))
+            calB_arr = np.zeros(len(z_arr))
+            calC_arr = np.zeros(len(z_arr))
+            beta_arr = np.zeros(len(z_arr))
 
-            chioverdelta_arr = None # TODO == 0?
+            chioverdelta_arr = np.zeros(len(z_arr))
 
             closure_variable = None
             roots_raw = None
@@ -1577,13 +1577,11 @@ class HorndeskiModel:
                 Omega_m_prime_arr = Omega_m_prime_arr[::-1]
                 Omega_r_prime_arr = Omega_r_prime_arr[::-1]
                 Omega_l_prime_arr = Omega_l_prime_arr[::-1]
-
-                # These are set to None currently TODO add the expectations under LCDM.
-                # A_arr = A_arr[::-1]
-                # calB_arr = calB_arr[::-1]
-                # calC_arr = calC_arr[::-1]
-                # beta_arr = beta_arr[::-1]
-                # chioverdelta_arr = chioverdelta_arr[::-1]
+                A_arr = A_arr[::-1]
+                calB_arr = calB_arr[::-1]
+                calC_arr = calC_arr[::-1]
+                beta_arr = beta_arr[::-1]
+                chioverdelta_arr = chioverdelta_arr[::-1]
 
             else:
                 E_arr = E_arr[:,::-1]
