@@ -28,6 +28,12 @@ class HorndeskiModel:
         self.sym['phiprime'] = sym.symbols('phiprime')
         self.sym['phiprimeprime'] = sym.symbols('phiprimeprime')
         self.sym['X'] = sym.symbols('X')
+        self.sym['M_p'] = sym.symbols('M_{p}')
+        self.sym['M_s'] = sym.symbols('M_{s}')
+        self.sym['M_g'] = sym.symbols('M_{g}')
+        self.sym['M_G3'] = sym.symbols('M_{G3}')
+        self.sym['M_G4'] = sym.symbols('M_{G4}')
+        self.sym['M_K'] = sym.symbols('M_{K}')
         self.sym['M_pG4'] = sym.symbols('M_{pG4}')
         self.sym['M_KG4'] = sym.symbols('M_{KG4}')
         self.sym['M_G3s'] = sym.symbols('M_{G3s}')
@@ -35,9 +41,11 @@ class HorndeskiModel:
         self.sym['M_G3G4'] = sym.symbols('M_{G3G4}')
         self.sym['M_Ks'] = sym.symbols('M_{Ks}')
         self.sym['M_gp'] = sym.symbols('M_{gp}')
+        self.sym['M_sp'] = sym.symbols('M_{sp}')
         self.sym['Omega_r'] = sym.symbols('Omega_r')
         self.sym['Omega_m'] = sym.symbols('Omega_m')
         self.sym['Omega_l'] = sym.symbols('Omega_l')
+        self.sym['H0'] = sym.symbols('H_0')
         self.sym['f_phi'] = sym.symbols('f_phi')
         self.sym['Theta'] = sym.symbols('Theta')
         # Not sure these are variables or diagnostic tools...
@@ -49,6 +57,7 @@ class HorndeskiModel:
         # Parameter values
         self.params = {}
         self.params['mass_ratios'] = {
+            'M_p': 1,
             'M_pG4': 1, 
             'M_KG4': 1, 
             'M_G3s': 1, 
@@ -576,37 +585,123 @@ class HorndeskiModel:
         self.symfunc['beta'] = -1.*(self.symfunc['alpha1'] + self.symfunc['alpha2'])*self.symfunc['calC']
 
     
-    def set_mass_ratios(self, M_pG4=1., M_KG4=1., M_G3s=1., M_sG4=1., M_G3G4=1., M_Ks=1., M_gp=1.):
+    def get_M_star_sq(self):
+        """
+        Code equivalent of equation A.6 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
+        """
+        self.symfunc['M_star_sq'] = 2*self.symfunc['G4']*self.sym['M_p']**2
+    
+
+    def get_alpha_M(self):
+        """
+        Code equivalent of equation A.7 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
+        """
+        self.symfunc['alpha_M'] = (2*self.sym['phiprime']*self.symfunc['G4phi']*self.sym['M_p']**2)/self.symfunc['M_star_sq']
+    
+
+    def get_alpha_B(self):
+        """
+        Code equivalent of equation A.9 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
+        """
+        self.symfunc['alpha_B'] = 2*self.sym['phiprime']*(self.sym['M_s']*self.sym['M_G3']*self.sym['X']*self.symfunc['G3x'] - self.symfunc['G4phi']*self.sym['M_G4'])/self.symfunc['M_star_sq']
+
+
+    def get_alpha_K(self):
+        """
+        Code equivalent of equation A.8 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
+        """
+        term11 = (self.sym['M_K']**2)*(self.symfunc['Kx'] + 2*self.sym['X']*self.symfunc['Kxx'])
+        term12 = 2*self.sym['M_s']*self.sym['M_G3']*(self.symfunc['G3phi'] + self.sym['X']*self.symfunc['G3phix'])
+        term1 = (term11 - term12)*2*self.sym['X']/(self.symfunc['M_star_sq']*self.sym['E']**2)
+        term2 = 12*self.sym['M_s']*self.sym['M_G3']*self.sym['phiprime']*self.sym['X']*(self.symfunc['G3x'] + self.sym['X']*self.symfunc['G3xx'])/self.symfunc['M_star_sq']
+        self.symfunc['alpha_K'] = term1 + term2
+
+ 
+    def get_rho_DE(self):
+        """
+        Code equivalent of equation A.1 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
+        """
+        term1 = (self.sym['M_K']**2)*self.symfunc['Kx'] - self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3phi']
+        term2 = self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3x']*self.sym['X'] - self.symfunc['G4phi']*self.sym['M_G4']**2
+        self.symfunc['rho_DE'] = (self.sym['H0']**2)*(2*self.sym['X']*term1 + 6*(self.sym['E']**2)*self.sym['phiprime']*term2 - self.sym['M_K']**2*self.symfunc['K'])/self.symfunc['M_star_sq']
+
+
+    def get_P_DE(self):
+        """
+        Code equivalent of equation A.2 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class
+        """
+        term1 = (self.sym['M_K']**2)*self.symfunc['K'] + 4*(self.sym['E']**2)*self.symfunc['G4phi']*self.sym['phiprime']*(self.sym['M_G4']**2)
+        term2 = self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3phi'] - 2*self.symfunc['G4phiphi']*(self.sym['M_G4']**2)
+        term31 = 2*self.sym['phiprime']*(self.sym['M_s']*self.sym['M_G3']*self.sym['X']*self.symfunc['G3x'] - self.symfunc['G4phi']*(self.sym['M_G4']**2))
+        term3 = term31*self.sym['E']*(self.sym['Eprime']*self.sym['phiprime'] + self.sym['E']*self.sym['phiprimeprime'])/self.sym['phiprime']
+        self.symfunc['P_DE'] = (self.sym['H0']**2)*(term1 - 2*self.sym['X']*term2 - term3)/self.symfunc['M_star_sq']
+
+
+    def get_Q_s(self):
+        """
+        Code equivalent of the LHS of the first inequality in 3.13 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
+        """
+        self.symfunc['D'] = self.symfunc['alpha_K'] + (3/2)*(self.symfunc['alpha_B']**2)
+        self.symfunc['Q_s'] = 2*self.symfunc['M_star_sq']*self.symfunc['D']/((2-self.symfunc['alpha_B'])**2) 
+    
+
+    def get_c_s_sq(self):
+        """
+        Code equivalent of the LHS of the second inequality in 3.13 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
+        """
+        self.sym['alpha_B_prime'] = sym.symbols('alpha_{B}prime')
+        term1 = self.symfunc['EprimeE'] - self.symfunc['alpha_M']/2
+        term2 = 3*self.sym['Omega_m'] + 4*self.sym['Omega_r']
+        # TODO: why is Omega_r here?
+        self.symfunc['c_s_sq_D'] = -((2 - self.symfunc['alpha_B'])*term1 - self.sym['alpha_B_prime'] + term2/self.symfunc['M_star_sq'])
+        self.symfunc['c_s_sq'] = self.symfunc['c_s_sq_D']/self.symfunc['D']
+
+
+    def set_mass_ratios(self, M_p=1., M_pG4=1., M_KG4=1., M_G3s=1., M_sG4=1., M_G3G4=1., M_Ks=1., M_gp=1.):
         """
         Allows the users to assign specific values to mass ratios, those unchanged will be set to 1.
 
         Parameters
         ----------
+        M_p : float, optional
+            Planck mass.
         M_pG4 : float, optional
-            TODO
+            Mass ratio M_p/M_G4.
         M_KG4 : float, optional
-            TODO
+            Mass ratio M_K/M_G4.
         M_G3s : float, optional
-            TODO
+            Mass ratio M_G3/M_s.
         M_sG4 : float, optional
-            TODO
+            Mass ratio M_s/M_G4.
         M_G3G4 : float, optional
-            TODO
+            Mass ratio M_G4/M_G4.
         M_Ks : float, optional
-            TODO
+            Mass ratio M_K/M_s.
         M_gp : float, optional
-            TODO
+            Mass ratio M_g/M_p.
         """
         self.params['mass_ratios'] = {
+            'M_p': M_p,
             'M_pG4': M_pG4, 
             'M_KG4': M_KG4, 
             'M_G3s': M_G3s, 
             'M_sG4': M_sG4, 
             'M_G3G4': M_G3G4, 
             'M_Ks': M_Ks, 
-            'M_gp': M_gp ,
-            'M_sp': M_sG4/M_pG4,
+            'M_gp': M_gp
         }
+
+
+    def get_absolute_masses_from_mass_ratios(self):
+        """
+        Determines the absolute mass scales from the mass ratio.
+        """
+        self.params['mass_ratios']['M_G4'] = self.params['mass_ratios']['M_p']/self.params['mass_ratios']['M_pG4']
+        self.params['mass_ratios']['M_K'] = self.params['mass_ratios']['M_KG4']*self.params['mass_ratios']['M_G4']
+        self.params['mass_ratios']['M_s'] = self.params['mass_ratios']['M_sG4']*self.params['mass_ratios']['M_G4']
+        self.params['mass_ratios']['M_g'] = self.params['mass_ratios']['M_gp']*self.params['mass_ratios']['M_p']
+        self.params['mass_ratios']['M_G3'] = self.params['mass_ratios']['M_G3s']*self.params['mass_ratios']['M_s']
+        self.params['mass_ratios']['M_sp'] = self.params['mass_ratios']['M_s']/self.params['mass_ratios']['M_p']
 
 
     def construct_model(self):
@@ -624,15 +719,24 @@ class HorndeskiModel:
 
             Xreal = 0.5*(self.sym['E']**2.)*self.sym['phiprime']**2.
 
+            self.get_absolute_masses_from_mass_ratios()
+
             sub_dict = {
                 self.sym['X']: Xreal,
+                self.sym['M_p']: self.params['mass_ratios']['M_p'],
                 self.sym['M_pG4']: self.params['mass_ratios']['M_pG4'],
                 self.sym['M_KG4']: self.params['mass_ratios']['M_KG4'],
                 self.sym['M_G3s']: self.params['mass_ratios']['M_G3s'],
                 self.sym['M_sG4']: self.params['mass_ratios']['M_sG4'],
                 self.sym['M_G3G4']: self.params['mass_ratios']['M_G3G4'],
                 self.sym['M_Ks']: self.params['mass_ratios']['M_Ks'],
-                self.sym['M_gp']: self.params['mass_ratios']['M_gp']
+                self.sym['M_gp']: self.params['mass_ratios']['M_gp'],
+                self.sym['M_sp']: self.params['mass_ratios']['M_sp'],
+                self.sym['M_G4']: self.params['mass_ratios']['M_G4'],
+                self.sym['M_K']: self.params['mass_ratios']['M_K'],
+                self.sym['M_s']: self.params['mass_ratios']['M_s'],
+                self.sym['M_g']: self.params['mass_ratios']['M_g'],
+                self.sym['M_G3']: self.params['mass_ratios']['M_G3'],
             }
 
             self.get_EprimeE()
@@ -680,6 +784,32 @@ class HorndeskiModel:
             self.get_beta()
             beta = self.symfunc['beta'].subs(sub_dict)
 
+            self.get_M_star_sq()
+            M_star_sq = self.symfunc['M_star_sq'].subs(sub_dict)
+            
+            self.get_alpha_M()
+            alpha_M = self.symfunc['alpha_M'].subs(sub_dict)
+
+            self.get_alpha_B()
+            alpha_B = self.symfunc['alpha_B'].subs(sub_dict)
+
+            self.get_alpha_K()
+            alpha_K = self.symfunc['alpha_K'].subs(sub_dict)
+            
+            self.get_rho_DE()
+            rho_DE = self.symfunc['rho_DE'].subs(sub_dict)
+
+            self.get_P_DE()
+            P_DE = self.symfunc['P_DE'].subs(sub_dict)
+
+            self.get_Q_s()
+            D = self.symfunc['D'].subs(sub_dict)
+            Q_s = self.symfunc['Q_s'].subs(sub_dict)
+
+            self.get_c_s_sq()
+            c_s_sq_D = self.symfunc['c_s_sq_D'].subs(sub_dict)
+            c_s_sq = self.symfunc['c_s_sq'].subs(sub_dict)
+
             # we will copy these substituted and simplified functions to the class symfunc dictionary, we avoided 
             # doing this before as some of these are re-called and redefined in the 'get' functions.
             self.symfunc['EprimeE'] = EprimeE
@@ -697,6 +827,16 @@ class HorndeskiModel:
             self.symfunc['calB'] = calB
             self.symfunc['calC'] = calC
             self.symfunc['beta'] = beta
+            self.symfunc['M_star_sq'] = M_star_sq
+            self.symfunc['alpha_M'] = alpha_M
+            self.symfunc['alpha_B'] = alpha_B
+            self.symfunc['alpha_K'] = alpha_K
+            self.symfunc['rho_DE'] = rho_DE
+            self.symfunc['P_DE'] = P_DE
+            self.symfunc['D'] = D
+            self.symfunc['Q_s'] = Q_s
+            self.symfunc['c_s_sq_D'] = c_s_sq_D
+            self.symfunc['c_s_sq'] = c_s_sq
 
             # Lambdify functions
             self.lambda_funcs['B2_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['B2'], "scipy")
@@ -715,6 +855,7 @@ class HorndeskiModel:
                 self.symfunc['phiprimeprime_safe'], "scipy"
             )
 
+            # TODO: change so all variables are entered here, this won't work if phi appears in the function.
             self.lambda_funcs['Omega_phi_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['Omega_phi'])
             self.lambda_funcs['A_lambda'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['A'], "scipy")
             self.lambda_funcs['alpha0_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['alpha0'])
@@ -724,8 +865,19 @@ class HorndeskiModel:
             self.lambda_funcs['calB_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['calB'])
             self.lambda_funcs['calC_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['calC'])
             self.lambda_funcs['beta_lambda'] = sym.lambdify([self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['beta'])
-    
+            self.lambda_funcs['M_star_sq'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['M_star_sq'])
+            self.lambda_funcs['alpha_M'] = sym.lambdify([self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['alpha_M'])
+            self.lambda_funcs['alpha_B'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['alpha_B'])
+            self.lambda_funcs['alpha_K'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['alpha_K'])
+            self.lambda_funcs['rho_DE'] = sym.lambdify([self.sym['H0'], self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['rho_DE'])
+            self.lambda_funcs['P_DE'] = sym.lambdify([self.sym['H0'], self.sym['E'], self.sym['Eprime'], self.sym['phiprime'], self.sym['phiprimeprime'], *self.sym['K_G3_G4_syms']], self.symfunc['P_DE'])
+            self.lambda_funcs['D'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['D'])
+            self.lambda_funcs['Q_s'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], *self.sym['K_G3_G4_syms']], self.symfunc['Q_s'])
+            self.lambda_funcs['c_s_sq_D'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], self.sym['alpha_B_prime'], self.sym['Omega_r'], self.sym['Omega_m'], self.sym['Omega_l'], *self.sym['K_G3_G4_syms']], self.symfunc['c_s_sq_D'])
+            self.lambda_funcs['c_s_sq'] = sym.lambdify([self.sym['E'], self.sym['phiprime'], self.sym['alpha_B_prime'], self.sym['Omega_r'], self.sym['Omega_m'], self.sym['Omega_l'], *self.sym['K_G3_G4_syms']], self.symfunc['c_s_sq'])
 
+    
+    
     def set_cosmo_params(self, H0_ref, Omega_m0_ref, Omega_r0_ref, fphi, K_G3_G4_values):
         """
         Set cosmological and Horndeski parameters.
@@ -874,17 +1026,24 @@ class HorndeskiModel:
         E : float or array
             Normalised Hubble expansion.
         calB : float or array
-            TODO
+            Code equivalent of equation 3.7 in https://arxiv.org/abs/2209.01666.
         calC : float or array
-            TODO
+            Code equivalent of equation 3.7 in https://arxiv.org/abs/2209.01666.
 
         Return
         ------
         chioverdelta : float or array   
-            TODO
+            Code equivalent of equation 3.14 in https://arxiv.org/abs/2209.01666.
         """
         chioverdelta = calB * calC * self.params['Omega_m0']/((E**2)*(a**3)) # TODO: there's a G_G4/G_N in 3.14 in https://arxiv.org/pdf/2209.01666 which is not included here...
         return chioverdelta
+    
+
+    def comp_w_eff(self):
+        """
+        Computes effective equation of state.
+        """
+        self.output['w_eff'] = -1 - (2/3)*self.output['E_prime/E']
     
     
     def _initiate_solver_status(self):
@@ -1228,8 +1387,176 @@ class HorndeskiModel:
         self.output['f2'] = f2
 
 
+    def get_mu_Sigma(self):
+        """
+        Computes deviations in the Poisson and Weyl potentials. Note: current implementation assumes
+        G4 = constant, where Sigma = mu.
+        """
+
+        if np.isscalar(self.output['Omega_m0']):
+
+            check = True
+
+            if self.output['beta'] is None or np.isfinite(self.output['beta']).all() == False:
+                check = False
+
+            if check:
+                mu = 1 + self.output['beta']
+                if self.symfunc['alpha_M'].is_zero:
+                    Sigma = np.copy(mu)
+                else:
+                    # TODO: need to properly handle this... for when alpha_M != 0.
+                    Sigma = np.nan*np.ones(len(mu))
+            else:
+                mu = None
+                Sigma = None
+
+        else:
+
+            mu = np.zeros(np.shape(self.output['E']))
+            Sigma = np.zeros(np.shape(self.output['E']))
+
+            for idx in range(0, len(self.output['Omega_m0'])):
+
+                check = True
+
+                if self.output['beta'][idx] is None or np.isfinite(self.output['beta'][idx]).all() == False:
+                    check = False
+
+                if check:
+                    mu[idx] = 1 + self.output['beta'][idx]
+                    if self.symfunc['alpha_M'].is_zero:
+                        Sigma[idx] = np.copy(mu[idx])
+                    else:
+                        # TODO: need to properly handle this... for when alpha_M != 0.
+                        Sigma = np.nan*np.ones(len(mu))
+                else:
+                    mu[idx] = np.nan * np.ones(len(self.output['x']))
+                    Sigma[idx] = np.nan * np.ones(len(self.output['x']))
+        
+        self.output['mu'] = mu
+        self.output['Sigma'] = Sigma
+    
+        
+    def get_Sigma_derivatives(self):
+        """
+        Computes the derivates of the Sigma useful for computing the ISW.
+        """
+
+        if np.isscalar(self.output['Omega_m0']):
+
+            check = True
+
+            if self.output['Sigma'] is None or np.isfinite(self.output['Sigma']).all() == False:
+                check = False
+
+            if check:
+                Sigma1 = self.output['Sigma'][-1]
+                S = self.output['Sigma']/Sigma1
+                zeta = np.gradient(np.log(S), self.output['x'])
+            else:
+                Sigma1 = None
+                S = None
+                zeta = None
+
+        else:
+
+            Sigma1 = np.zeros(np.shape(self.output['E']))
+            S = np.zeros(np.shape(self.output['E']))
+            zeta = np.zeros(np.shape(self.output['E']))
+
+            for idx in range(0, len(self.output['Omega_m0'])):
+
+                check = True
+
+                if self.output['beta'][idx] is None or np.isfinite(self.output['beta'][idx]).all() == False:
+                    check = False
+
+                if check:
+                    Sigma1[idx] = self.output['Sigma'][idx][-1]
+                    S[idx] = self.output['Sigma'][idx]/Sigma1[idx]
+                    zeta[idx] = np.gradient(np.log(S[idx]), self.output['x'])
+                else:
+                    Sigma1[idx] = np.nan
+                    S[idx] = np.nan * np.ones(len(self.output['x']))
+                    zeta[idx] = np.nan * np.ones(len(self.output['x']))
+        
+        self.output['Sigma1'] = Sigma1
+        self.output['S'] = S
+        self.output['zeta'] = zeta
+
+
+    def compute_w_phi(self):
+        """
+        Computes equation of state for scalar field using the Friedman equations. 
+        Code equivalent of 3.5 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050.
+        """
+        if np.isscalar(self.output['Omega_m0']):
+
+            check = True
+
+            if self.output['E'] is None or np.isfinite(self.output['E']).all() == False:
+                check = False
+            if self.output['E_prime'] is None or np.isfinite(self.output['E_prime']).all() == False:
+                check = False
+            if self.output['Omega_r'] is None or np.isfinite(self.output['Omega_r']).all() == False:
+                check = False
+            if self.output['Omega_m'] is None or np.isfinite(self.output['Omega_m']).all() == False:
+                check = False
+            if self.output['Omega_l'] is None or np.isfinite(self.output['Omega_l']).all() == False:
+                check = False
+            if self.output['M_star_sq'] is None or np.isfinite(self.output['M_star_sq']).all() == False:
+                check = False
+
+            if check:
+                P_phi = -2*(self.params['H0']**2)*self.output['E']*self.output['E_prime'] 
+                P_phi -= 3*(self.params['H0']**2)*(self.output['E']**2)*(1+(self.output['Omega_r']/3 - self.output['Omega_l'])/self.output['M_star_sq'])
+                rho_phi = 3*(self.params['H0']**2)*(self.output['E']**2)*(1-(self.output['Omega_m'] + self.output['Omega_r'] + self.output['Omega_l'])/self.output['M_star_sq'])
+                w_phi = self.output['P_phi']/self.output['rho_phi']
+            else:
+                P_phi = None
+                rho_phi = None
+                w_phi = None
+        
+        else:
+            
+            P_phi = np.zeros(np.shape(self.output['E']))
+            rho_phi = np.zeros(np.shape(self.output['E']))
+            w_phi = np.zeros(np.shape(self.output['E']))
+
+            for idx in range(0, len(self.output['Omega_m0'])):
+
+                check = True
+                if self.output['E'] is None or np.isfinite(self.output['E'][idx]).all() == False:
+                    check = False
+                if self.output['E_prime'] is None or np.isfinite(self.output['E_prime'][idx]).all() == False:
+                    check = False
+                if self.output['Omega_r'] is None or np.isfinite(self.output['Omega_r'][idx]).all() == False:
+                    check = False
+                if self.output['Omega_m'] is None or np.isfinite(self.output['Omega_m'][idx]).all() == False:
+                    check = False
+                if self.output['Omega_l'] is None or np.isfinite(self.output['Omega_l'][idx]).all() == False:
+                    check = False
+                if self.output['M_star_sq'] is None or np.isfinite(self.output['M_star_sq'][idx]).all() == False:
+                    check = False
+
+                if check:
+                    P_phi[idx] = -2*(self.params['H0']**2)*self.output['E'][idx]*self.output['E_prime'][idx] 
+                    P_phi[idx] -= 3*(self.params['H0']**2)*(self.output['E'][idx]**2)*(1+(self.output['Omega_r'][idx]/3 - self.output['Omega_l'][idx])/self.output['M_star_sq'][idx])
+                    rho_phi[idx] = 3*(self.params['H0']**2)*(self.output['E'][idx]**2)*(1-(self.output['Omega_m'][idx] + self.output['Omega_r'][idx] + self.output['Omega_l'][idx])/self.output['M_star_sq'][idx])
+                    w_phi[idx] = P_phi[idx]/rho_phi[idx]
+                else:
+                    P_phi[idx] = np.nan * np.ones(len(self.output['x']))
+                    rho_phi[idx] = np.nan * np.ones(len(self.output['x']))
+                    w_phi[idx] = np.nan * np.ones(len(self.output['x']))
+        
+        self.output['P_phi'] = P_phi
+        self.output['rho_phi'] = rho_phi
+        self.output['w_phi'] = w_phi
+    
+
     def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, method='RK45', 
-        timeout=5, compute_growth=True):
+        timeout=5, compute_growth=True, compute_mu_Sigma=True):
         """
         Runs the numerical solver for a user defined Horndeski model.
 
@@ -1359,6 +1686,16 @@ class HorndeskiModel:
                 calC_arr = np.zeros((len(roots), len(x_arr)))
                 beta_arr = np.zeros((len(roots), len(x_arr)))
                 chioverdelta_arr = np.zeros((len(roots), len(x_arr)))
+                M_star_sq_arr = np.zeros((len(roots), len(x_arr)))
+                alpha_M_arr = np.zeros((len(roots), len(x_arr)))
+                alpha_B_arr = np.zeros((len(roots), len(x_arr)))
+                alpha_K_arr = np.zeros((len(roots), len(x_arr)))
+                rho_DE_arr = np.zeros((len(roots), len(x_arr)))
+                P_DE_arr = np.zeros((len(roots), len(x_arr)))
+                D_arr = np.zeros((len(roots), len(x_arr)))
+                Q_s_arr = np.zeros((len(roots), len(x_arr)))
+                c_s_sq_D_arr = np.zeros((len(roots), len(x_arr)))
+                c_s_sq_arr = np.zeros((len(roots), len(x_arr)))
 
                 # Not sure the LCDM arrays are necessary...
                 E_prime_E_LCDM_arr = lcdm.compute_EprimeE_x_LCDM(x_arr, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
@@ -1470,6 +1807,24 @@ class HorndeskiModel:
                     beta_arr[idx] = self.lambda_funcs['beta_lambda'](E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
                     chioverdelta_arr[idx] = self.compute_chi_over_delta(a_arr, E_arr[idx], calB_arr[idx], calC_arr[idx])
 
+                    M_star_sq_arr[idx] = self.lambda_funcs['M_star_sq'](E_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+                    alpha_M_arr[idx] = self.lambda_funcs['alpha_M'](phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+                    alpha_B_arr[idx] = self.lambda_funcs['alpha_B'](E_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+                    alpha_K_arr[idx] = self.lambda_funcs['alpha_K'](E_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+                    
+                    if forwards:
+                        alpha_B_prime_arr = np.gradient(alpha_B_arr[idx], x_arr)
+                    else:
+                        alpha_B_prime_arr = np.gradient(alpha_B_arr[idx][::-1], x_arr[::-1])[::-1]
+                    
+                    rho_DE_arr[idx] = self.lambda_funcs['rho_DE'](self.params['H0'], E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+                    P_DE_arr[idx] = self.lambda_funcs['P_DE'](self.params['H0'], E_arr[idx], E_prime_arr[idx], phi_prime_arr[idx], phi_primeprime_arr[idx], *self.params['K_G3_G4_values'])
+                    
+                    D_arr[idx] = self.lambda_funcs['D'](E_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+                    Q_s_arr[idx] = self.lambda_funcs['Q_s'](E_arr[idx], phi_prime_arr[idx], *self.params['K_G3_G4_values'])
+                    c_s_sq_D_arr[idx] = self.lambda_funcs['c_s_sq_D'](E_arr[idx], phi_prime_arr[idx], alpha_B_prime_arr, Omega_r_arr[idx], Omega_m_arr[idx], Omega_l_arr[idx], *self.params['K_G3_G4_values'])
+                    c_s_sq_arr[idx] = self.lambda_funcs['c_s_sq'](E_arr[idx], phi_prime_arr[idx], alpha_B_prime_arr, Omega_r_arr[idx], Omega_m_arr[idx], Omega_l_arr[idx], *self.params['K_G3_G4_values'])
+
             else:
                 roots = None
                 solver_success = None
@@ -1502,6 +1857,16 @@ class HorndeskiModel:
                 calC_arr = None
                 beta_arr = None
                 chioverdelta_arr = None
+                M_star_sq_arr = None
+                alpha_M_arr = None
+                alpha_B_arr = None
+                alpha_K_arr = None
+                rho_DE_arr = None
+                P_DE_arr = None
+                D_arr = None
+                Q_s_arr = None
+                c_s_sq_D_arr = None
+                c_s_sq_arr = None
         else:
             
             self.params['H0'] = self.params['H0_ref']
@@ -1510,7 +1875,7 @@ class HorndeskiModel:
             Omega_r0 = self.params['Omega_r0']
             self.params['Omega_m0'] = self.params['Omega_m0_ref']
             Omega_m0 = self.params['Omega_m0']
-            self.params['Omega_l0'] = self.params['Omega_l0_ref']
+            self.params['Omega_l0'] = self.params['Omega_l0_LCDM']
             Omega_l0 = self.params['Omega_l0']
 
             phi_prime_arr = np.zeros(len(z_arr))
@@ -1544,6 +1909,20 @@ class HorndeskiModel:
             beta_arr = np.zeros(len(z_arr))
 
             chioverdelta_arr = np.zeros(len(z_arr))
+
+            M_star_sq_arr = np.ones(len(z_arr))*(self.params['mass_ratios']['M_p']**2.)/2.
+            alpha_M_arr = np.zeros(len(z_arr))
+            alpha_M_arr = np.zeros(len(z_arr))
+            alpha_B_arr = np.zeros(len(z_arr))
+            alpha_K_arr = np.zeros(len(z_arr))
+            
+            rho_DE_arr = np.zeros(len(z_arr))
+            P_DE_arr = np.zeros(len(z_arr))
+            
+            D_arr = np.zeros(len(z_arr))
+            Q_s_arr = np.zeros(len(z_arr))
+            c_s_sq_D_arr = np.nan*np.ones(len(z_arr))
+            c_s_sq_arr = np.nan*np.ones(len(z_arr))
 
             closure_variable = None
             roots_raw = None
@@ -1582,7 +1961,16 @@ class HorndeskiModel:
                 calC_arr = calC_arr[::-1]
                 beta_arr = beta_arr[::-1]
                 chioverdelta_arr = chioverdelta_arr[::-1]
-
+                M_star_sq_arr = M_star_sq_arr[::-1]
+                alpha_M_arr = alpha_M_arr[::-1]
+                alpha_B_arr = alpha_B_arr[::-1]
+                alpha_K_arr = alpha_K_arr[::-1]
+                rho_DE_arr = rho_DE_arr[::-1]
+                P_DE_arr = P_DE_arr[::-1]
+                D_arr = D_arr[::-1]
+                Q_s_arr = Q_s_arr[::-1]
+                c_s_sq_D_arr = c_s_sq_D_arr[::-1]
+                c_s_sq_arr = c_s_sq_arr[::-1]
             else:
                 E_arr = E_arr[:,::-1]
                 E_prime_arr = E_prime_arr[:,::-1]
@@ -1603,6 +1991,16 @@ class HorndeskiModel:
                 calC_arr = calC_arr[:,::-1]
                 beta_arr = beta_arr[:,::-1]
                 chioverdelta_arr = chioverdelta_arr[:,::-1]
+                M_star_sq_arr = M_star_sq_arr[:,::-1]
+                alpha_M_arr = alpha_M_arr[:,::-1]
+                alpha_B_arr = alpha_B_arr[:,::-1]
+                alpha_K_arr = alpha_K_arr[:,::-1]
+                rho_DE_arr = rho_DE_arr[:,::-1]
+                P_DE_arr = P_DE_arr[:,::-1]
+                D_arr = D_arr[:,::-1]
+                Q_s_arr = Q_s_arr[:,::-1]
+                c_s_sq_D_arr = c_s_sq_D_arr[:,::-1]
+                c_s_sq_arr = c_s_sq_arr[:,::-1]
         
         E_like_arr = np.copy(E_arr)
         E_prime_like_arr = np.copy(E_prime_arr)
@@ -1648,6 +2046,16 @@ class HorndeskiModel:
             'calC': calC_arr,
             'beta': beta_arr,
             'chi/delta': chioverdelta_arr,
+            'alpha_M': alpha_M_arr,
+            'alpha_B': alpha_B_arr,
+            'alpha_K': alpha_K_arr,
+            'M_star_sq': M_star_sq_arr,
+            'rho_DE': rho_DE_arr,
+            'P_DE': P_DE_arr,
+            'D': D_arr,
+            'Q_s': Q_s_arr,
+            'c_s_sq_D': c_s_sq_D_arr,
+            'c_s_sq': c_s_sq_arr,
             'initialiser': {
                 'z_start': z_start,
                 'forwards': forwards,
@@ -1663,6 +2071,19 @@ class HorndeskiModel:
         if compute_growth:
             self.get_linear_growth()
             self.get_linear_growth_2()
+
+        if compute_mu_Sigma:
+            self.get_mu_Sigma()
+            self.get_Sigma_derivatives()
+        
+        if GR is False:
+            self.compute_w_phi()
+        else:
+            self.output['P_phi'] = np.zeros(len(z_arr))
+            self.output['rho_phi'] = np.zeros(len(z_arr))
+            self.output['w_phi'] = np.nan*np.zeros(len(z_arr))
+
+        self.comp_w_eff()
 
         return self.output
 
