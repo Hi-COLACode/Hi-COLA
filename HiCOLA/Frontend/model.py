@@ -4,6 +4,7 @@ import sympy as sym
 
 from . import lcdm, redshift
 
+
 class HorndeskiModel:
 
     """
@@ -54,7 +55,8 @@ class HorndeskiModel:
             'M_sG4': 1, 
             'M_G3G4': 1, 
             'M_Ks': 1, 
-            'M_gp': 1 
+            'M_gp': 1,
+            'M_sp': 1,
         }
         self.outputs = {}
         self.timer = {'t0': None}
@@ -310,43 +312,6 @@ class HorndeskiModel:
         self.symfunc['G4phiphi'] = sym.diff(self.symfunc['G4phi'],self.sym['phi'])
         self.symfunc['G4phix'] = sym.diff(self.symfunc['G4phi'],self.sym['X'])
 
-
-    def get_Pde(self):
-        """
-        UNSURE what this is computing, Pressure for dark energy?
-        """
-        # Note: replaces Pde function
-        self.sym['H'] = sym.Symbol('H')
-        self.sym['Hprime'] = sym.Symbol('Hprime')
-        self.sym['Meff'] = sym.Symbol('M_eff')
-        self.sym['Mp'] = sym.Symbol('Mp')
-        self.sym['Ms'] = sym.Symbol('Ms')
-        # The following phi's are defined as Tilde phi, however they cal G3 and G4 which rely on phi, so this must just be normal phi, called something else for some reason?
-        # We will assume it's the same thing and not define it again here as a separate variable.
-        # self.sym['Tildephi'] = sym.Symbol('Tildephi')
-        # self.sym['Tildephiprime'] = sym.Symbol('Tildephiprime')
-        # self.sym['Tildephiprimeprime'] = sym.Symbol('Tildephiprimeprime')
-        Mfrac = (self.sym['Mp']**2)/(self.sym['Meff']**2)
-        term1 = 2*self.sym['X']*(self.symfunc['G3phi'] + self.sym['H']*(self.sym['Hprime']*self.sym['Ms']*self.sym['phiprime']
-            + self.sym['H']*self.sym['Ms']*self.sym['phiprimeprime'])*self.symfunc['G3x'])
-        term2 = 2*self.symfunc['G4phi']*(self.sym['H']*(self.sym['Hprime']*self.sym['Ms']*self.sym['phiprime'] 
-            + self.sym['H']*self.sym['Ms']*self.sym['phiprimeprime']) + 2*(self.sym['H']**2)*self.sym['Ms']*self.sym['phiprime'])
-        term3 = 4*self.sym['X']*self.symfunc['G4phiphi']
-        return Mfrac*(self.symfunc['K'] - term1 + term2 + term3) + ((self.sym['H']**2)*self.sym['Omega_r']*(self.sym['Mp']**2))* (Mfrac - 1)
-
-
-    def get_rhode(self):
-        """
-        UNSURE if this is a defunct function...
-        """
-        # the original function takes in phidot and phidotdot and appeared to be missing a * sign. I think this is a dead or unused function.
-        # Note: replaces rhode function
-        # might need to reinitialise the H, Hprime, etc from get_Pde, we will assume they are already defined.
-        Mfrac = (self.sym['Mp']**2)/(self.sym['Meff']**2)
-        term1 = 2*self.sym['X']*self.symfunc['Kx'] - self.symfunc['K'] + 6*self.sym['X']*self.sym['Ms']*self.sym['phiprime']*(self.sym['H']**2)*self.symfunc['G3x']
-        term2 = 2*self.sym['X']*self.symfunc['G3phi'] + 6*(self.sym['H']**2)*self.sym['Ms']*self.sym['phiprime']*self.symfunc['G4phi']
-        return (3*(self.sym['H']**2)*(self.sym['Mp']**2))*(self.sym['Omega_r'] + self.sym['Omega_m'])*(Mfrac - 1) + Mfrac*(term1 - term2)
-    
 
     def get_Omega_phi(self):
         """
@@ -639,7 +604,8 @@ class HorndeskiModel:
             'M_sG4': M_sG4, 
             'M_G3G4': M_G3G4, 
             'M_Ks': M_Ks, 
-            'M_gp': M_gp 
+            'M_gp': M_gp ,
+            'M_sp': M_sG4/M_pG4,
         }
 
 
@@ -928,7 +894,7 @@ class HorndeskiModel:
         self._solver_success = None
 
 
-    def _compute_primes(self, x, Y, K_G3_G4_values, threshold=1e-3, timeout=5):
+    def _compute_primes(self, x, Y, K_G3_G4_values, timeout=5):
         """
         Compute prime functions for numerical solver.
 
@@ -951,34 +917,10 @@ class HorndeskiModel:
         # `_` used to denote current value.
         _phi_prime, _E, _Omega_r, _Omega_m, _Omega_l = Y
 
-        # evaluate A and use this for diagnostic later, although unclear why...
-        A_value = self.lambda_funcs['A_lambda'](_E, _phi_prime, *K_G3_G4_values)
-
-        if A_value - abs(A_value) == 0:
-            A_sign = 1.
-        else: #elif A_value - abs(A_value) != 0:
-            A_sign = -1.
-
-        if threshold==0. or abs(A_value) >= threshold:
-            E_prime_E = self.lambda_funcs['EprimeE_lambda'](_E, _phi_prime, _Omega_r, _Omega_l, *K_G3_G4_values)
-            E_prime = E_prime_E*_E
-            phi_primeprime = self.lambda_funcs['phiprimeprime_lambda'](_E, E_prime, _phi_prime, *K_G3_G4_values)
-        else:
-            E_prime_E = self.lambda_funcs['EprimeE_safe_lambda'](_E, _phi_prime, _Omega_r, _Omega_l, threshold, A_sign, *K_G3_G4_values)
-            E_prime = E_prime_E*_E
-            phi_primeprime = self.lambda_funcs['phiprimeprime_safe_lambda'](_E, E_prime, _phi_prime, threshold, A_sign, *K_G3_G4_values)
-
-        # We will ignore this since we will be using the today formalism. TODO remove once confirmed this method is no longer needed.
-
-        """
-        if cl_declaration[0] == 'odeint_parameters': #usually indicates dS approach, so we must convert U back to E, since this is what the Omega_prime functions use
-            EY = EUY/E0
-            EYprime = E_prime_evaluated/E0
-        if cl_declaration[0] == 'parameters': #usually indicates 'today' approach, no need to change the Hubble variable, it is already E
-            EY = EUY
-            EYprime = E_prime_evaluated
-        """
-
+        E_prime_E = self.lambda_funcs['EprimeE_lambda'](_E, _phi_prime, _Omega_r, _Omega_l, *K_G3_G4_values)
+        E_prime = E_prime_E*_E
+        phi_primeprime = self.lambda_funcs['phiprimeprime_lambda'](_E, E_prime, _phi_prime, *K_G3_G4_values)
+       
         Omega_r_prime = self.compute_Omega_r_prime(_Omega_r, _E, E_prime)
         Omega_m_prime = self.compute_Omega_m_prime(_Omega_m, _E, E_prime)
         Omega_l_prime = self.compute_Omega_l_prime(_Omega_l, _E, E_prime)
@@ -1039,17 +981,17 @@ class HorndeskiModel:
 
         # Run sanity checks to test whether linear growth functions can be computed
 
-        check = True
-        if self.output['E'] is None or np.isfinite(self.output['E']).all() == False:
-            check = False
-        if self.output['E_prime'] is None or np.isfinite(self.output['E_prime']).all() == False:
-            check = False
-        if self.output['beta'] is None or np.isfinite(self.output['beta']).all() == False:
-            check = False
+        if np.isscalar(self.output['Omega_m0']):
 
-        if check:
+            check = True
+            if self.output['E'] is None or np.isfinite(self.output['E']).all() == False:
+                check = False
+            if self.output['E_prime'] is None or np.isfinite(self.output['E_prime']).all() == False:
+                check = False
+            if self.output['beta'] is None or np.isfinite(self.output['beta']).all() == False:
+                check = False
 
-            if np.isscalar(self.output['Omega_m0']):
+            if check:
 
                 self._linear_growth_int = {}
                 self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'], kind='cubic', fill_value='extrapolate')
@@ -1081,13 +1023,27 @@ class HorndeskiModel:
                 _f1 = _D1prime/_D1
 
                 D1, f1 = _D1, _f1
-
+            
             else:
 
-                D1 = np.zeros(np.shape(self.output['E']))
-                f1 = np.zeros(np.shape(self.output['E']))
+                D1, f1 = None, None
 
-                for idx in range(0, len(self.output['Omega_m0'])):
+        else:
+            
+            D1 = np.zeros(np.shape(self.output['E']))
+            f1 = np.zeros(np.shape(self.output['E']))
+
+            for idx in range(0, len(self.output['Omega_m0'])):
+
+                check = True
+                if self.output['E'] is None or np.isfinite(self.output['E'][idx]).all() == False:
+                    check = False
+                if self.output['E_prime'] is None or np.isfinite(self.output['E_prime'][idx]).all() == False:
+                    check = False
+                if self.output['beta'] is None or np.isfinite(self.output['beta'][idx]).all() == False:
+                    check = False
+
+                if check:
 
                     self._linear_growth_int = {}
                     self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'][idx], kind='cubic', fill_value='extrapolate')
@@ -1119,14 +1075,13 @@ class HorndeskiModel:
                     _f1 = _D1prime/_D1
 
                     D1[idx], f1[idx] = _D1, _f1
-            
-            self.output['D1'] = D1
-            self.output['f1'] = f1
 
-        else:
-            
-            self.output['D1'] = None
-            self.output['f1'] = None
+                else:
+                    D1[idx] = np.nan * np.ones(len(self.output['x']))
+                    f1[idx] = np.nan * np.ones(len(self.output['x']))
+
+        self.output['D1'] = D1
+        self.output['f1'] = f1
 
     
     def _linear_growth_2(self, x, y, Omega_m0):
@@ -1171,20 +1126,20 @@ class HorndeskiModel:
 
         # Run sanity checks to test whether linear growth functions can be computed
 
-        check = True
-        if self.output['E'] is None or np.isfinite(self.output['E']).all() == False:
-            check = False
-        if self.output['E_prime'] is None or np.isfinite(self.output['E_prime']).all() == False:
-            check = False
-        if self.output['beta'] is None or np.isfinite(self.output['beta']).all() == False:
-            check = False
-        if self.output['D1'] is None or np.isfinite(self.output['D1']).all() == False:
-            check = False
+        if np.isscalar(self.output['Omega_m0']):
 
-        if check:
+            check = True
+            if self.output['E'] is None or np.isfinite(self.output['E']).all() == False:
+                check = False
+            if self.output['E_prime'] is None or np.isfinite(self.output['E_prime']).all() == False:
+                check = False
+            if self.output['beta'] is None or np.isfinite(self.output['beta']).all() == False:
+                check = False
+            if self.output['D1'] is None or np.isfinite(self.output['D1']).all() == False:
+                check = False
 
-            if np.isscalar(self.output['Omega_m0']):
-
+            if check:
+                    
                 self._linear_growth_int = {}
                 self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'], kind='cubic', fill_value='extrapolate')
                 self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'], kind='cubic', fill_value='extrapolate')
@@ -1212,13 +1167,29 @@ class HorndeskiModel:
                 _f2 = _dD2/_D2
 
                 D2, f2 = _D2, _f2
-
+            
             else:
 
-                D2 = np.zeros(np.shape(self.output['E']))
-                f2 = np.zeros(np.shape(self.output['E']))
+                D2, f2 = None, None
 
-                for idx in range(0, len(self.output['Omega_m0'])):
+        else:
+
+            D2 = np.zeros(np.shape(self.output['E']))
+            f2 = np.zeros(np.shape(self.output['E']))
+
+            for idx in range(0, len(self.output['Omega_m0'])):
+
+                check = True
+                if self.output['E'] is None or np.isfinite(self.output['E'][idx]).all() == False:
+                    check = False
+                if self.output['E_prime'] is None or np.isfinite(self.output['E_prime'][idx]).all() == False:
+                    check = False
+                if self.output['beta'] is None or np.isfinite(self.output['beta'][idx]).all() == False:
+                    check = False
+                if self.output['D1'] is None or np.isfinite(self.output['D1'][idx]).all() == False:
+                    check = False
+
+                if check:
 
                     self._linear_growth_int = {}
                     self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'][idx], kind='cubic', fill_value='extrapolate')
@@ -1247,17 +1218,17 @@ class HorndeskiModel:
                     _f2 = _dD2/_D2
 
                     D2[idx], f2[idx] = _D2, _f2
-            
-            self.output['D2'] = D2
-            self.output['f2'] = f2
-            
-        else:
-            
-            self.output['D2'] = None
-            self.output['f2'] = None
+                
+                else:
+                    
+                    D2[idx] = np.nan * np.ones(len(self.output['x']))
+                    f2[idx] = np.nan * np.ones(len(self.output['x']))
+
+        self.output['D2'] = D2
+        self.output['f2'] = f2
 
 
-    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, threshold=1e-3, method='RK45', 
+    def run_solver(self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=1, phi_prime_ini=0.9, method='RK45', 
         timeout=5, compute_growth=True):
         """
         Runs the numerical solver for a user defined Horndeski model.
@@ -1415,7 +1386,7 @@ class HorndeskiModel:
 
                     ans = solve_ivp(
                         self._compute_primes, [x_ini, x_final], Y_ini, t_eval=x_arr, method=method, 
-                        args=(self.params['K_G3_G4_values'], threshold, timeout), 
+                        args=(self.params['K_G3_G4_values'], timeout), 
                         rtol = 1e-15
                     )
 
@@ -1557,7 +1528,7 @@ class HorndeskiModel:
 
             phi_primeprime_arr = np.zeros(len(z_arr))
 
-            A_arr = None # TODO == 0?
+            A_arr = np.zeros(len(z_arr))
 
             Omega_phi_arr = np.zeros(len(z_arr))
             Omega_DE_arr = 1. - Omega_r_arr - Omega_m_arr
@@ -1634,19 +1605,33 @@ class HorndeskiModel:
                 calC_arr = calC_arr[:,::-1]
                 beta_arr = beta_arr[:,::-1]
                 chioverdelta_arr = chioverdelta_arr[:,::-1]
-            
+        
+        E_like_arr = np.copy(E_arr)
+        E_prime_like_arr = np.copy(E_prime_arr)
+
+        if E_arr is not None:
+            if np.isscalar(Omega_m0):
+                E_arr /= E_like_arr[-1]
+                E_prime_arr /= E_like_arr[-1]
+            else:
+                for idx in range(0, len(Omega_m0)):
+                    E_arr[idx] /= E_like_arr[idx,-1]
+                    E_prime_arr[idx] /= E_like_arr[idx,-1]
+
         self.output = {
             'a': a_arr,
             'x': x_arr,
             'z': z_arr,
             'E': E_arr,
+            'E_like': E_like_arr,
             'H0': H0,
             'Omega_r0': Omega_r0,
             'Omega_m0': Omega_m0,
             'Omega_l0': Omega_l0,
             'E_prime': E_prime_arr,
-            'E_prime_E': E_prime_E_arr,
-            'E_prime_E_LCDM': E_prime_E_LCDM_arr,
+            'E_prime_like': E_prime_like_arr,
+            'E_prime/E': E_prime_E_arr,
+            'E_prime/E_LCDM': E_prime_E_LCDM_arr,
             'phi_prime': phi_prime_arr,
             'phi_primeprime': phi_primeprime_arr,
             'Omega_m': Omega_m_arr,
@@ -1672,7 +1657,9 @@ class HorndeskiModel:
                 'closure_values': roots,
                 'closure_values_raw': roots_raw,
             },
-            'solver_success': solver_success
+            'solver_success': solver_success,
+            'K_G3_G4_variables': [str(sym) for sym in self.sym['K_G3_G4_syms']],
+            'K_G3_G4_values': self.params['K_G3_G4_values']
         }
 
         if compute_growth:
@@ -1681,6 +1668,70 @@ class HorndeskiModel:
 
         return self.output
 
+    
+    def save_backend(self, fname_prefix):
+        """
+        Save outputs for background Hi-COLA run.
+
+        Parameters
+        ----------
+        fname_prefix : str
+            Filename for Hi-COLA backend files. This will create a force and expansion file in ascii format.
+        """
+        
+        if fname_prefix[-1] != '_':
+            fname_prefix += '_'
+        
+        if np.isscalar(self.output['Omega_m0']):
+
+            fname_expansion = fname_prefix + 'expansion.txt'
+            data = np.column_stack([self.output['a'], self.output['E'], self.output['E_prime/E']])
+            np.savetxt(fname_expansion, data, fmt=['%.4e', '%.4e', '%.4e'])
+
+            fname_force = fname_prefix + 'force.txt'
+            data = np.column_stack([self.output['a'], self.output['chi/delta'], self.output['beta']])
+            np.savetxt(fname_force, data, fmt=['%.4e', '%.4e', '%.4e'])
+        
+        else:
+            
+            for idx in range(0, len(self.output['Omega_m0'])):
+                
+                if len(self.output['Omega_m0']) != 1:
+                    fname_expansion = fname_prefix + 'res_%i_expansion.txt' % idx
+                else:
+                    fname_expansion = fname_prefix + 'expansion.txt'
+                data = np.column_stack([self.output['a'], self.output['E'][idx], self.output['E_prime/E'][idx]])
+                np.savetxt(fname_expansion, data, fmt=['%.4e', '%.4e', '%.4e'])
+
+                if len(self.output['Omega_m0']) != 1:
+                    fname_force = fname_prefix + 'res_%i_force.txt' % idx
+                else:
+                    fname_force = fname_prefix + 'force.txt'
+                data = np.column_stack([self.output['a'], self.output['chi/delta'][idx], self.output['beta'][idx]])
+                np.savetxt(fname_force, data, fmt=['%.4e', '%.4e', '%.4e'])
+
+
+    def save_outputs(self, fname_prefix, save_backend=True):
+        """
+        Save output dictionary into numpy format.
+
+        Parameters
+        ----------
+        fname_prefix : str
+            Filename prefix for output file, a 'all.npz' will be added to the name of the file.
+        """
+        if fname_prefix[-1] != '_':
+            fname_prefix += '_'
+
+        fname_all = fname_prefix + 'all.npz'
+
+        np.savez(fname_all, **self.output)
+        if save_backend:
+            self.save_backend(fname_prefix)
+
 
     def clean(self):
+        """
+        Reinitialise the class. 
+        """
         self.__init__()

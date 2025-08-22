@@ -147,37 +147,37 @@ def fried1(phi_prime, k1, g1, Omega_r, Omega_m, E, alpha_M, Ms_Mp, Meffsq_Mpsq):
 #     cl_variable = cl_variable[0]
 #     return cl_variable
 
-# def comp_primes(x, Y, E0, Omega_r0, Omega_m0, Omega_l0, E_prime_E_lambda, E_prime_E_safelambda, phi_primeprime_lambda, phi_primeprime_safelambda, A_lambda, cl_declaration, parameters,threshold=1e-3,GR_flag=False): #x, Y swapped for solve_ivp ###ADD LAMBDA FUNCTION AS ARGUMENT###
+def comp_primes(x, Y, E0, Omega_r0, Omega_m0, Omega_l0, E_prime_E_lambda, E_prime_E_safelambda, phi_primeprime_lambda, phi_primeprime_safelambda, A_lambda, cl_declaration, parameters,threshold=1e-3,GR_flag=False): #x, Y swapped for solve_ivp ###ADD LAMBDA FUNCTION AS ARGUMENT###
 
-#     phi_primeY, EUY, Omega_rY, Omega_mY, Omega_lY = Y
-#     A_value = A_lambda(EUY,phi_primeY,*parameters)
-#     if A_value - abs(A_value) == 0:
-#         A_sign = 1.
-#     elif A_value - abs(A_value) != 0:
-#         A_sign = -1.
+    phi_primeY, EUY, Omega_rY, Omega_mY, Omega_lY = Y
+    A_value = A_lambda(EUY,phi_primeY,*parameters)
+    if A_value - abs(A_value) == 0:
+        A_sign = 1.
+    elif A_value - abs(A_value) != 0:
+        A_sign = -1.
 
-#     if (abs(A_value) >= threshold and GR_flag==False) or (threshold==0. and GR_flag==False):
-#         E_prime_E_evaluated = E_prime_E_lambda(EUY,phi_primeY,Omega_rY,Omega_lY,*parameters)
-#         E_prime_evaluated = E_prime_E_evaluated*EUY
-#         phi_primeprime_evaluated = phi_primeprime_lambda(EUY,E_prime_evaluated,phi_primeY,*parameters)
-#     if (abs(A_value) < threshold and GR_flag==False):
-#         E_prime_E_evaluated = E_prime_E_safelambda(EUY,phi_primeY,Omega_rY,Omega_lY, threshold,A_sign,*parameters)
-#         E_prime_evaluated = E_prime_E_evaluated*EUY
-#         phi_primeprime_evaluated = phi_primeprime_safelambda(EUY,E_prime_evaluated,phi_primeY,threshold,A_sign,*parameters)
-#     if GR_flag==True:
-#         E_prime_E_evaluated = comp_E_prime_E_LCDM(x,Omega_r0,Omega_m0)
-#         E_prime_evaluated = E_prime_E_evaluated*EUY
-#         phi_primeprime_evaluated = 0.
-#     if cl_declaration[0] == 'odeint_parameters': #usually indicates dS approach, so we must convert U back to E, since this is what the Omega_prime functions use
-#         EY = EUY/E0
-#         EYprime = E_prime_evaluated/E0
-#     if cl_declaration[0] == 'parameters': #usually indicates 'today' approach, no need to change the Hubble variable, it is already E
-#         EY = EUY
-#         EYprime = E_prime_evaluated
-#     Omega_r_prime = comp_Omega_r_prime(Omega_rY, EY, EYprime)
-#     Omega_m_prime = comp_Omega_m_prime(Omega_mY, EY, EYprime)
-#     Omega_l_prime = comp_Omega_l_prime(Omega_l0,EY, EYprime)
-#     return [phi_primeprime_evaluated, E_prime_evaluated, Omega_r_prime, Omega_m_prime, Omega_l_prime]
+    if (abs(A_value) >= threshold and GR_flag==False) or (threshold==0. and GR_flag==False):
+        E_prime_E_evaluated = E_prime_E_lambda(EUY,phi_primeY,Omega_rY,Omega_lY,*parameters)
+        E_prime_evaluated = E_prime_E_evaluated*EUY
+        phi_primeprime_evaluated = phi_primeprime_lambda(EUY,E_prime_evaluated,phi_primeY,*parameters)
+    if (abs(A_value) < threshold and GR_flag==False):
+        E_prime_E_evaluated = E_prime_E_safelambda(EUY,phi_primeY,Omega_rY,Omega_lY, threshold,A_sign,*parameters)
+        E_prime_evaluated = E_prime_E_evaluated*EUY
+        phi_primeprime_evaluated = phi_primeprime_safelambda(EUY,E_prime_evaluated,phi_primeY,threshold,A_sign,*parameters)
+    if GR_flag==True:
+        E_prime_E_evaluated = comp_E_prime_E_LCDM(x,Omega_r0,Omega_m0)
+        E_prime_evaluated = E_prime_E_evaluated*EUY
+        phi_primeprime_evaluated = 0.
+    if cl_declaration[0] == 'odeint_parameters': #usually indicates dS approach, so we must convert U back to E, since this is what the Omega_prime functions use
+        EY = EUY/E0
+        EYprime = E_prime_evaluated/E0
+    if cl_declaration[0] == 'parameters': #usually indicates 'today' approach, no need to change the Hubble variable, it is already E
+        EY = EUY
+        EYprime = E_prime_evaluated
+    Omega_r_prime = comp_Omega_r_prime(Omega_rY, EY, EYprime)
+    Omega_m_prime = comp_Omega_m_prime(Omega_mY, EY, EYprime)
+    Omega_l_prime = comp_Omega_l_prime(Omega_l0,EY, EYprime)
+    return [phi_primeprime_evaluated, E_prime_evaluated, Omega_r_prime, Omega_m_prime, Omega_l_prime]
 
 
 def chi_over_delta(a_arr, E_arr, calB_arr, calC_arr, Omega_m0): #the E_arr is actual E, not U! Convert U_arr to E_arr!
