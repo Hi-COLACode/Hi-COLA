@@ -1912,7 +1912,6 @@ class HorndeskiModel:
 
             M_star_sq_arr = np.ones(len(z_arr))*(self.params['mass_ratios']['M_p']**2.)/2.
             alpha_M_arr = np.zeros(len(z_arr))
-            alpha_M_arr = np.zeros(len(z_arr))
             alpha_B_arr = np.zeros(len(z_arr))
             alpha_K_arr = np.zeros(len(z_arr))
             
@@ -2005,14 +2004,38 @@ class HorndeskiModel:
         E_like_arr = np.copy(E_arr)
         E_prime_like_arr = np.copy(E_prime_arr)
 
+        H_arr = np.copy(E_arr)*0.
+        Dc_arr = np.copy(E_arr)*0.
+
         if E_arr is not None:
             if np.isscalar(Omega_m0):
                 E_arr /= E_like_arr[-1]
                 E_prime_arr /= E_like_arr[-1]
+                H_arr = H0*E_arr
+
+                # compute distances
+                dlna = x_arr[1]-x_arr[0]
+                f = 1./(a_arr*E_arr)
+                int_f = np.zeros(len(f))
+                int_f[:-1] = 0.5*(f[1:] + f[:-1])*dlna
+                int_f = np.cumsum(int_f[::-1])[::-1]
+                Dc_arr = 2998.*int_f
             else:
                 for idx in range(0, len(Omega_m0)):
                     E_arr[idx] /= E_like_arr[idx,-1]
                     E_prime_arr[idx] /= E_like_arr[idx,-1]
+                    H_arr[idx] = H0[idx]*E_arr[idx]
+
+                    # compute distances
+                    dlna = x_arr[1]-x_arr[0]
+                    f = 1./(a_arr*E_arr[idx])
+                    int_f = np.zeros(len(f))
+                    int_f[:-1] = 0.5*(f[1:] + f[:-1])*dlna
+                    int_f = np.cumsum(int_f[::-1])[::-1]
+                    Dc_arr[idx] = 2998.*int_f
+        else:
+            H_arr = None
+            Dc_arr = None
 
         self.output = {
             'a': a_arr,
@@ -2021,6 +2044,8 @@ class HorndeskiModel:
             'E': E_arr,
             'E_like': E_like_arr,
             'H0': H0,
+            'H': H_arr,
+            'Dc': Dc_arr,
             'Omega_r0': Omega_r0,
             'Omega_m0': Omega_m0,
             'Omega_l0': Omega_l0,
