@@ -53,8 +53,8 @@ html_theme = 'furo'
 
 html_static_path = ["_static"]
 html_theme_options = {
-    "light_logo": "HiCOLA_logo.jpg",
-    "dark_logo": "HiCOLA_logo.jpg",
+    "light_logo": "HiCOLA_logo.png",
+    "dark_logo": "HiCOLA_logo.png",
 }
 
 # -- Options for EPUB output
