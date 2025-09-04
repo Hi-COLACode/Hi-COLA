@@ -695,6 +695,9 @@ class HorndeskiModel:
         Constructs Horndeski model with user defined functions.
         """
 
+        if self.verbose:
+            print('Hi-COLA: Constructing model')
+
         if self._check_symfunc_keys(['K', 'G3', 'G4']) == False:
             assert False, 'Functions for K, G3 and G4 remain undefined.'
         else:
@@ -704,6 +707,15 @@ class HorndeskiModel:
             self.get_G4_derivatives()
 
             self.get_absolute_mass_ratios()
+
+            if self.verbose:
+                print(' - substituting X = 0.5 * E^2 * phiprime^2')
+                print(
+                    ' - substituting mass ratios: M_p=%0.2f, M_s=%0.2f, M_g=%0.2f, M_K=%0.2f, M_G3=%0.2f, M_G4=%0.2f' % (
+                        self.params['mass_ratios']['M_p'], self.params['mass_ratios']['M_s'], self.params['mass_ratios']['M_g'], 
+                        self.params['mass_ratios']['M_K'], self.params['mass_ratios']['M_G3'], self.params['mass_ratios']['M_G4']
+                    )
+                )
 
             Xreal = 0.5*(self.sym['E']**2.)*self.sym['phiprime']**2.
 
@@ -724,6 +736,9 @@ class HorndeskiModel:
                 self.sym['M_g']: self.params['mass_ratios']['M_g'],
                 self.sym['M_G3']: self.params['mass_ratios']['M_G3'],
             }
+
+            if self.verbose:
+                print(' - into symbolic functions...')
 
             self.get_EprimeE()
             EprimeE = self.symfunc['EprimeE'].subs(sub_dict)
@@ -818,6 +833,9 @@ class HorndeskiModel:
 
             # Lambdify functions
 
+            if self.verbose:
+                print(" - 'Lambdify'ing symbolic functions")
+
             # keep variables fixed to functions solved in the ODE + Horndeski variables
             variables = [self.sym['E'], self.sym['phi'], self.sym['phiprime'], self.sym['Omega_r'], self.sym['Omega_m'], self.sym['Omega_l'], *self.sym['K_G3_G4_syms']]
 
@@ -854,6 +872,9 @@ class HorndeskiModel:
             self.lambda_funcs['Q_s'] = sym.lambdify(variables, self.symfunc['Q_s'])
             self.lambda_funcs['c_s_sq_D'] = sym.lambdify([self.sym['alpha_B_prime'], *variables], self.symfunc['c_s_sq_D'])
             self.lambda_funcs['c_s_sq'] = sym.lambdify([self.sym['alpha_B_prime'], *variables], self.symfunc['c_s_sq'])
+
+            if self.verbose:
+                print(' - Done!')
 
     # Set cosmological parameters + Horndeski parameters
 
@@ -894,7 +915,7 @@ class HorndeskiModel:
         """
         self._solver_success = True
 
-    # Returns the closure relation 
+    # Returns the closure relation for a specific variable 
 
     def _fried_closure_wrapper(self, cl_val, cl_var, fried_closure_lambda, E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, K_G3_G4_values):
         """
@@ -1100,7 +1121,6 @@ class HorndeskiModel:
     
 
     def get_phi_sound_horizon(self):
-    
         """
         Computes the sound horizon for the scalar field.
         """
@@ -1585,7 +1605,7 @@ class HorndeskiModel:
         self.output['zeta'] = zeta
 
 
-    # alternative numerical computation
+    # alternative numerical computation of w_phi
 
     def compute_w_phi(self):
         """
@@ -1760,14 +1780,16 @@ class HorndeskiModel:
         
         roots_raw = sym.solve(sym.Eq(fried_closure, 0), closure_variable_sym)
 
-        print('Closure solution for %s_ini:' % closure_string, roots_raw)
+        if self.verbose:
+            print(' -- Closure solution for %s_ini:' % closure_string, roots_raw)
 
         roots = []
         for root in roots_raw:
             if root.is_real:
                 roots.append(root)
         
-        print('Real roots for %s_ini:' % closure_string, roots)
+        if self.verbose:
+            print(' -- Real roots for %s_ini:' % closure_string, roots)
 
         self.output['initialiser']['closure_variable'] = closure_variable
         self.output['initialiser']['closure_string'] = closure_string
@@ -1811,6 +1833,7 @@ class HorndeskiModel:
         self.params['Omega_m0'] = self.params['Omega_m0_ref']
         self.params['Omega_l0'] = self.params['Omega_l0_LCDM']
 
+        self.output['success'] = True
         self.output['solver_success'] = True
         self.output['H0'] = self.params['H0']
         self.output['Omega_r0'] = self.params['Omega_r0']
@@ -1954,6 +1977,7 @@ class HorndeskiModel:
                 Omega_l0[idx] = self.params['Omega_l0']
             
             self.output['solver_success'] = solver_success
+            self.output['success'] = solver_success
             self.output['H0'] = H0
             self.output['Omega_r0'] = Omega_r0
             self.output['Omega_m0'] = Omega_m0
@@ -2154,6 +2178,8 @@ class HorndeskiModel:
             c_s_sq_D_arr = np.zeros((len(roots), len(x_arr)))
             c_s_sq_arr = np.zeros((len(roots), len(x_arr)))
 
+            stable = [True for r in roots]
+
             # Not sure the LCDM arrays are necessary...
             E_prime_E_LCDM_arr = lcdm.compute_EprimeE_x_LCDM(x_arr, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
             Omega_l_LCDM_arr = lcdm.compute_Omega_l_x_LCDM(x_arr, self.params['Omega_r0_ref'], self.params['Omega_m0_ref'])
@@ -2206,9 +2232,9 @@ class HorndeskiModel:
                 c_s_sq_arr[idx] = self.lambda_funcs['c_s_sq'](alpha_B_prime_arr, *variables)
 
                 if Q_s_arr.all() > 0 and c_s_sq_arr.all() > 0:
-                    stable = True
+                    stable[idx] = True
                 else:
-                    stable = False
+                    stable[idx] = False
                 
             E_like_arr = np.copy(E_arr)
             E_prime_like_arr = np.copy(E_prime_arr)
@@ -2272,20 +2298,25 @@ class HorndeskiModel:
             self.output['stable'] = stable
     
 
-    def _reverse_outputs(self):
+    def _reverse_outputs(self, derived):
         """
         Reverse order of outputted quantities, so that functions start from the early universe to late.
         """
         
-        keys = [
-            'a', 'z', 'x', 'E', 'phi', 'phi_prime', 'Omega_r', 'Omega_m', 'Omega_l',
-            'H', 'Dc', 'E_prime/E', 'E_prime/E_LCDM', 'E_prime', 'E_like', 'E_prime_like',
-            'phi_primeprime', 'A', 'Omega_phi', 'Omega_DE', 'Omega_phi_via_closure', 
-            'Omega_l_LCDM', 'Omega_r_prime', 'Omega_m_prime', 'Omega_l_prime', 
-            'Omega_l_prime_LCDM', 'calB', 'calC', 'beta', 'chi/delta', 'M_star_sq',
-            'alpha_M', 'alpha_B', 'alpha_B_prime', 'alpha_K' , 'rho_phi', 'P_phi', 'w_phi',
-            'D', 'Q_s', 'c_s_sq_D', 'c_s_sq'
-        ]
+        if derived:
+            keys = [
+                'a', 'z', 'x', 'E', 'phi', 'phi_prime', 'Omega_r', 'Omega_m', 'Omega_l',
+                'H', 'Dc', 'E_prime/E', 'E_prime/E_LCDM', 'E_prime', 'E_like', 'E_prime_like',
+                'phi_primeprime', 'A', 'Omega_phi', 'Omega_DE', 'Omega_phi_via_closure', 
+                'Omega_l_LCDM', 'Omega_r_prime', 'Omega_m_prime', 'Omega_l_prime', 
+                'Omega_l_prime_LCDM', 'calB', 'calC', 'beta', 'chi/delta', 'M_star_sq',
+                'alpha_M', 'alpha_B', 'alpha_B_prime', 'alpha_K' , 'rho_phi', 'P_phi', 'w_phi',
+                'D', 'Q_s', 'c_s_sq_D', 'c_s_sq'
+            ]
+        else:
+            keys = [
+                'a', 'z', 'x', 'E', 'phi', 'phi_prime', 'Omega_r', 'Omega_m', 'Omega_l'
+            ]
 
         for key in keys:
             if self.output[key] is not None:
@@ -2297,7 +2328,7 @@ class HorndeskiModel:
 
     def run_solver(
             self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=2, 
-            phi_ini=1e-5, phi_prime_ini=0.9, method='RK45', timeout=5
+            phi_ini=1e-5, phi_prime_ini=0.9, method='RK45', timeout=5, derived=True,
         ):
         """
         Runs the numerical solver for a user defined Horndeski model.
@@ -2324,6 +2355,8 @@ class HorndeskiModel:
             Time in seconds to force the solver to exit and return nan, this has been added to prvent `solve_ivp` from hanging due 
             to certain variables approaching infinity. You can use different solvers, see method keyword arguement, but this will
             only work if the reason for the failure is due to the equations becoming stiff.
+        derived : bool, optional
+            Instructs the solver whether derived quantities should be computed.
         
         Returns
         -------
@@ -2331,48 +2364,90 @@ class HorndeskiModel:
             Dictionary containing numerical solver solutions.
         """
 
+        if self.verbose:
+            print('Hi-COLA: Running numerical ODE solver')
+            print(' - Initialising solver...')
+
         self.output = {}
         E_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini = self._run_solver_start(z_max, Npoints, forwards)
 
         if GR:
+            if self.verbose:
+                print(' - Running in GR mode!')
+
+            if self.verbose:
+                print(' - Computing expansion history.')
             
             self._run_solver_ODE_GR()
-            self._run_solver_derived_GR()
+
+            if derived:
+                if self.verbose:
+                    print(' - Computing main derived quantities.')
+                
+                self._run_solver_derived_GR()
 
         else:
+            if self.verbose:
+                print(' - Running in Horndeski mode!')
 
             self._run_solver_HG_root_finder(closure_variable, E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini)
 
             if self.output['success']:
                 
+                if self.verbose:
+                    print(' - Numerically solving ODEs for expansion history and scalar field evolution.')
+
                 self._run_solver_ODE_HG(E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, method, timeout)
-                self._run_solver_derived_HG()
+
+                if derived:
+                    if self.verbose:
+                        print(' - Computing main derived quantities.')
+
+                    self._run_solver_derived_HG()
 
             else:
                 
+                if self.verbose:
+                    print(' - No roots found. Solver stopped')
+                
                 self._run_solver_ODE_NONE()
-                self._run_solver_derived_NONE()
+
+                if derived:
+
+                    self._run_solver_derived_NONE()
         
         if forwards is False:
-            self._reverse_outputs()
 
-        # compute the effective equation of state
-        self.comp_w_eff()
+            if self.verbose:
+                print(' - Reversing ordering for backwards solve.')
 
-        # compute the phi sound horizon
-        self.get_phi_sound_horizon()
+            self._reverse_outputs(derived)
+        
+        if derived:
 
-        # Compute growth functions
-        self.get_linear_growth()
-        self.get_linear_growth_2()
+            if self.verbose:
+                print(' - Computing additional derived quantities numerically.')
+        
+            # compute the effective equation of state
+            self.comp_w_eff()
 
-        # compute mu, Sigma and gamma variables
-        self.get_mu_Sigma_gamma()
-        self.get_Sigma_derivatives()
+            # compute the phi sound horizon
+            self.get_phi_sound_horizon()
 
-        # Compute equation of state via alternative equation # TODO: remove? -- this for the moment only provides a sanity check
-        self.compute_w_phi()
+            # Compute growth functions
+            self.get_linear_growth()
+            self.get_linear_growth_2()
 
+            # compute mu, Sigma and gamma variables
+            self.get_mu_Sigma_gamma()
+            self.get_Sigma_derivatives()
+
+            # Compute equation of state via alternative equation # TODO: remove? -- this for the moment only provides a sanity check
+            self.compute_w_phi()
+
+        if self.verbose:
+                print(' - Done!')
+        
         return self.output
 
 
@@ -2406,14 +2481,14 @@ class HorndeskiModel:
             for idx in range(0, len(self.output['Omega_m0'])):
                 
                 if len(self.output['Omega_m0']) != 1:
-                    fname_expansion = fname_prefix + 'res_%i_expansion.txt' % idx
+                    fname_expansion = fname_prefix + 'solution_%i_expansion.txt' % idx
                 else:
                     fname_expansion = fname_prefix + 'expansion.txt'
                 data = np.column_stack([self.output['a'], self.output['E'][idx], self.output['E_prime/E'][idx]])
                 np.savetxt(fname_expansion, data, fmt=['%.4e', '%.4e', '%.4e'])
 
                 if len(self.output['Omega_m0']) != 1:
-                    fname_force = fname_prefix + 'res_%i_force.txt' % idx
+                    fname_force = fname_prefix + 'solution_%i_force.txt' % idx
                 else:
                     fname_force = fname_prefix + 'force.txt'
                 data = np.column_stack([self.output['a'], self.output['chi/delta'][idx], self.output['beta'][idx]])
