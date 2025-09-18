@@ -1,4 +1,4 @@
 __pycache__*
-Hi_COLA.egg-info*
+*.egg-info*
 build*
 *.DS_Store

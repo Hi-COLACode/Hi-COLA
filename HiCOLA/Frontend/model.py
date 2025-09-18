@@ -24,11 +24,12 @@ class HorndeskiModel:
         # Construct dictionary containing sympy symbolic variables.
         self.sym = {}
         self.sym['a'] = sym.symbols('a')
+        self.sym['f_H'] = sym.symbols('f_H')
         self.sym['E'] = sym.symbols('E')
-        self.sym['Eprime'] = sym.symbols('Eprime')
+        self.sym['E_prime'] = sym.symbols('E_prime')
         self.sym['phi'] = sym.symbols('phi')
-        self.sym['phiprime'] = sym.symbols('phiprime')
-        self.sym['phiprimeprime'] = sym.symbols('phiprimeprime')
+        self.sym['phi_prime'] = sym.symbols('phi_prime')
+        self.sym['phi_primeprime'] = sym.symbols('phi_primeprime')
         self.sym['X'] = sym.symbols('X')
         self.sym['M_p'] = sym.symbols('M_{p}')
         self.sym['M_s'] = sym.symbols('M_{s}')
@@ -230,7 +231,7 @@ class HorndeskiModel:
                 self.sym['K_syms'] = _K_sym
         else:
             self.sym['K_syms'] = []
-        self.symfunc['K'] = sym.sympify(K_func)
+        self.symfunc['K'] = sym.sympify(K_func)/(self.sym['f_H']**2)
     
 
     def define_G3(self, G3_func, G3_sym):
@@ -252,7 +253,7 @@ class HorndeskiModel:
                 self.sym['G3_syms'] = _G3_sym
         else:
             self.sym['G3_syms'] = []
-        self.symfunc['G3'] = sym.sympify(G3_func)
+        self.symfunc['G3'] = sym.sympify(G3_func)/self.sym['f_H']
     
     
     def define_G4(self, G4_func, G4_sym):
@@ -288,7 +289,7 @@ class HorndeskiModel:
             self.sym['K_G3_G4_syms'].append(G3_sym)
         for G4_sym in self.sym['G4_syms']:
             self.sym['K_G3_G4_syms'].append(G4_sym)
-    
+
 
     def get_K_derivatives(self):
         """
@@ -335,10 +336,17 @@ class HorndeskiModel:
         # Note: replaces the omega_phi function
         term1 = (self.sym['Omega_m'] + self.sym['Omega_r'] + self.sym['Omega_l'])*((self.sym['M_pG4']**2.)/(2.*self.symfunc['G4']) - 1.)
         term2 = (self.sym['M_KG4']**2.)*self.sym['X']*self.symfunc['Kx']/(self.sym['E']**2.) - (self.sym['M_KG4']**2.)*self.symfunc['K']/(2.*(self.sym['E']**2.))
-        term2 += 3*self.sym['M_G3G4']*self.sym['M_sG4']*self.sym['X']*self.sym['phiprime']*self.symfunc['G3x']
-        term2 += -self.sym['M_G3G4']*self.sym['M_sG4']*self.sym['X']*self.symfunc['G3phi']/(self.sym['E']**2.) - 3*self.sym['phiprime']*self.symfunc['G4phi']
+        term2 += 3*self.sym['M_G3G4']*self.sym['M_sG4']*self.sym['X']*self.sym['phi_prime']*self.symfunc['G3x']
+        term2 += -self.sym['M_G3G4']*self.sym['M_sG4']*self.sym['X']*self.symfunc['G3phi']/(self.sym['E']**2.) - 3*self.sym['phi_prime']*self.symfunc['G4phi']
         self.symfunc['Omega_phi'] = term1 + (1/(3.*self.symfunc['G4']))*term2
 
+
+    def get_G_G_4(self):
+        """
+        Returns the G_G_4/G_N function.
+        """
+        self.symfunc['G_G_4/G_N'] = 1/(2*self.symfunc['G4'])
+    
 
     def get_EprimeE(self):
         """
@@ -348,42 +356,42 @@ class HorndeskiModel:
         # Note: replaces EprimeEODERHS function.
         M_G4s = 1./self.sym['M_sG4']
         A = (self.sym['M_Ks']**2.)*self.symfunc['Kx'] - self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['X']*self.sym['M_G3s']*self.symfunc['G3phix']
-        A += 6*(self.sym['E']**2)*self.sym['phiprime']*(self.sym['M_G3s']*self.symfunc['G3x'] + self.sym['X']*self.sym['M_G3s']*self.symfunc['G3xx']) 
-        A += (self.sym['E']**2.)*(self.sym['phiprime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phix'])
+        A += 6*(self.sym['E']**2)*self.sym['phi_prime']*(self.sym['M_G3s']*self.symfunc['G3x'] + self.sym['X']*self.sym['M_G3s']*self.symfunc['G3xx']) 
+        A += (self.sym['E']**2.)*(self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phix'])
 
         B1 = 6.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3x'] - 6.*(M_G4s**2)*self.symfunc['G4phi']
 
-        B2 = 3.*self.sym['phiprime']*((self.sym['M_Ks']**2.)*self.symfunc['Kx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phix'])
-        B2 += (self.sym['phiprime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxphi'] - 2.*self.sym['M_G3s']*self.symfunc['G3phiphi']) - ((self.sym['M_Ks']**2.)/(self.sym['E']**2.))*self.symfunc['Kphi']
+        B2 = 3.*self.sym['phi_prime']*((self.sym['M_Ks']**2.)*self.symfunc['Kx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phix'])
+        B2 += (self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxphi'] - 2.*self.sym['M_G3s']*self.symfunc['G3phiphi']) - ((self.sym['M_Ks']**2.)/(self.sym['E']**2.))*self.symfunc['Kphi']
         B2 += -12.*(M_G4s**2.)*self.symfunc['G4phi'] + 18.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3x'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phiphi']*(1./self.sym['E']**2.)
 
         term1 = 1.+ (1./2.)*self.sym['M_G3G4']*self.sym['M_sG4']*self.sym['X']*self.symfunc['G3x']*(1./self.symfunc['G4'])*(B1/A) - (self.symfunc['G4phi']*B1)/(2*self.symfunc['G4']*A)
 
         term21 = (self.sym['M_KG4']**2.)*self.symfunc['K']*(1./(self.sym['E']**2.)) - 2.*self.sym['M_sG4']*self.sym['M_G3G4']*(1./(self.sym['E']**2.))*self.sym['X']*self.symfunc['G3phi']
-        term22 = 4.*self.symfunc['G4phi']*self.sym['phiprime'] + 4.*self.sym['X']*self.symfunc['G4phiphi']*(1./(self.sym['E']**2.))
+        term22 = 4.*self.symfunc['G4phi']*self.sym['phi_prime'] + 4.*self.sym['X']*self.symfunc['G4phiphi']*(1./(self.sym['E']**2.))
         term2 = (-1./(4.*self.symfunc['G4']))*(term21 + term22)
 
         term3 = (-1./2.)*(((self.sym['Omega_r'] - 3.*self.sym['Omega_l'])/(2.*self.symfunc['G4']))*(self.sym['M_pG4']**2.) + 3.) 
         term4 = (-1./2.)*self.sym['M_G3G4']*self.sym['M_sG4']*self.sym['X']*self.symfunc['G3x']*(B2/(self.symfunc['G4']*A)) + (self.symfunc['G4phi']*B2)/(2*self.symfunc['G4']*A)
         RHS = term2 + term3 + term4
 
-        self.symfunc['EprimeE'] =  sym.simplify((RHS)/sym.simplify(term1))
+        self.symfunc['E_prime/E'] =  sym.simplify((RHS)/sym.simplify(term1))
 
     
-    def get_phiprimeprime(self):
+    def get_phi_primeprime(self):
         """
-        Return the phiprimeprime function, equation 2.6 in https://arxiv.org/abs/2209.01666
+        Return the phi_primeprime function, equation 2.6 in https://arxiv.org/abs/2209.01666
         """
-        # Note: replaces the phiprimeprimeODERHS function
+        # Note: replaces the phi_primeprimeODERHS function
         M_G4s = 1./self.sym['M_sG4']
         A = (self.sym['M_Ks']**2.)*self.symfunc['Kx'] - self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['X']*self.sym['M_G3s']*self.symfunc['G3phix']
-        A += 6*(self.sym['E']**2)*self.sym['phiprime']*(self.sym['M_G3s']*self.symfunc['G3x'] + self.sym['X']*self.sym['M_G3s']*self.symfunc['G3xx']) + (self.sym['E']**2.)*(self.sym['phiprime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phix'])
+        A += 6*(self.sym['E']**2)*self.sym['phi_prime']*(self.sym['M_G3s']*self.symfunc['G3x'] + self.sym['X']*self.sym['M_G3s']*self.symfunc['G3xx']) + (self.sym['E']**2.)*(self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phix'])
         B1 = 6.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3x'] - 6.*(M_G4s**2)*self.symfunc['G4phi']
-        B2 = 3.*self.sym['phiprime']*((self.sym['M_Ks']**2.)*self.symfunc['Kx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phix'])
-        B2 += (self.sym['phiprime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxphi'] - 2.*self.sym['M_G3s']*self.symfunc['G3phiphi']) - ((self.sym['M_Ks']**2.)/(self.sym['E']**2.))*self.symfunc['Kphi']
+        B2 = 3.*self.sym['phi_prime']*((self.sym['M_Ks']**2.)*self.symfunc['Kx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phix'])
+        B2 += (self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxphi'] - 2.*self.sym['M_G3s']*self.symfunc['G3phiphi']) - ((self.sym['M_Ks']**2.)/(self.sym['E']**2.))*self.symfunc['Kphi']
         B2 += -12.*(M_G4s**2.)*self.symfunc['G4phi'] + 18.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3x'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phiphi']*(1./(self.sym['E']**2.))
-        B =  B1*(self.sym['Eprime']/self.sym['E'])+B2
-        self.symfunc['phiprimeprime'] = -1.*((B/A) + (self.sym['Eprime']/self.sym['E'])*self.sym['phiprime'])
+        B =  B1*(self.sym['E_prime']/self.sym['E'])+B2
+        self.symfunc['phi_primeprime'] = -1.*((B/A) + (self.sym['E_prime']/self.sym['E'])*self.sym['phi_prime'])
     
 
     def get_fried_closure(self):
@@ -395,7 +403,7 @@ class HorndeskiModel:
         self.get_Omega_phi()
         self.symfunc['fried_closure'] = self.symfunc['Omega_phi'] + self.sym['Omega_m'] + self.sym['Omega_r'] + self.sym['Omega_l'] - 1.
         # equation A.3 in https://arxiv.org/abs/2209.01666, 
-        Xreal = (1./2.)*(self.sym['E']**2.)*(self.sym['phiprime']**2.)
+        Xreal = (1./2.)*(self.sym['E']**2.)*(self.sym['phi_prime']**2.)
         self.symfunc['fried_closure'] = self.symfunc['fried_closure'].subs(self.sym['X'], Xreal)
 
     
@@ -405,8 +413,8 @@ class HorndeskiModel:
         """
         # Note: replaces the A_func
         self.symfunc['A'] = (self.sym['M_Ks']**2.)*self.symfunc['Kx'] - self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['X']*self.sym['M_G3s']*self.symfunc['G3phix']
-        self.symfunc['A'] += 6*(self.sym['E']**2)*self.sym['phiprime']*(self.sym['M_G3s']*self.symfunc['G3x'] + self.sym['X']*self.sym['M_G3s']*self.symfunc['G3xx']) 
-        self.symfunc['A'] += (self.sym['E']**2.)*(self.sym['phiprime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phix'])
+        self.symfunc['A'] += 6*(self.sym['E']**2)*self.sym['phi_prime']*(self.sym['M_G3s']*self.symfunc['G3x'] + self.sym['X']*self.sym['M_G3s']*self.symfunc['G3xx']) 
+        self.symfunc['A'] += (self.sym['E']**2.)*(self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phix'])
     
 
     def get_B2(self):
@@ -415,8 +423,8 @@ class HorndeskiModel:
         """
         # Note: replaces the B2_func
         M_G4s = 1./self.sym['M_sG4']
-        self.symfunc['B2'] = 3.*self.sym['phiprime']*((self.sym['M_Ks']**2.)*self.symfunc['Kx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phix'])
-        self.symfunc['B2'] += (self.sym['phiprime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxphi'] - 2.*self.sym['M_G3s']*self.symfunc['G3phiphi']) - ((self.sym['M_Ks']**2.)/(self.sym['E']**2.))*self.symfunc['Kphi']
+        self.symfunc['B2'] = 3.*self.sym['phi_prime']*((self.sym['M_Ks']**2.)*self.symfunc['Kx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phix'])
+        self.symfunc['B2'] += (self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxphi'] - 2.*self.sym['M_G3s']*self.symfunc['G3phiphi']) - ((self.sym['M_Ks']**2.)/(self.sym['E']**2.))*self.symfunc['Kphi']
         self.symfunc['B2'] += -12.*(M_G4s**2.)*self.symfunc['G4phi'] + 18.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3x'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phiphi']*(1./self.sym['E']**2.)
 
 
@@ -426,11 +434,11 @@ class HorndeskiModel:
         """
         # Note: replaces theta function
         # All terms seemed to be multiplied by E, not so in eq. 2.15, why?
-        term1 = self.sym['M_sG4']*self.sym['M_G3G4']*self.sym['E']*self.sym['phiprime']*self.sym['X']*self.symfunc['G3x']/self.sym['M_pG4']/self.sym['M_pG4']
+        term1 = self.sym['M_sG4']*self.sym['M_G3G4']*self.sym['E']*self.sym['phi_prime']*self.sym['X']*self.symfunc['G3x']/self.sym['M_pG4']/self.sym['M_pG4']
         term2 = 2.*self.sym['E']*self.symfunc['G4']/self.sym['M_pG4']/self.sym['M_pG4']
-        term3 = self.sym['E']*self.sym['phiprime']*self.symfunc['G4phi']/self.sym['M_pG4']/self.sym['M_pG4']
+        term3 = self.sym['E']*self.sym['phi_prime']*self.symfunc['G4phi']/self.sym['M_pG4']/self.sym['M_pG4']
         self.symfunc['theta'] = -1.*term1 + term2 + term3
-        Xreal = 0.5*(self.sym['E']**2.)*self.sym['phiprime']**2.
+        Xreal = 0.5*(self.sym['E']**2.)*self.sym['phi_prime']**2.
         self.symfunc['theta'] = self.symfunc['theta'].subs(self.sym['X'], Xreal)
         
 
@@ -441,10 +449,10 @@ class HorndeskiModel:
         # Note: replaces calE function
         term1 = 2.*self.sym['M_KG4']*self.sym['M_KG4']*self.sym['X']*self.symfunc['Kx']/self.sym['M_pG4']/self.sym['M_pG4']
         term2 = self.sym['M_KG4']*self.sym['M_KG4']*self.symfunc['K']/self.sym['M_pG4']/self.sym['M_pG4']
-        term3 = 6.*self.sym['M_sG4']*self.sym['M_G3G4']*self.sym['E']*self.sym['E']*self.sym['X']*self.symfunc['G3x']*self.sym['phiprime']/self.sym['M_pG4']/self.sym['M_pG4']
+        term3 = 6.*self.sym['M_sG4']*self.sym['M_G3G4']*self.sym['E']*self.sym['E']*self.sym['X']*self.symfunc['G3x']*self.sym['phi_prime']/self.sym['M_pG4']/self.sym['M_pG4']
         term4 = 2.*self.sym['M_sG4']*self.sym['M_G3G4']*self.sym['X']*self.symfunc['G3phi']/self.sym['M_pG4']/self.sym['M_pG4']
         term5 = 6.*self.sym['E']*self.sym['E']*self.symfunc['G4']/self.sym['M_pG4']/self.sym['M_pG4']
-        term6 = 6.*self.sym['E']*self.sym['E']*self.symfunc['G4phi']*self.sym['phiprime']/self.sym['M_pG4']/self.sym['M_pG4']
+        term6 = 6.*self.sym['E']*self.sym['E']*self.symfunc['G4phi']*self.sym['phi_prime']/self.sym['M_pG4']/self.sym['M_pG4']
         self.symfunc['calE'] = term1 - term2 + term3 - term4 - term5 - term6
 
 
@@ -455,11 +463,11 @@ class HorndeskiModel:
         # Note: replaces calP function
         term1 = self.sym['M_KG4']*self.sym['M_KG4']*self.symfunc['K']/self.sym['M_pG4']/self.sym['M_pG4']
         term2coeff = 2.*self.sym['M_sG4']*self.sym['X']/self.sym['M_pG4']
-        term2bracket = self.sym['M_G3s']*self.symfunc['G3phi'] + self.sym['E']*self.sym['M_G3s']*self.symfunc['G3x']*(self.sym['Eprime']*self.sym['phiprime'] + self.sym['E']*self.sym['phiprimeprime'])
+        term2bracket = self.sym['M_G3s']*self.symfunc['G3phi'] + self.sym['E']*self.sym['M_G3s']*self.symfunc['G3x']*(self.sym['E_prime']*self.sym['phi_prime'] + self.sym['E']*self.sym['phi_primeprime'])
         term2 = term2coeff*term2bracket
-        term3 = 2.*self.symfunc['G4']*(3.*self.sym['E']*self.sym['E'] + 2*self.sym['E']*self.sym['Eprime'])/self.sym['M_pG4']/self.sym['M_pG4']
+        term3 = 2.*self.symfunc['G4']*(3.*self.sym['E']*self.sym['E'] + 2*self.sym['E']*self.sym['E_prime'])/self.sym['M_pG4']/self.sym['M_pG4']
         term4coeff = 2*self.symfunc['G4phi']/self.sym['M_pG4']/self.sym['M_pG4']
-        term4bracket = self.sym['E']*(self.sym['Eprime']*self.sym['phiprime'] + self.sym['E']*self.sym['phiprimeprime']) + 2*self.sym['E']*self.sym['E']*self.sym['phiprime']
+        term4bracket = self.sym['E']*(self.sym['E_prime']*self.sym['phi_prime'] + self.sym['E']*self.sym['phi_primeprime']) + 2*self.sym['E']*self.sym['E']*self.sym['phi_prime']
         term4 = term4coeff*term4bracket
         self.symfunc['calP'] = term1 - term2 + term3 + term4
 
@@ -476,11 +484,11 @@ class HorndeskiModel:
         self.get_theta()
 
         self.sym['dtheta_dE'] = sym.diff(self.symfunc['theta'], self.sym['E'])
-        self.sym['dtheta_dphiprime'] = sym.diff(self.symfunc['theta'], self.sym['phiprime'])
-        self.sym['thetaprime'] = self.sym['dtheta_dE']*self.sym['Eprime'] + self.sym['dtheta_dphiprime']*self.sym['phiprimeprime']
+        self.sym['dtheta_dphi_prime'] = sym.diff(self.symfunc['theta'], self.sym['phi_prime'])
+        self.sym['thetaprime'] = self.sym['dtheta_dE']*self.sym['E_prime'] + self.sym['dtheta_dphi_prime']*self.sym['phi_primeprime']
 
         A0 = self.sym['thetaprime']/self.sym['E'] + self.symfunc['theta']/self.sym['E'] 
-        A0 += -2.*self.symfunc['G4']/self.sym['M_pG4']/self.sym['M_pG4'] - 4.*self.symfunc['G4phi']*self.sym['phiprime']/self.sym['M_pG4']/self.sym['M_pG4'] 
+        A0 += -2.*self.symfunc['G4']/self.sym['M_pG4']/self.sym['M_pG4'] - 4.*self.symfunc['G4phi']*self.sym['phi_prime']/self.sym['M_pG4']/self.sym['M_pG4'] 
         A0 += -(self.symfunc['calE'] + self.symfunc['calP'])/(2.*self.sym['E']*self.sym['E'])
         self.symfunc['alpha0'] = self.sym['M_pG4']*self.sym['M_pG4']*A0/2./self.symfunc['G4']
         
@@ -491,7 +499,7 @@ class HorndeskiModel:
         Given by alpha1 = A1/2G4.
         """
         # Note: replaces the alpha1 function
-        A1 = 2.*self.symfunc['G4phi']*self.sym['phiprime']/self.sym['M_pG4']/self.sym['M_pG4']
+        A1 = 2.*self.symfunc['G4phi']*self.sym['phi_prime']/self.sym['M_pG4']/self.sym['M_pG4']
         self.symfunc['alpha1'] = self.sym['M_pG4']*self.sym['M_pG4']*A1/2./self.symfunc['G4']
 
 
@@ -512,7 +520,7 @@ class HorndeskiModel:
         Given by beta0 = B0/2G4.
         """
         # Note: replaces the beta0 function
-        B0 = self.sym['M_sG4']*self.sym['M_G3G4']*self.sym['X']*self.symfunc['G3x']*self.sym['phiprime']/self.sym['M_pG4']/self.sym['M_pG4']
+        B0 = self.sym['M_sG4']*self.sym['M_G3G4']*self.sym['X']*self.symfunc['G3x']*self.sym['phi_prime']/self.sym['M_pG4']/self.sym['M_pG4']
         self.symfunc['beta0'] = self.sym['M_pG4']*self.sym['M_pG4']*B0/2./self.symfunc['G4']
     
 
@@ -560,14 +568,14 @@ class HorndeskiModel:
         """
         Code equivalent of equation A.7 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
         """
-        self.symfunc['alpha_M'] = (2*self.sym['phiprime']*self.symfunc['G4phi']*self.sym['M_p']**2)/self.symfunc['M_star_sq']
+        self.symfunc['alpha_M'] = (2*self.sym['phi_prime']*self.symfunc['G4phi']*self.sym['M_p']**2)/self.symfunc['M_star_sq']
     
 
     def get_alpha_B(self):
         """
         Code equivalent of equation A.9 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
         """
-        self.symfunc['alpha_B'] = 2*self.sym['phiprime']*(self.sym['M_s']*self.sym['M_G3']*self.sym['X']*self.symfunc['G3x'] - self.symfunc['G4phi']*self.sym['M_G4'])/self.symfunc['M_star_sq']
+        self.symfunc['alpha_B'] = 2*self.sym['phi_prime']*(self.sym['M_s']*self.sym['M_G3']*self.sym['X']*self.symfunc['G3x'] - self.symfunc['G4phi']*self.sym['M_G4'])/self.symfunc['M_star_sq']
 
 
     def get_alpha_K(self):
@@ -577,7 +585,7 @@ class HorndeskiModel:
         term11 = (self.sym['M_K']**2)*(self.symfunc['Kx'] + 2*self.sym['X']*self.symfunc['Kxx'])
         term12 = 2*self.sym['M_s']*self.sym['M_G3']*(self.symfunc['G3phi'] + self.sym['X']*self.symfunc['G3phix'])
         term1 = (term11 - term12)*2*self.sym['X']/(self.symfunc['M_star_sq']*self.sym['E']**2)
-        term2 = 12*self.sym['M_s']*self.sym['M_G3']*self.sym['phiprime']*self.sym['X']*(self.symfunc['G3x'] + self.sym['X']*self.symfunc['G3xx'])/self.symfunc['M_star_sq']
+        term2 = 12*self.sym['M_s']*self.sym['M_G3']*self.sym['phi_prime']*self.sym['X']*(self.symfunc['G3x'] + self.sym['X']*self.symfunc['G3xx'])/self.symfunc['M_star_sq']
         self.symfunc['alpha_K'] = term1 + term2
     
     # Symbolic definitions for scalar field density and pressure
@@ -589,18 +597,18 @@ class HorndeskiModel:
         """
         term1 = (self.sym['M_K']**2)*self.symfunc['Kx'] - self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3phi']
         term2 = self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3x']*self.sym['X'] - self.symfunc['G4phi']*self.sym['M_G4']**2
-        self.symfunc['rho_phi'] = (self.sym['H0']**2)*(2*self.sym['X']*term1 + 6*(self.sym['E']**2)*self.sym['phiprime']*term2 - self.sym['M_K']**2*self.symfunc['K'])/self.symfunc['M_star_sq']
+        self.symfunc['rho_phi'] = (self.sym['H0']**2)*(2*self.sym['X']*term1 + 6*(self.sym['E']**2)*self.sym['phi_prime']*term2 - self.sym['M_K']**2*self.symfunc['K'])/self.symfunc['M_star_sq']
 
 
     def get_P_phi(self):
         """
-        Code equivalent of equation A.2 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
+        Code equivalent of equation A.2 in https://iopscence.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
         Referred to as Tilde P in internal Hi-COLA notes.
         """
-        term1 = (self.sym['M_K']**2)*self.symfunc['K'] + 4*(self.sym['E']**2)*self.symfunc['G4phi']*self.sym['phiprime']*(self.sym['M_G4']**2)
+        term1 = (self.sym['M_K']**2)*self.symfunc['K'] + 4*(self.sym['E']**2)*self.symfunc['G4phi']*self.sym['phi_prime']*(self.sym['M_G4']**2)
         term2 = self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3phi'] - 2*self.symfunc['G4phiphi']*(self.sym['M_G4']**2)
-        term31 = 2*self.sym['phiprime']*(self.sym['M_s']*self.sym['M_G3']*self.sym['X']*self.symfunc['G3x'] - self.symfunc['G4phi']*(self.sym['M_G4']**2))
-        term3 = term31*self.sym['E']*(self.sym['Eprime']*self.sym['phiprime'] + self.sym['E']*self.sym['phiprimeprime'])/self.sym['phiprime']
+        term31 = 2*self.sym['phi_prime']*(self.sym['M_s']*self.sym['M_G3']*self.sym['X']*self.symfunc['G3x'] - self.symfunc['G4phi']*(self.sym['M_G4']**2))
+        term3 = term31*self.sym['E']*(self.sym['E_prime']*self.sym['phi_prime'] + self.sym['E']*self.sym['phi_primeprime'])/self.sym['phi_prime']
         self.symfunc['P_phi'] = (self.sym['H0']**2)*(term1 - 2*self.sym['X']*term2 - term3)/self.symfunc['M_star_sq']
 
     # Stability and sound speed related functions
@@ -618,7 +626,7 @@ class HorndeskiModel:
         Code equivalent of the LHS of the second inequality in 3.13 in https://iopscience.iop.org/article/10.1088/1475-7516/2014/07/050 within reduced Horndeski class.
         """
         self.sym['alpha_B_prime'] = sym.symbols('alpha_{B}prime')
-        term1 = self.symfunc['EprimeE'] - self.symfunc['alpha_M']/2
+        term1 = self.symfunc['E_prime/E'] - self.symfunc['alpha_B']/2 - self.symfunc['alpha_M']
         term2 = 3*self.sym['Omega_m'] + 4*self.sym['Omega_r']
         # TODO: why is Omega_r here?
         self.symfunc['c_s_sq_D'] = -((2 - self.symfunc['alpha_B'])*term1 - self.sym['alpha_B_prime'] + term2/self.symfunc['M_star_sq'])
@@ -688,6 +696,7 @@ class HorndeskiModel:
         self.params['mass_ratios']['M_gp'] = self.params['mass_ratios']['M_g']/self.params['mass_ratios']['M_p']
         self.params['mass_ratios']['M_sp'] = self.params['mass_ratios']['M_s']/self.params['mass_ratios']['M_p']
 
+
     # Construct the symbolic model
 
     def construct_model(self):
@@ -709,7 +718,7 @@ class HorndeskiModel:
             self.get_absolute_mass_ratios()
 
             if self.verbose:
-                print(' - substituting X = 0.5 * E^2 * phiprime^2')
+                print(' - substituting X = 0.5 * E^2 * phi_prime^2')
                 print(
                     ' - substituting mass ratios: M_p=%0.2f, M_s=%0.2f, M_g=%0.2f, M_K=%0.2f, M_G3=%0.2f, M_G4=%0.2f' % (
                         self.params['mass_ratios']['M_p'], self.params['mass_ratios']['M_s'], self.params['mass_ratios']['M_g'], 
@@ -717,7 +726,7 @@ class HorndeskiModel:
                     )
                 )
 
-            Xreal = 0.5*(self.sym['E']**2.)*self.sym['phiprime']**2.
+            Xreal = 0.5*(self.sym['E']**2.)*self.sym['phi_prime']**2.
 
             sub_dict = {
                 self.sym['X']: Xreal,
@@ -740,11 +749,14 @@ class HorndeskiModel:
             if self.verbose:
                 print(' - into symbolic functions...')
 
-            self.get_EprimeE()
-            EprimeE = self.symfunc['EprimeE'].subs(sub_dict)
+            self.get_G_G_4()
+            G_G_4_GN = self.symfunc['G_G_4/G_N'].subs(sub_dict)
 
-            self.get_phiprimeprime()
-            phiprimeprime = self.symfunc['phiprimeprime'].subs(sub_dict)
+            self.get_EprimeE()
+            EprimeE = self.symfunc['E_prime/E'].subs(sub_dict)
+
+            self.get_phi_primeprime()
+            phi_primeprime = self.symfunc['phi_primeprime'].subs(sub_dict)
 
             self.get_A()
             A = self.symfunc['A'].subs(sub_dict)
@@ -807,8 +819,9 @@ class HorndeskiModel:
             
             # we will copy these substituted and simplified functions to the class symfunc dictionary, we avoided 
             # doing this before as some of these are re-called and redefined in the 'get' functions.
-            self.symfunc['EprimeE'] = EprimeE
-            self.symfunc['phiprimeprime'] = phiprimeprime
+            self.symfunc['G_G_4/G_N'] = G_G_4_GN
+            self.symfunc['E_prime/E'] = EprimeE
+            self.symfunc['phi_primeprime'] = phi_primeprime
             self.symfunc['A'] = A
             self.symfunc['B2'] = B2
             self.symfunc['Omega_phi'] = Omega_phi
@@ -837,20 +850,23 @@ class HorndeskiModel:
                 print(" - 'Lambdify'ing symbolic functions")
 
             # keep variables fixed to functions solved in the ODE + Horndeski variables
-            variables = [self.sym['E'], self.sym['phi'], self.sym['phiprime'], self.sym['Omega_r'], self.sym['Omega_m'], self.sym['Omega_l'], *self.sym['K_G3_G4_syms']]
+            variables = [self.sym['E'], self.sym['phi'], self.sym['phi_prime'], self.sym['Omega_r'], self.sym['Omega_m'], self.sym['Omega_l'], *self.sym['K_G3_G4_syms'], self.sym['f_H']]
+
+            # G_G_4/G_N function
+            self.lambda_funcs['G_G_4/G_N'] = sym.lambdify(variables, self.symfunc['G_G_4/G_N'])
 
             # functions as part of the ODE set of equations relating phi and E.
             self.lambda_funcs['B2_lambda'] = sym.lambdify(variables, self.symfunc['B2'], "scipy")
             self.lambda_funcs['fried_closure_lambda'] = sym.lambdify(variables, self.symfunc['fried_closure'])
-            self.lambda_funcs['EprimeE_lambda'] = sym.lambdify(variables, self.symfunc['EprimeE'], "scipy")
+            self.lambda_funcs['E_prime/E_lambda'] = sym.lambdify(variables, self.symfunc['E_prime/E'], "scipy")
 
-            # Add Eprime to variables compute phiprimeprime
-            variables = [self.sym['Eprime'], *variables]
-            self.lambda_funcs['phiprimeprime_lambda'] = sym.lambdify(variables, self.symfunc['phiprimeprime'], "scipy")
+            # Add E_prime to variables compute phi_primeprime
+            variables = [self.sym['E_prime'], *variables]
+            self.lambda_funcs['phi_primeprime_lambda'] = sym.lambdify(variables, self.symfunc['phi_primeprime'], "scipy")
             
             # Derived quantities
-            # Add phiprimeprime to variables to compute the rest of the derived quantities
-            variables = [self.sym['phiprimeprime'], *variables]
+            # Add phi_primeprime to variables to compute the rest of the derived quantities
+            variables = [self.sym['phi_primeprime'], *variables]
 
             self.lambda_funcs['Omega_phi_lambda'] = sym.lambdify(variables, self.symfunc['Omega_phi'])
             self.lambda_funcs['A_lambda'] = sym.lambdify(variables, self.symfunc['A'], "scipy")
@@ -905,6 +921,7 @@ class HorndeskiModel:
         self.params['Omega_l0_LCDM'] = 1. - self.params['Omega_r0_ref'] - self.params['Omega_m0_ref']
         assert len(K_G3_G4_values) == len(self.sym['K_G3_G4_syms']), "Length of Horndeski K_G3_G4_values must match number of defined K, G3, G4 variables."
         self.params['K_G3_G4_values'] = K_G3_G4_values
+        self.params['fH'] = 1.
     
     
     # Initiates solver status
@@ -917,7 +934,7 @@ class HorndeskiModel:
 
     # Returns the closure relation for a specific variable 
 
-    def _fried_closure_wrapper(self, cl_val, cl_var, fried_closure_lambda, E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, K_G3_G4_values):
+    def _fried_closure_wrapper(self, cl_val, cl_var, fried_closure_lambda, E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, K_G3_G4_values, f_H_value):
         """
         Wrapper function for the Friedmann closure relation.
 
@@ -945,25 +962,25 @@ class HorndeskiModel:
             A list of values for the Horndeski specific variables. This must match the length of the user defined variable. 
             Check self.sym['K_G3_G4_syms'] to see what variables are expected.
         """
-        assert cl_var >= 0 and cl_var <= 4, "Closure variable unsupported, must be between 0 and 4 inclusive."
+        assert cl_var >= 0 and cl_var <= 5, "Closure variable unsupported, must be between 0 and 5 inclusive."
         if cl_var == 0:
             #Closure used to compute E0
-            return fried_closure_lambda(cl_val, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values)
+            return fried_closure_lambda(cl_val, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values, f_H_value)
         if cl_var == 1:
             #Closure used to compute phi0
-            return fried_closure_lambda(E_ini, cl_val, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values)
+            return fried_closure_lambda(E_ini, cl_val, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values, f_H_value)
         if cl_var == 2:
             #Closure used to compute Omega_r0
-            return fried_closure_lambda(E_ini, phi_ini, cl_val, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values)
+            return fried_closure_lambda(E_ini, phi_ini, cl_val, Omega_r_ini, Omega_m_ini, Omega_l_ini, *K_G3_G4_values, f_H_value)
         if cl_var == 3:
             #Closure used to compute Omega_r0
-            return fried_closure_lambda(E_ini, phi_ini, phi_prime_ini, cl_val, Omega_m_ini, Omega_l_ini, *K_G3_G4_values)
+            return fried_closure_lambda(E_ini, phi_ini, phi_prime_ini, cl_val, Omega_m_ini, Omega_l_ini, *K_G3_G4_values, f_H_value)
         if cl_var == 4:
             #Closure used to compute Omega_m0
-            return fried_closure_lambda(E_ini, phi_ini, phi_prime_ini, Omega_r_ini, cl_val, Omega_l_ini, *K_G3_G4_values)
+            return fried_closure_lambda(E_ini, phi_ini, phi_prime_ini, Omega_r_ini, cl_val, Omega_l_ini, *K_G3_G4_values, f_H_value)
         if cl_var == 5:
             #Closure used to compute Omega_l0
-            return fried_closure_lambda(E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, cl_val, *K_G3_G4_values)
+            return fried_closure_lambda(E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, cl_val, *K_G3_G4_values, f_H_value)
     
     # Compute derivatives numerically
 
@@ -1032,7 +1049,7 @@ class HorndeskiModel:
 
     # Computes derivaties for the solver
 
-    def _compute_primes(self, x, Y, K_G3_G4_values, timeout=5):
+    def _compute_primes(self, x, Y, K_G3_G4_values, f_H_value, timeout=5):
         """
         Compute prime functions for numerical solver.
 
@@ -1053,13 +1070,12 @@ class HorndeskiModel:
         # `_` used to denote current value.
         _E, _phi, _phi_prime, _Omega_r, _Omega_m, _Omega_l = Y
 
-        variables = [_E, _phi, _phi_prime, _Omega_r, _Omega_m, _Omega_l, *K_G3_G4_values]
+        variables = [_E, _phi, _phi_prime, _Omega_r, _Omega_m, _Omega_l, *K_G3_G4_values, f_H_value]
 
-        # TODO: check this makes sense
         phi_prime = _phi_prime
-        E_prime_E = self.lambda_funcs['EprimeE_lambda'](*variables)
+        E_prime_E = self.lambda_funcs['E_prime/E_lambda'](*variables)
         E_prime = E_prime_E*_E
-        phi_primeprime = self.lambda_funcs['phiprimeprime_lambda'](E_prime, *variables)
+        phi_primeprime = self.lambda_funcs['phi_primeprime_lambda'](E_prime, *variables)
        
         Omega_r_prime = self.compute_Omega_r_prime(_Omega_r, _E, E_prime)
         Omega_m_prime = self.compute_Omega_m_prime(_Omega_m, _E, E_prime)
@@ -1128,6 +1144,7 @@ class HorndeskiModel:
         if self.output['E'] is None:
 
             r_s = None
+            r_s_c1 = None
 
         else:
             
@@ -1146,15 +1163,20 @@ class HorndeskiModel:
                     c_s = np.sqrt(self.output['c_s_sq'])*self.const['C']
                     integral = c_s / (100.*np.exp(self.output['x']) * self.output['E'])
                     r_s = cumulative_trapezoid(integral, x=self.output['x'], initial=0.)
+                    c_s1 = np.ones(len(self.output['c_s_sq']))*self.const['C']
+                    integral = c_s1 / (100.*np.exp(self.output['x']) * self.output['E'])
+                    r_s_c1 = cumulative_trapezoid(integral, x=self.output['x'], initial=0.)
                 else:
                     r_s = None
+                    r_s_c1 = None
         
             elif self.output['E'].ndim == 2:
         
                 r_s = np.zeros(np.shape(self.output['E']))
+                r_s_c1 = np.zeros(np.shape(self.output['E']))
 
                 for idx in range(0, len(self.output['Omega_m0'])):
-
+                    
                     keys = ['E', 'c_s_sq']
 
                     check = True
@@ -1166,13 +1188,19 @@ class HorndeskiModel:
                         c_s = np.sqrt(self.output['c_s_sq'][idx])*self.const['C']
                         integral = c_s / (100.*np.exp(self.output['x']) * self.output['E'][idx])
                         r_s[idx] = cumulative_trapezoid(integral, x=self.output['x'], initial=0.)
+                        c_s1 = np.ones(len(self.output['c_s_sq'][idx]))*self.const['C']
+                        integral = c_s1 / (100.*np.exp(self.output['x']) * self.output['E'][idx])
+                        r_s_c1[idx] = cumulative_trapezoid(integral, x=self.output['x'], initial=0.)
                     else:
                         r_s[idx] = np.nan * np.ones(len(self.output['x']))
+                        r_s_c1[idx] = np.nan * np.ones(len(self.output['x']))
             else:
 
                 r_s = None
+                r_s_c1 = None
 
         self.output['r_s'] = r_s
+        self.output['r_s_c1'] = r_s_c1
 
 
     def _linear_growth(self, x, y, Omega_m0):
@@ -1199,8 +1227,9 @@ class HorndeskiModel:
         dD = y[1]
         a = np.exp(x)
         mu = 1 + self._linear_growth_int['interp_beta_vs_a'](a)
-        Bx = 2 + self._linear_growth_int['interp_Eprime_vs_a'](a)/self._linear_growth_int['interp_E_vs_a'](a)
-        Cx = 3.*Omega_m0*mu/(2.*(self._linear_growth_int['interp_E_vs_a'](a)**2)*(a**3))
+        GG4GN = self._linear_growth_int['interp_G_G_4/G_N_vs_a'](a)
+        Bx = 2 + self._linear_growth_int['interp_E_prime_vs_a'](a)/self._linear_growth_int['interp_E_vs_a'](a)
+        Cx = 3.*Omega_m0*mu*GG4GN/(2.*(self._linear_growth_int['interp_E_vs_a'](a)**2)*(a**3))
         d2D = Cx*D - Bx*D
         return [dD, d2D]
     
@@ -1222,7 +1251,7 @@ class HorndeskiModel:
 
             if self.output['E'].ndim == 1:
                 
-                keys = ['E', 'E_prime', 'beta']
+                keys = ['E', 'G_G_4/G_N', 'E_prime', 'beta']
 
                 check = True
 
@@ -1234,8 +1263,9 @@ class HorndeskiModel:
 
                     self._linear_growth_int = {}
                     self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'], kind='cubic', fill_value='extrapolate')
-                    self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_E_prime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'], kind='cubic', fill_value='extrapolate')
                     self._linear_growth_int['interp_beta_vs_a'] = interp1d(self.output['a'], self.output['beta'], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_G_G_4/G_N_vs_a'] = interp1d(self.output['a'], self.output['G_G_4/G_N'], kind='cubic', fill_value='extrapolate')
 
                     # set up initial conditons, assuming matter domination.
                     
@@ -1274,7 +1304,7 @@ class HorndeskiModel:
 
                 for idx in range(0, len(self.output['Omega_m0'])):
                     
-                    keys = ['E', 'E_prime', 'beta']
+                    keys = ['E', 'G_G_4/G_N', 'E_prime', 'beta']
 
                     check = True
 
@@ -1286,8 +1316,9 @@ class HorndeskiModel:
 
                         self._linear_growth_int = {}
                         self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'][idx], kind='cubic', fill_value='extrapolate')
-                        self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'][idx], kind='cubic', fill_value='extrapolate')
+                        self._linear_growth_int['interp_E_prime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'][idx], kind='cubic', fill_value='extrapolate')
                         self._linear_growth_int['interp_beta_vs_a'] = interp1d(self.output['a'], self.output['beta'][idx], kind='cubic', fill_value='extrapolate')
+                        self._linear_growth_int['interp_G_G_4/G_N_vs_a'] = interp1d(self.output['a'], self.output['G_G_4/G_N'][idx], kind='cubic', fill_value='extrapolate')
 
                         # set up initial conditons, assuming matter domination.
                         
@@ -1353,8 +1384,9 @@ class HorndeskiModel:
         D1 = self._linear_growth_int['interp_D1_vs_a'](a)
         # assuming mu2 == mu1
         mu = 1 + self._linear_growth_int['interp_beta_vs_a'](a)
-        Bx = 2 + self._linear_growth_int['interp_Eprime_vs_a'](a)/self._linear_growth_int['interp_E_vs_a'](a)
-        Cx = 3.*Omega_m0*mu/(2.*(self._linear_growth_int['interp_E_vs_a'](a)**2)*(a**3))
+        GG4GN = self._linear_growth_int['interp_G_G_4/G_N_vs_a'](a)
+        Bx = 2 + self._linear_growth_int['interp_E_prime_vs_a'](a)/self._linear_growth_int['interp_E_vs_a'](a)
+        Cx = 3.*Omega_m0*mu*GG4GN/(2.*(self._linear_growth_int['interp_E_vs_a'](a)**2)*(a**3))
         d2D2 = Cx*(D2 - D1**2) - Bx*dD2
         return [dD2, d2D2]
 
@@ -1388,7 +1420,8 @@ class HorndeskiModel:
                         
                     self._linear_growth_int = {}
                     self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'], kind='cubic', fill_value='extrapolate')
-                    self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_E_prime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'], kind='cubic', fill_value='extrapolate')
+                    self._linear_growth_int['interp_G_G_4/G_N_vs_a'] = interp1d(self.output['a'], self.output['G_G_4/G_N'], kind='cubic', fill_value='extrapolate')
                     self._linear_growth_int['interp_beta_vs_a'] = interp1d(self.output['a'], self.output['beta'], kind='cubic', fill_value='extrapolate')
                     self._linear_growth_int['interp_D1_vs_a'] = interp1d(self.output['a'], self.output['D1'], kind='cubic', fill_value='extrapolate')
 
@@ -1437,7 +1470,8 @@ class HorndeskiModel:
 
                         self._linear_growth_int = {}
                         self._linear_growth_int['interp_E_vs_a'] = interp1d(self.output['a'], self.output['E'][idx], kind='cubic', fill_value='extrapolate')
-                        self._linear_growth_int['interp_Eprime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'][idx], kind='cubic', fill_value='extrapolate')
+                        self._linear_growth_int['interp_E_prime_vs_a'] = interp1d(self.output['a'], self.output['E_prime'][idx], kind='cubic', fill_value='extrapolate')
+                        self._linear_growth_int['interp_G_G_4/G_N_vs_a'] = interp1d(self.output['a'], self.output['G_G_4/G_N'][idx], kind='cubic', fill_value='extrapolate')
                         self._linear_growth_int['interp_beta_vs_a'] = interp1d(self.output['a'], self.output['beta'][idx], kind='cubic', fill_value='extrapolate')
                         self._linear_growth_int['interp_D1_vs_a'] = interp1d(self.output['a'], self.output['D1'][idx], kind='cubic', fill_value='extrapolate')
 
@@ -1753,10 +1787,10 @@ class HorndeskiModel:
             closure_string = 'phi'
             closure_variable_sym = self.sym['phi']
         if closure_variable != 2:
-            sub_dict[self.sym['phiprime']] = phi_prime_ini
+            sub_dict[self.sym['phi_prime']] = phi_prime_ini
         else:
-            closure_string = 'phiprime'
-            closure_variable_sym = self.sym['phiprime']
+            closure_string = 'phi_prime'
+            closure_variable_sym = self.sym['phi_prime']
         if closure_variable != 3:
             sub_dict[self.sym['Omega_r']] = Omega_r_ini
         else:
@@ -1776,8 +1810,10 @@ class HorndeskiModel:
         for i in range(len(self.sym['K_G3_G4_syms'])):
             sub_dict[self.sym['K_G3_G4_syms'][i]] = self.params['K_G3_G4_values'][i]
         
-        fried_closure = sym.simplify(self.symfunc['fried_closure'].subs(sub_dict))
+        self.params['f_H_value'] = 1.
+        sub_dict[self.sym['f_H']] = self.params['f_H_value']
         
+        fried_closure = sym.simplify(self.symfunc['fried_closure'].subs(sub_dict))
         roots_raw = sym.solve(sym.Eq(fried_closure, 0), closure_variable_sym)
 
         if self.verbose:
@@ -1813,9 +1849,13 @@ class HorndeskiModel:
         """
         self.output['solver_success'] = False
         self.output['H0'] = None
+        self.output['fH'] = None
         self.output['Omega_r0'] = None
         self.output['Omega_m0'] = None
         self.output['Omega_l0'] = None
+        self.output['Ehat'] = None
+        self.output['phihat'] = None
+        self.output['phihat_prime'] = None
         self.output['E'] = None
         self.output['phi'] = None
         self.output['phi_prime'] = None
@@ -1836,12 +1876,16 @@ class HorndeskiModel:
         self.output['success'] = True
         self.output['solver_success'] = True
         self.output['H0'] = self.params['H0']
+        self.output['fH'] = 1.
         self.output['Omega_r0'] = self.params['Omega_r0']
         self.output['Omega_m0'] = self.params['Omega_m0']
         self.output['Omega_l0'] = self.params['Omega_l0']
-        self.output['E'] = lcdm.compute_Ez_LCDM(self.output['z'], self.params['Omega_r0'], self.params['Omega_m0'])
-        self.output['phi'] = np.zeros(len(self.output['z']))
-        self.output['phi_prime'] = np.zeros(len(self.output['z']))
+        self.output['Ehat'] = lcdm.compute_Ez_LCDM(self.output['z'], self.params['Omega_r0'], self.params['Omega_m0'])
+        self.output['phihat'] = np.zeros(len(self.output['z']))
+        self.output['phihat_prime'] = np.zeros(len(self.output['z']))
+        self.output['E'] = self.output['Ehat']
+        self.output['phi'] = self.output['phihat']
+        self.output['phi_prime'] = self.output['phihat_prime']
         self.output['Omega_r'] = lcdm.compute_Omega_r_z_LCDM(self.output['z'], self.params['Omega_r0'], self.params['Omega_m0'])
         self.output['Omega_m'] = lcdm.compute_Omega_m_z_LCDM(self.output['z'], self.params['Omega_r0'], self.params['Omega_m0'])
         self.output['Omega_l'] = lcdm.compute_Omega_l_z_LCDM(self.output['z'], self.params['Omega_r0'], self.params['Omega_m0'])
@@ -1878,6 +1922,9 @@ class HorndeskiModel:
             closure_variable = self.output['initialiser']['closure_variable']
             
             solver_success = [False for r in roots]
+            Ehat_arr = np.zeros((len(roots), len(x_arr)))
+            phihat_arr = np.zeros((len(roots), len(x_arr)))
+            phihat_prime_arr = np.zeros((len(roots), len(x_arr)))
             E_arr = np.zeros((len(roots), len(x_arr)))
             phi_arr = np.zeros((len(roots), len(x_arr)))
             phi_prime_arr = np.zeros((len(roots), len(x_arr)))
@@ -1885,10 +1932,11 @@ class HorndeskiModel:
             Omega_m_arr = np.zeros((len(roots), len(x_arr)))
             Omega_l_arr = np.zeros((len(roots), len(x_arr)))
             
-            H0 = [False for r in roots] 
-            Omega_r0 = [False for r in roots] 
-            Omega_m0 = [False for r in roots]
-            Omega_l0 = [False for r in roots]
+            H0 = np.zeros(len(roots)) 
+            Omega_r0 = np.zeros(len(roots)) 
+            Omega_m0 = np.zeros(len(roots)) 
+            Omega_l0 = np.zeros(len(roots))
+            fH = np.ones(len(roots))
 
             for (idx, root) in enumerate(roots):
                     
@@ -1913,7 +1961,7 @@ class HorndeskiModel:
 
                 ans = solve_ivp(
                     self._compute_primes, [x_ini, x_final], Y_ini, t_eval=x_arr, method=method, 
-                    args=(self.params['K_G3_G4_values'], timeout), 
+                    args=(self.params['K_G3_G4_values'], self.params['f_H_value'], timeout), 
                     rtol = 1e-15
                 )
                 
@@ -1934,19 +1982,19 @@ class HorndeskiModel:
                     split = len(_phi_prime_arr)
                     
                 if self._solver_success:
-                    E_arr[idx] = _E_arr
-                    phi_arr[idx] = _phi_arr
-                    phi_prime_arr[idx] = _phi_prime_arr
+                    Ehat_arr[idx] = _E_arr
+                    phihat_arr[idx] = _phi_arr
+                    phihat_prime_arr[idx] = _phi_prime_arr
                     Omega_r_arr[idx] = _Omega_r_arr
                     Omega_m_arr[idx] = _Omega_m_arr
                     Omega_l_arr[idx] = _Omega_l_arr
                 else:
-                    E_arr[idx][:split] = _E_arr
-                    E_arr[idx][split:] = np.nan
-                    phi_arr[idx][:split] = _phi_arr
-                    phi_arr[idx][split:] = np.nan
-                    phi_prime_arr[idx][:split] = _phi_prime_arr
-                    phi_prime_arr[idx][split:] = np.nan
+                    Ehat_arr[idx][:split] = _E_arr
+                    Ehat_arr[idx][split:] = np.nan
+                    phihat_arr[idx][:split] = _phi_arr
+                    phihat_arr[idx][split:] = np.nan
+                    phihat_prime_arr[idx][:split] = _phi_prime_arr
+                    phihat_prime_arr[idx][split:] = np.nan
                     Omega_r_arr[idx][:split] = _Omega_r_arr
                     Omega_r_arr[idx][split:] = np.nan
                     Omega_m_arr[idx][:split] = _Omega_m_arr
@@ -1955,23 +2003,41 @@ class HorndeskiModel:
                     Omega_l_arr[idx][split:] = np.nan
                 
                 if z_start == 0.:
-                    self.params['H0'] = self.params['H0_ref']*E_arr[idx][0]
+                    self.params['H0'] = self.params['H0_ref']*Ehat_arr[idx][0]
+                else:
+                    if self._solver_success == True:
+                        self.params['H0'] = self.params['H0_ref']*Ehat_arr[idx][-1]
+                    else:
+                        self.params['H0'] = np.nan
+                    
+                # Rescale so E(z=0) = 1 if H0 != H0_ref
+                
+                if np.isfinite(self.params['H0']) and self.params['H0'] != self.params['H0_ref'] and self._solver_success:
+                    self.params['f_H_value'] = self.params['H0']/self.params['H0_ref']
+                else:
+                    self.params['f_H_value'] = 1.
+
+                E_arr[idx] = Ehat_arr[idx]/self.params['f_H_value']
+                phi_arr[idx] = phihat_arr[idx]*self.params['f_H_value']
+                phi_prime_arr[idx] = phihat_prime_arr[idx]*self.params['f_H_value']
+
+                fH[idx] = self.params['f_H_value']
+                H0[idx] = self.params['H0']
+
+                if z_start == 0.:
                     self.params['Omega_r0'] = Omega_r_arr[idx][0]
                     self.params['Omega_m0'] = Omega_m_arr[idx][0]
                     self.params['Omega_l0'] = Omega_l_arr[idx][0]
                 else:
                     if self._solver_success == True:
-                        self.params['H0'] = self.params['H0_ref']*E_arr[idx][-1]
                         self.params['Omega_r0'] = Omega_r_arr[idx][-1]
                         self.params['Omega_m0'] = Omega_m_arr[idx][-1]
                         self.params['Omega_l0'] = Omega_l_arr[idx][-1]
                     else:
-                        self.params['H0'] = np.nan
                         self.params['Omega_r0'] = np.nan
                         self.params['Omega_m0'] = np.nan
                         self.params['Omega_l0'] = np.nan
                 
-                H0[idx] = self.params['H0']
                 Omega_r0[idx] = self.params['Omega_r0']
                 Omega_m0[idx] = self.params['Omega_m0']
                 Omega_l0[idx] = self.params['Omega_l0']
@@ -1979,9 +2045,13 @@ class HorndeskiModel:
             self.output['solver_success'] = solver_success
             self.output['success'] = solver_success
             self.output['H0'] = H0
+            self.output['fH'] = fH
             self.output['Omega_r0'] = Omega_r0
             self.output['Omega_m0'] = Omega_m0
             self.output['Omega_l0'] = Omega_l0
+            self.output['Ehat'] = Ehat_arr
+            self.output['phihat'] = phihat_arr
+            self.output['phihat_prime'] = phihat_prime_arr
             self.output['E'] = E_arr
             self.output['phi'] = phi_arr
             self.output['phi_prime'] = phi_prime_arr
@@ -1996,11 +2066,12 @@ class HorndeskiModel:
         """
         self.output['H'] = None
         self.output['Dc'] = None
+        self.output['G_G_4/G_N'] = None
         self.output['E_prime/E'] = None
         self.output['E_prime/E_LCDM'] = None
         self.output['E_prime'] = None
-        self.output['E_like'] = None
-        self.output['E_prime_like'] = None
+        # self.output['E_like'] = None
+        # self.output['E_prime_like'] = None
         self.output['phi_primeprime'] = None
         self.output['A'] = None
         self.output['Omega_phi'] = None
@@ -2040,6 +2111,8 @@ class HorndeskiModel:
         Omega_r_arr = self.output['Omega_r']
         Omega_m_arr = self.output['Omega_m']
         Omega_l_arr = self.output['Omega_l']
+
+        G_G_4_G_N = np.ones(len(x_arr))
 
         E_prime_E_LCDM_arr = lcdm.compute_EprimeE_x_LCDM(x_arr, self.params['Omega_r0'], self.params['Omega_m0'])
         Omega_l_LCDM_arr = lcdm.compute_Omega_l_x_LCDM(x_arr, self.params['Omega_r0'], self.params['Omega_m0'])
@@ -2096,11 +2169,12 @@ class HorndeskiModel:
 
         self.output['H'] = H_arr
         self.output['Dc'] = Dc_arr
+        self.output['G_G_4/G_N'] = G_G_4_G_N
         self.output['E_prime/E'] = E_prime_E_arr
         self.output['E_prime/E_LCDM'] = E_prime_E_LCDM_arr
         self.output['E_prime'] = E_prime_arr
-        self.output['E_like'] = E_arr # in LCDM this is the same
-        self.output['E_prime_like'] = E_prime_arr # in LCDM this is the same
+        # self.output['E_like'] = E_arr # in LCDM this is the same
+        # self.output['E_prime_like'] = E_prime_arr # in LCDM this is the same
         self.output['phi_primeprime'] = phi_primeprime_arr
         self.output['A'] = A_arr
         self.output['Omega_phi'] = Omega_phi_arr
@@ -2152,6 +2226,7 @@ class HorndeskiModel:
 
             roots = self.output['initialiser']['roots']
             
+            G_G_4_G_N = np.zeros((len(roots), len(x_arr)))
             E_prime_E_arr = np.zeros((len(roots), len(x_arr)))
             E_prime_arr = np.zeros((len(roots), len(x_arr)))
             phi_primeprime_arr = np.zeros((len(roots), len(x_arr)))
@@ -2169,6 +2244,7 @@ class HorndeskiModel:
             M_star_sq_arr = np.zeros((len(roots), len(x_arr)))
             alpha_M_arr = np.zeros((len(roots), len(x_arr)))
             alpha_B_arr = np.zeros((len(roots), len(x_arr)))
+            alpha_B_prime_arr = np.zeros((len(roots), len(x_arr)))
             alpha_K_arr = np.zeros((len(roots), len(x_arr)))
             rho_phi_arr = np.zeros((len(roots), len(x_arr)))
             P_phi_arr = np.zeros((len(roots), len(x_arr)))
@@ -2186,15 +2262,19 @@ class HorndeskiModel:
             Omega_l_prime_LCDM_arr = lcdm.compute_Omega_l_prime_LCDM(E_prime_E_LCDM_arr, 1-self.params['Omega_r0_ref']-self.params['Omega_m0_ref'])
             
             for (idx, _) in enumerate(roots):
-                
-                variables = [E_arr[idx], phi_arr[idx], phi_prime_arr[idx], Omega_r_arr[idx], Omega_m_arr[idx], Omega_l_arr[idx], *self.params['K_G3_G4_values']]
 
-                E_prime_E_arr[idx] = self.lambda_funcs['EprimeE_lambda'](*variables)
+                self.params['H0'] = self.output['H0'][idx]
+                self.params['f_H_value'] = self.output['fH'][idx]
+
+                variables = [E_arr[idx], phi_arr[idx], phi_prime_arr[idx], Omega_r_arr[idx], Omega_m_arr[idx], Omega_l_arr[idx], *self.params['K_G3_G4_values'], self.params['f_H_value']]
+
+                G_G_4_G_N[idx] = self.lambda_funcs['G_G_4/G_N'](*variables)
+                E_prime_E_arr[idx] = self.lambda_funcs['E_prime/E_lambda'](*variables)
                 E_prime_arr[idx] = E_prime_E_arr[idx] * E_arr[idx]
 
                 variables = [E_prime_arr[idx], *variables]
 
-                phi_primeprime_arr[idx] = self.lambda_funcs['phiprimeprime_lambda'](*variables)
+                phi_primeprime_arr[idx] = self.lambda_funcs['phi_primeprime_lambda'](*variables)
 
                 variables = [phi_primeprime_arr[idx], *variables]
 
@@ -2218,40 +2298,43 @@ class HorndeskiModel:
                 alpha_K_arr[idx] = self.lambda_funcs['alpha_K'](*variables)
                 
                 if self.output['initialiser']['forwards']:
-                    alpha_B_prime_arr = np.gradient(alpha_B_arr[idx], x_arr)
+                    alpha_B_prime_arr[idx] = np.gradient(alpha_B_arr[idx], x_arr)
                 else:
-                    alpha_B_prime_arr = np.gradient(alpha_B_arr[idx][::-1], x_arr[::-1])[::-1]
+                    alpha_B_prime_arr[idx] = np.gradient(alpha_B_arr[idx][::-1], x_arr[::-1])[::-1]
                 
+                # TODO: check dependence on H0 here:
                 rho_phi_arr[idx] = self.lambda_funcs['rho_phi'](self.params['H0'], *variables)
                 P_phi_arr[idx] = self.lambda_funcs['P_phi'](self.params['H0'], *variables)
                 w_phi_arr[idx] = P_phi_arr[idx]/rho_phi_arr[idx]
                 
                 D_arr[idx] = self.lambda_funcs['D'](*variables)
                 Q_s_arr[idx] = self.lambda_funcs['Q_s'](*variables)
-                c_s_sq_D_arr[idx] = self.lambda_funcs['c_s_sq_D'](alpha_B_prime_arr, *variables)
-                c_s_sq_arr[idx] = self.lambda_funcs['c_s_sq'](alpha_B_prime_arr, *variables)
+                c_s_sq_D_arr[idx] = self.lambda_funcs['c_s_sq_D'](alpha_B_prime_arr[idx], *variables)
+                c_s_sq_arr[idx] = self.lambda_funcs['c_s_sq'](alpha_B_prime_arr[idx], *variables)
 
                 if Q_s_arr.all() > 0 and c_s_sq_arr.all() > 0:
                     stable[idx] = True
                 else:
                     stable[idx] = False
-                
-            E_like_arr = np.copy(E_arr)
-            E_prime_like_arr = np.copy(E_prime_arr)
+            
+            # TODO : Remove this
+            # E_like_arr = np.copy(E_arr)
+            # E_prime_like_arr = np.copy(E_prime_arr)
 
             H_arr = np.zeros_like(E_arr)
             Dc_arr = np.zeros_like(E_arr)
             
             for (idx, _) in enumerate(roots):
                 
-                if self.output['initialiser']['forwards'] is False: 
-                    E_arr[idx] /= E_like_arr[idx,0]
-                    E_prime_arr[idx] /= E_like_arr[idx,0]
-                else:
-                    E_arr[idx] /= E_like_arr[idx,-1]
-                    E_prime_arr[idx] /= E_like_arr[idx,-1]
+                # if self.output['initialiser']['forwards'] is False: 
+                #     E_arr[idx] /= E_like_arr[idx][0]
+                #     E_prime_arr[idx] /= E_like_arr[idx][0]
+                # else:
+                #     E_arr[idx] /= E_like_arr[idx][-1]
+                #     E_prime_arr[idx] /= E_like_arr[idx][-1]
                 
-                H_arr[idx] = self.output['H0'][idx]*E_arr[idx]
+                self.params['H0'] = self.output['H0'][idx]
+                H_arr[idx] = self.params['H0']*E_arr[idx]
 
                 from scipy.integrate import cumulative_trapezoid
                 
@@ -2263,12 +2346,13 @@ class HorndeskiModel:
 
             self.output['H'] = H_arr
             self.output['Dc'] = Dc_arr
+            self.output['G_G_4/G_N'] = G_G_4_G_N
             self.output['E_prime/E'] = E_prime_E_arr
             self.output['E_prime/E_LCDM'] = E_prime_E_LCDM_arr
             self.output['E'] = E_arr
             self.output['E_prime'] = E_prime_arr
-            self.output['E_like'] = E_like_arr
-            self.output['E_prime_like'] = E_prime_like_arr
+            # self.output['E_like'] = E_like_arr
+            # self.output['E_prime_like'] = E_prime_like_arr
             self.output['phi_primeprime'] = phi_primeprime_arr
             self.output['A'] = A_arr
             self.output['Omega_phi'] = Omega_phi_arr
@@ -2305,8 +2389,8 @@ class HorndeskiModel:
         
         if derived:
             keys = [
-                'a', 'z', 'x', 'E', 'phi', 'phi_prime', 'Omega_r', 'Omega_m', 'Omega_l',
-                'H', 'Dc', 'E_prime/E', 'E_prime/E_LCDM', 'E_prime', 'E_like', 'E_prime_like',
+                'a', 'z', 'x', 'Ehat', 'phihat', 'phihat_prime', 'E', 'phi', 'phi_prime', 'Omega_r', 'Omega_m', 'Omega_l',
+                'H', 'Dc', 'G_G_4/G_N', 'E_prime/E', 'E_prime/E_LCDM', 'E_prime', #'E_like', 'E_prime_like',
                 'phi_primeprime', 'A', 'Omega_phi', 'Omega_DE', 'Omega_phi_via_closure', 
                 'Omega_l_LCDM', 'Omega_r_prime', 'Omega_m_prime', 'Omega_l_prime', 
                 'Omega_l_prime_LCDM', 'calB', 'calC', 'beta', 'chi/delta', 'M_star_sq',
@@ -2315,7 +2399,7 @@ class HorndeskiModel:
             ]
         else:
             keys = [
-                'a', 'z', 'x', 'E', 'phi', 'phi_prime', 'Omega_r', 'Omega_m', 'Omega_l'
+                'a', 'z', 'x', 'Ehat', 'phihat', 'phihat_prime', 'E', 'phi', 'phi_prime', 'Omega_r', 'Omega_m', 'Omega_l'
             ]
 
         for key in keys:
@@ -2328,7 +2412,7 @@ class HorndeskiModel:
 
     def run_solver(
             self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=2, 
-            phi_ini=1e-5, phi_prime_ini=0.9, method='RK45', timeout=5, derived=True,
+            phi_ini=1e-5, phi_prime_ini=0.9, method='RK45', timeout=5, derived=True, LCDM_ini=True, values_ini=None
         ):
         """
         Runs the numerical solver for a user defined Horndeski model.
@@ -2370,6 +2454,10 @@ class HorndeskiModel:
 
         self.output = {}
         E_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini = self._run_solver_start(z_max, Npoints, forwards)
+
+        if LCDM_ini == False:
+            assert values_ini is not None, "values_ini must be a list with the initial values for [E_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini]"
+            E_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini = values_ini[0], values_ini[1], values_ini[2], values_ini[3]
 
         if GR:
             if self.verbose:
