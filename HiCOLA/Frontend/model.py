@@ -597,6 +597,7 @@ class HorndeskiModel:
         """
         term1 = (self.sym['M_K']**2)*self.symfunc['Kx'] - self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3phi']
         term2 = self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3x']*self.sym['X'] - self.symfunc['G4phi']*self.sym['M_G4']**2
+        # TODO: make this independent of H0, for easier H0 scaling
         self.symfunc['rho_phi'] = (self.sym['H0']**2)*(2*self.sym['X']*term1 + 6*(self.sym['E']**2)*self.sym['phi_prime']*term2 - self.sym['M_K']**2*self.symfunc['K'])/self.symfunc['M_star_sq']
 
 
@@ -609,6 +610,7 @@ class HorndeskiModel:
         term2 = self.sym['M_s']*self.sym['M_G3']*self.symfunc['G3phi'] - 2*self.symfunc['G4phiphi']*(self.sym['M_G4']**2)
         term31 = 2*self.sym['phi_prime']*(self.sym['M_s']*self.sym['M_G3']*self.sym['X']*self.symfunc['G3x'] - self.symfunc['G4phi']*(self.sym['M_G4']**2))
         term3 = term31*self.sym['E']*(self.sym['E_prime']*self.sym['phi_prime'] + self.sym['E']*self.sym['phi_primeprime'])/self.sym['phi_prime']
+        # TODO: make this independent of H0, for easier H0 scaling
         self.symfunc['P_phi'] = (self.sym['H0']**2)*(term1 - 2*self.sym['X']*term2 - term3)/self.symfunc['M_star_sq']
 
     # Stability and sound speed related functions
