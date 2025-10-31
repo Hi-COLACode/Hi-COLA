@@ -26,10 +26,10 @@ class HorndeskiModel:
         self.sym['a'] = sym.symbols('a')
         self.sym['f_H'] = sym.symbols('f_H')
         self.sym['E'] = sym.symbols('E')
-        self.sym['E_prime'] = sym.symbols('E_prime')
+        self.sym['E_prime'] = sym.symbols("E^{'}")
         self.sym['phi'] = sym.symbols('phi')
-        self.sym['phi_prime'] = sym.symbols('phi_prime')
-        self.sym['phi_primeprime'] = sym.symbols('phi_primeprime')
+        self.sym['phi_prime'] = sym.symbols("phi^{'}")
+        self.sym['phi_primeprime'] = sym.symbols("phi^{''}")
         self.sym['X'] = sym.symbols('X')
         self.sym['M_p'] = sym.symbols('M_{p}')
         self.sym['M_s'] = sym.symbols('M_{s}')
@@ -554,6 +554,7 @@ class HorndeskiModel:
         self.get_calC()
         self.symfunc['beta'] = -1.*(self.symfunc['alpha1'] + self.symfunc['alpha2'])*self.symfunc['calC']
 
+
     
     # Symbolic definitions for Bellini & Sawicki alphas
 
@@ -894,6 +895,61 @@ class HorndeskiModel:
             if self.verbose:
                 print(' - Done!')
 
+    # Explore scaling symmetry
+
+    def scaling_symmetry(self, K_G3_G4_sub):
+        """
+        Allows the user to directly see how scaling symmetries apply for a given model.
+        """
+        sub_dict = {
+            self.sym['f_H']: 1,
+            self.sym['X']: sym.symbols('C_{\phi}')*sym.symbols('C_{\phi}')*self.sym['X'],
+            self.sym['phi']: sym.symbols('C_{\phi}')*sym.symbols('\phi'),
+            self.sym['phi_prime']: sym.symbols('C_{\phi}')*sym.symbols("\phi^{'}"),
+            self.sym['phi_primeprime']: sym.symbols('C_{\phi}')*sym.symbols("\phi^{''}")
+        }
+        for (i, var) in enumerate(self.sym['K_G3_G4_syms']):
+            # sub_dict[var] = sym.symbols(K_G3_G4_sub[i])
+            sub_dict[var] = K_G3_G4_sub[i]
+        
+        E_primeE_term1 = self.symfunc['K']/(self.sym['E']**2)
+        E_primeE_term1 -= 2*self.sym['X']*(self.symfunc['G3phi']/(self.sym['E']**2) + self.symfunc['G3x']*(self.sym['phi_prime']*self.sym['E_prime']/self.sym['E'] + self.sym['phi_primeprime']))
+        E_primeE_term1 += 2*self.symfunc['G4phi']*(self.sym['phi_prime']*(self.sym['E_prime']/self.sym['E']+2) + self.sym['phi_primeprime'])
+        E_primeE_term1 += 4*self.sym['X']*self.symfunc['G4phiphi']/(self.sym['E']**2)
+        E_primeE_term1 /= 4*self.symfunc['G4']
+        E_primeE_term2 = - ((self.sym['Omega_r'] - 3*self.sym['Omega_l'])/(2*self.symfunc['G4']) + 3)/2
+        E_primeE = E_primeE_term1 + E_primeE_term2
+        E_primeE = E_primeE.subs(sub_dict)
+
+        A_term1 = 6*self.sym['phi_prime']*(self.symfunc['G3x']+self.sym['X']*self.symfunc['G3xx'])
+        A_term2 = (self.sym['phi_prime']**2)*(self.symfunc['Kxx'] - 2*self.symfunc['G3phix'])
+        A = self.symfunc['Kx'] - self.symfunc['G3phi'] + 2*self.sym['X']*self.symfunc['G3phix'] + (self.sym['E']**2)*(A_term1 + A_term2)
+
+        B1 = 6*self.sym['X']*self.symfunc['G3x'] - 6*self.symfunc['G4phi']
+        B2_term1 = 3*self.sym['phi_prime']*(self.symfunc['Kx']-2*self.symfunc['G3phi']+2*self.sym['X']*self.symfunc['G3phix'])
+        B2_term2 = (self.sym['phi_prime']**2)*(self.symfunc['Kxphi'] - 2*self.symfunc['G3phiphi'])
+        B2_term3 = -self.symfunc['Kphi']/(self.sym['E']**2) - 12*self.symfunc['G4phi'] + 18*self.sym['X']*self.symfunc['G3x'] + 2*self.sym['X']*self.symfunc['G3phiphi']/(self.sym['E']**2)
+        B2 = B2_term1 + B2_term2 + B2_term3
+        B = B1*(self.sym['E_prime']/self.sym['E']) + B2
+
+        C_phi_phi_primeprime = - B/A - (self.sym['E_prime']/self.sym['E'])*self.sym['phi_prime']
+        C_phi_phi_primeprime = C_phi_phi_primeprime.subs(sub_dict)
+
+        fried_closure = self.sym['Omega_r'] + self.sym['Omega_m'] + self.sym['Omega_l']
+        Omega_phi_term1 = (self.sym['Omega_r'] + self.sym['Omega_m'] + self.sym['Omega_l'])*(1/(2*self.symfunc['G4']) - 1)
+        Omega_phi_term2 = self.sym['X']*self.symfunc['Kx']/(self.sym['E']**2)
+        Omega_phi_term2 -= self.symfunc['K']/(2*self.sym['E']**2)
+        Omega_phi_term2 += 3*self.sym['X']*self.sym['phi_prime']*self.symfunc['G3x']
+        Omega_phi_term2 -= self.sym['X']*self.symfunc['G3phi']/(self.sym['E']**2)
+        Omega_phi_term2 -= 3*self.sym['phi_prime']*self.symfunc['G4phi']
+        Omega_phi_term2 *= (1/(3*self.symfunc['G4']))
+        Omega_phi = Omega_phi_term1 + Omega_phi_term2
+        fried_closure += Omega_phi
+
+        fried_closure = fried_closure.subs(sub_dict)
+
+        return E_primeE, C_phi_phi_primeprime, fried_closure
+    
     # Set cosmological parameters + Horndeski parameters
 
     def set_cosmo_params(self, H0_ref, Omega_m0_ref, Omega_r0_ref, fphi, K_G3_G4_values):
@@ -1667,7 +1723,11 @@ class HorndeskiModel:
                     P_phi = -2*(self.params['H0']**2)*self.output['E']*self.output['E_prime'] 
                     P_phi -= 3*(self.params['H0']**2)*(self.output['E']**2)*(1+(self.output['Omega_r']/3 - self.output['Omega_l'])/self.output['M_star_sq'])
                     rho_phi = 3*(self.params['H0']**2)*(self.output['E']**2)*(1-(self.output['Omega_m'] + self.output['Omega_r'] + self.output['Omega_l'])/self.output['M_star_sq'])
-                    w_phi = self.output['P_phi']/self.output['rho_phi']
+                    w_phi = np.zeros(len(self.output['rho_phi']))
+                    cond = np.where(self.output['rho_phi'] == 0.)[0]
+                    w_phi[cond] = np.nan
+                    cond = np.where(self.output['rho_phi'] != 0.)[0]
+                    w_phi[cond] = self.output['P_phi'][cond]/self.output['rho_phi'][cond]
                 else:
                     P_phi, rho_phi, w_phi = None, None, None
 
@@ -1751,7 +1811,7 @@ class HorndeskiModel:
         return E_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini
     
 
-    def _run_solver_HG_root_finder(self, closure_variable, E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini):
+    def _run_solver_HG_root_finder(self, closure_variable, E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, bypass_closure):
         """
         Finds the roots of the closure relation for input closure variable given a set of initial guesses. Note the initial guess for the 
         variable of interest will be ignored.
@@ -1772,6 +1832,8 @@ class HorndeskiModel:
             Initial fractional matter density, if the closure_variable = 4 then this is ignored and solved via the closure relation.
         Omega_l_ini : float
             Initial fractional lambda (cosmological constant) density, if the closure_variable = 5 then this is ignored and solved via the closure relation.
+        bypass_closure : bool, optional
+            Bypass closure solver to set quantities directly, this means the closure relation will not be satisfied, use with care!
         """
         
         sub_dict = {}
@@ -1829,6 +1891,25 @@ class HorndeskiModel:
         if self.verbose:
             print(' -- Real roots for %s_ini:' % closure_string, roots)
 
+        if bypass_closure:
+
+            if closure_variable == 0:
+                roots = [E_ini]
+            elif closure_variable == 1:
+                roots = [phi_ini]
+            elif closure_variable == 2:
+                roots = [phi_prime_ini]
+            elif closure_variable == 3:
+                roots = [Omega_r_ini]
+            elif closure_variable == 4:
+                roots = [Omega_m_ini]
+            elif closure_variable == 5:
+                roots = [Omega_l_ini]
+
+            if self.verbose:
+                print(' -- !! Bypassing closure relation solutions !!')
+                print(' -- Bypassing real roots solution for %s_ini'% closure_string, roots)
+
         self.output['initialiser']['closure_variable'] = closure_variable
         self.output['initialiser']['closure_string'] = closure_string
         self.output['initialiser']['all_roots'] = roots_raw
@@ -1836,7 +1917,7 @@ class HorndeskiModel:
 
         if len(self.output['initialiser']['roots']) > 0:
             self.output['initialiser']['success'] = True
-            self.output['success'] = True # so far
+            self.output['success'] = True
         else:
             self.output['initialiser']['success'] = False
             self.output['success'] = False
@@ -2011,8 +2092,6 @@ class HorndeskiModel:
                         self.params['H0'] = self.params['H0_ref']*Ehat_arr[idx][-1]
                     else:
                         self.params['H0'] = np.nan
-                    
-                # Rescale so E(z=0) = 1 if H0 != H0_ref
                 
                 if np.isfinite(self.params['H0']) and self.params['H0'] != self.params['H0_ref'] and self._solver_success:
                     self.params['f_H_value'] = self.params['H0']/self.params['H0_ref']
@@ -2072,8 +2151,6 @@ class HorndeskiModel:
         self.output['E_prime/E'] = None
         self.output['E_prime/E_LCDM'] = None
         self.output['E_prime'] = None
-        # self.output['E_like'] = None
-        # self.output['E_prime_like'] = None
         self.output['phi_primeprime'] = None
         self.output['A'] = None
         self.output['Omega_phi'] = None
@@ -2152,7 +2229,6 @@ class HorndeskiModel:
         P_phi_arr = np.zeros(len(x_arr))
         w_phi_arr = np.zeros(len(x_arr))
         
-        # TODO: check what these should be
         D_arr = np.zeros(len(x_arr))
         Q_s_arr = np.zeros(len(x_arr))
         c_s_sq_D_arr = np.nan*np.ones(len(x_arr))
@@ -2175,8 +2251,6 @@ class HorndeskiModel:
         self.output['E_prime/E'] = E_prime_E_arr
         self.output['E_prime/E_LCDM'] = E_prime_E_LCDM_arr
         self.output['E_prime'] = E_prime_arr
-        # self.output['E_like'] = E_arr # in LCDM this is the same
-        # self.output['E_prime_like'] = E_prime_arr # in LCDM this is the same
         self.output['phi_primeprime'] = phi_primeprime_arr
         self.output['A'] = A_arr
         self.output['Omega_phi'] = Omega_phi_arr
@@ -2304,7 +2378,6 @@ class HorndeskiModel:
                 else:
                     alpha_B_prime_arr[idx] = np.gradient(alpha_B_arr[idx][::-1], x_arr[::-1])[::-1]
                 
-                # TODO: check dependence on H0 here:
                 rho_phi_arr[idx] = self.lambda_funcs['rho_phi'](self.params['H0'], *variables)
                 P_phi_arr[idx] = self.lambda_funcs['P_phi'](self.params['H0'], *variables)
                 w_phi_arr[idx] = P_phi_arr[idx]/rho_phi_arr[idx]
@@ -2318,22 +2391,11 @@ class HorndeskiModel:
                     stable[idx] = True
                 else:
                     stable[idx] = False
-            
-            # TODO : Remove this
-            # E_like_arr = np.copy(E_arr)
-            # E_prime_like_arr = np.copy(E_prime_arr)
 
             H_arr = np.zeros_like(E_arr)
             Dc_arr = np.zeros_like(E_arr)
             
             for (idx, _) in enumerate(roots):
-                
-                # if self.output['initialiser']['forwards'] is False: 
-                #     E_arr[idx] /= E_like_arr[idx][0]
-                #     E_prime_arr[idx] /= E_like_arr[idx][0]
-                # else:
-                #     E_arr[idx] /= E_like_arr[idx][-1]
-                #     E_prime_arr[idx] /= E_like_arr[idx][-1]
                 
                 self.params['H0'] = self.output['H0'][idx]
                 H_arr[idx] = self.params['H0']*E_arr[idx]
@@ -2353,8 +2415,6 @@ class HorndeskiModel:
             self.output['E_prime/E_LCDM'] = E_prime_E_LCDM_arr
             self.output['E'] = E_arr
             self.output['E_prime'] = E_prime_arr
-            # self.output['E_like'] = E_like_arr
-            # self.output['E_prime_like'] = E_prime_like_arr
             self.output['phi_primeprime'] = phi_primeprime_arr
             self.output['A'] = A_arr
             self.output['Omega_phi'] = Omega_phi_arr
@@ -2391,13 +2451,12 @@ class HorndeskiModel:
         
         if derived:
             keys = [
-                'a', 'z', 'x', 'Ehat', 'phihat', 'phihat_prime', 'E', 'phi', 'phi_prime', 'Omega_r', 'Omega_m', 'Omega_l',
-                'H', 'Dc', 'G_G_4/G_N', 'E_prime/E', 'E_prime/E_LCDM', 'E_prime', #'E_like', 'E_prime_like',
-                'phi_primeprime', 'A', 'Omega_phi', 'Omega_DE', 'Omega_phi_via_closure', 
-                'Omega_l_LCDM', 'Omega_r_prime', 'Omega_m_prime', 'Omega_l_prime', 
-                'Omega_l_prime_LCDM', 'calB', 'calC', 'beta', 'chi/delta', 'M_star_sq',
-                'alpha_M', 'alpha_B', 'alpha_B_prime', 'alpha_K' , 'rho_phi', 'P_phi', 'w_phi',
-                'D', 'Q_s', 'c_s_sq_D', 'c_s_sq'
+                'a', 'z', 'x', 'Ehat', 'phihat', 'phihat_prime', 'E', 'phi', 'phi_prime', 
+                'Omega_r', 'Omega_m', 'Omega_l', 'H', 'Dc', 'G_G_4/G_N', 'E_prime/E', 'E_prime/E_LCDM', 
+                'E_prime', 'phi_primeprime', 'A', 'Omega_phi', 'Omega_DE', 'Omega_phi_via_closure', 
+                'Omega_l_LCDM', 'Omega_r_prime', 'Omega_m_prime', 'Omega_l_prime', 'Omega_l_prime_LCDM', 
+                'calB', 'calC', 'beta', 'chi/delta', 'M_star_sq', 'alpha_M', 'alpha_B', 'alpha_B_prime', 'alpha_K' , 
+                'rho_phi', 'P_phi', 'w_phi', 'D', 'Q_s', 'c_s_sq_D', 'c_s_sq'
             ]
         else:
             keys = [
@@ -2413,8 +2472,9 @@ class HorndeskiModel:
 
 
     def run_solver(
-            self, z_max=1000., Npoints=1000, forwards=True, GR=False, closure_variable=2, 
-            phi_ini=1e-5, phi_prime_ini=0.9, method='RK45', timeout=5, derived=True, LCDM_ini=True, values_ini=None
+            self, z_max=1100., Npoints=1000, forwards=True, GR=False, closure_variable=2, 
+            phi_ini=1e-5, phi_prime_ini=0.9, method='RK45', timeout=5, derived=True, LCDM_ini=True, 
+            values_ini=None, bypass_closure=False
         ):
         """
         Runs the numerical solver for a user defined Horndeski model.
@@ -2443,6 +2503,8 @@ class HorndeskiModel:
             only work if the reason for the failure is due to the equations becoming stiff.
         derived : bool, optional
             Instructs the solver whether derived quantities should be computed.
+        bypass_closure : bool, optional
+            Bypass closure solver to set quantities directly, this means the closure relation will not be satisfied, use with care!
         
         Returns
         -------
@@ -2480,7 +2542,7 @@ class HorndeskiModel:
             if self.verbose:
                 print(' - Running in Horndeski mode!')
 
-            self._run_solver_HG_root_finder(closure_variable, E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini)
+            self._run_solver_HG_root_finder(closure_variable, E_ini, phi_ini, phi_prime_ini, Omega_r_ini, Omega_m_ini, Omega_l_ini, bypass_closure)
 
             if self.output['success']:
                 
