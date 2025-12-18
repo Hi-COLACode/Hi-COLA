@@ -1,5 +1,6 @@
 
 from .Frontend.model import HorndeskiModel
+from .Frontend.modelv2 import HorndeskiModelV2
 
 from .Frontend.lcdm import compute_Ez_LCDM
 from .Frontend.lcdm import compute_Hz_LCDM

@@ -45,6 +45,9 @@ class HorndeskiModel:
         self.sym['M_Ks'] = sym.symbols('M_{Ks}')
         self.sym['M_gp'] = sym.symbols('M_{gp}')
         self.sym['M_sp'] = sym.symbols('M_{sp}')
+        self.sym['M_Kp2'] = sym.symbols('M_{Kp2}')
+        self.sym['M_G3p'] = sym.symbols('M_{G3p}')
+        self.sym['M_G4p2'] = sym.symbols('M_{G4p2}')
         self.sym['Omega_g'] = sym.symbols('Omega_g') # Photons
         self.sym['Omega_n1'] = sym.symbols('Omega_n1') # Neutrino 1
         self.sym['Omega_n2'] = sym.symbols('Omega_n2') # Neutrino 2
@@ -68,6 +71,7 @@ class HorndeskiModel:
         # Parameter values
         self.params = {}
         self.params['mass_ratios'] = None
+        self.params['mass_ratios_new'] = None
         self.outputs = {}
         self.timer = {'t0': None}
         self.const = {}
@@ -367,12 +371,45 @@ class HorndeskiModel:
         term2 += -self.sym['M_G3G4']*self.sym['M_sG4']*self.sym['X']*self.symfunc['G3phi']/(self.sym['E']**2.) - 3*self.sym['phi_prime']*self.symfunc['G4phi']
         self.symfunc['Omega_phi'] = term1 + (1/(3.*self.symfunc['G4']))*term2
 
+    
+    def get_Omega_phi_new(self):
+        """
+        Returns the scalar field fractional density function, following equation 2.4 in https://arxiv.org/pdf/2209.01666.pdf.
+        """
+        self.symfunc['Omega_phi_new'] = (1/(2*self.sym['M_G4p2']*self.symfunc['G4']) - 1)
+        self.symfunc['Omega_phi_new'] *= (self.sym['Omega_g'] + self.sym['Omega_n1'] + self.sym['Omega_n2'] + self.sym['Omega_n3'] + self.sym['Omega_b'] + self.sym['Omega_c'] + self.sym['Omega_l'])
+        term1 = self.sym['M_Kp2']*self.sym['X']*self.symfunc['Kx']/(self.sym['E']**2)
+        term1 -= self.sym['M_Kp2']*self.symfunc['K']/(2*self.sym['E']**2)
+        term1 += 3*self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.sym['phi_prime']*self.symfunc['G3x']
+        term1 -= self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.symfunc['G3phi']/(self.sym['E']**2)
+        term1 -= 3*self.sym['M_G4p2']*self.sym['phi_prime']*self.symfunc['G4phi']
+        self.symfunc['Omega_phi_new'] += (1/(3*self.sym['M_G4p2']*self.symfunc['G4']))*term1
+
+    def get_fried_closure_new(self):
+        """
+        Returns the RHS of the Friedmann closure relation -> equation 2.3 in https://arxiv.org/abs/2209.01666, 
+        should be equal to 1. 
+        """
+        # Note: replaces the fried_closure function
+        self.get_Omega_phi_new()
+        self.symfunc['fried_closure_new'] = self.symfunc['Omega_phi_new'] + self.sym['Omega_b'] + self.sym['Omega_c'] + self.sym['Omega_g'] + self.sym['Omega_n1'] + self.sym['Omega_n2'] + self.sym['Omega_n3'] + self.sym['Omega_l'] - 1.
+        # equation A.3 in https://arxiv.org/abs/2209.01666, 
+        # TODO: duplication of a step done later in construct model, remove these lines.
+        # Xreal = (1./2.)*(self.sym['E']**2.)*(self.sym['phi_prime']**2.)
+        # self.symfunc['fried_closure'] = self.symfunc['fried_closure'].subs(self.sym['X'], Xreal)
+
 
     def get_G_G_4(self):
         """
         Returns the G_G_4/G_N function.
         """
         self.symfunc['G_G_4/G_N'] = 1/(2*self.symfunc['G4'])
+    
+    def get_G_G_4_new(self):
+        """
+        Returns the G_G_4/G_N function.
+        """
+        # TODO: need to add this correctly with the correct mass scales.
     
 
     def get_A(self):
@@ -384,12 +421,29 @@ class HorndeskiModel:
         self.symfunc['A'] += 6*(self.sym['E']**2)*self.sym['phi_prime']*(self.sym['M_G3s']*self.symfunc['G3x'] + self.sym['X']*self.sym['M_G3s']*self.symfunc['G3xx']) 
         self.symfunc['A'] += (self.sym['E']**2.)*(self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phix'])
 
+
+    def get_A_new(self):
+        """
+        Code equivalent of equation 2.7 in https://arxiv.org/abs/2209.01666.
+        """
+        self.symfunc['A_new'] = self.sym['M_Kp2']*self.symfunc['Kx']
+        self.symfunc['A_new'] -= 2*self.sym['M_G3p']*self.sym['M_sp']*self.symfunc['G3phi']
+        self.symfunc['A_new'] += (self.sym['E']**2)*6*self.sym['M_G3p']*self.sym['M_sp']*self.sym['phi_prime']*(self.symfunc['G3x']+self.sym['X']*self.symfunc['G3xx'])
+        self.symfunc['A_new'] += (self.sym['phi_prime']**2)*(self.sym['M_Kp2']*self.symfunc['Kxx']-2*self.sym['M_G3p']*self.sym['M_sp']*self.symfunc['G3phix'])
     
+
     def get_B1(self):
         """
         Code equivalent of equation 2.9 in https://arxiv.org/abs/2209.01666.
         """
         self.symfunc['B1'] = 6*self.sym['X']*self.symfunc['G3x'] - 6*self.symfunc['G4phi']
+
+
+    def get_B1_new(self):
+        """
+        Code equivalent of equation 2.9 in https://arxiv.org/abs/2209.01666.
+        """
+        self.symfunc['B1_new'] = 6*self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.symfunc['G3x'] - 6*self.sym['M_G4p2']*self.symfunc['G4phi']
 
 
     def get_B2(self):
@@ -400,7 +454,44 @@ class HorndeskiModel:
         self.symfunc['B2'] += (self.sym['phi_prime']**2)*(self.symfunc['Kxphi'] - 2*self.symfunc['G3phiphi'])
         self.symfunc['B2'] -= self.symfunc['Kphi']/(self.sym['E']**2) + 12*self.symfunc['G4phi']
         self.symfunc['B2'] += 18*self.sym['X']*self.symfunc['G3x'] + 2*self.sym['X']*self.symfunc['G3phiphi']/(self.sym['E']**2)
+    
+
+    def get_B2_new(self):
+        """
+        Code equivalent of equation 2.10 in https://arxiv.org/abs/2209.01666.
+        """
+        self.symfunc['B2_new'] = 3*self.sym['phi_prime']*(self.sym['M_Kp2']*self.symfunc['Kx']-2*self.sym['M_G3p']*self.sym['M_sp']*self.symfunc['G3phi'] + 2*self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.symfunc['G3xphi'])
+        self.symfunc['B2_new'] += (self.sym['phi_prime']**2)*(self.sym['M_Kp2']*self.symfunc['Kxphi'] - 2*self.sym['M_G3p']*self.sym['M_sp']*self.symfunc['G3phiphi'])
+        self.symfunc['B2_new'] -= self.sym['M_Kp2']*self.symfunc['Kphi']/(self.sym['E']**2) 
+        self.symfunc['B2_new'] -= 12*self.sym['M_G3p']*self.symfunc['G4phi'] 
+        self.symfunc['B2_new'] += 18*self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.symfunc['G3x'] 
+        self.symfunc['B2_new'] += 2*self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.symfunc['G3phiphi']/(self.sym['E']**2)
+
+
+    def get_C1_new(self):
+        """
+        TODO: need to add notes here
+        """
+        self.symfunc['C1_new'] = self.sym['M_Kp2']*self.symfunc['K'] 
+        self.symfunc['C1_new'] -= 2*self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*(self.symfunc['G3phi']+(self.sym['E']*self.sym['E_prime']*self.sym['phi_prime'] + self.sym['E']**2 * self.sym['phi_primeprime'])*self.symfunc['G3x'])
+        self.symfunc['C1_new'] += 2*self.sym['M_G4p2']*(self.sym['E']*self.sym['E_prime']*self.sym['phi_prime'] + self.sym['E']**2 * self.sym['phi_primeprime'] + 2*self.sym['E']**2 * self.sym['phi_prime'])*self.symfunc['G4phi'] 
+        self.symfunc['C1_new'] += 4*self.sym['M_G4p2']*self.sym['X']*self.symfunc['G4phiphi']
         
+
+    def get_C2_new(self):
+        """
+        TODO: need to add notes here
+        """
+        pressure_allnophi = (1./3.)*self.sym['Omega_g'] + self.sym['w_n1']*self.sym['Omega_n1'] + self.sym['w_n2']*self.sym['Omega_n2'] + self.sym['w_n3']*self.sym['Omega_n3'] + self.sym['w_l']*self.sym['Omega_l']
+        self.symfunc['C2_new'] = 3*(self.sym['E']**2)*pressure_allnophi + 6*self.sym['M_G4p2']*(self.sym['E']**2)*self.symfunc['G4']
+    
+
+    def get_C_new(self):
+        """
+        TODO: need to add notes here
+        """
+        self.symfunc['C_new'] = self.symfunc['C1_new'] + self.symfunc['C2_new']
+
 
     def get_EprimeE(self):
         """
@@ -432,6 +523,13 @@ class HorndeskiModel:
         self.symfunc['E_prime/E'] =  sym.simplify((RHS)/sym.simplify(term1))
 
     
+    def get_Eprime_ODE_new(self):
+        """
+        Returns the Eprime ODE.
+        """
+        self.symfunc['E_prime_ODE_new'] = 4*self.sym['M_G4p2']*self.symfunc['G4']*self.sym['E']*self.sym['E_prime'] + self.symfunc['C_new']
+    
+
     def get_phi_primeprime(self):
         """
         Return the phi_primeprime function, equation 2.6 in https://arxiv.org/abs/2209.01666
@@ -445,8 +543,16 @@ class HorndeskiModel:
         B2 += (self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxphi'] - 2.*self.sym['M_G3s']*self.symfunc['G3phiphi']) - ((self.sym['M_Ks']**2.)/(self.sym['E']**2.))*self.symfunc['Kphi']
         B2 += -12.*(M_G4s**2.)*self.symfunc['G4phi'] + 18.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3x'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phiphi']*(1./(self.sym['E']**2.))
         B =  B1*(self.sym['E_prime']/self.sym['E'])+B2
-        self.symfunc['phi_primeprime'] = -1.*((B/A) + (self.sym['E_prime']/self.sym['E'])*self.sym['phi_prime'])
-    
+        # self.symfunc['phi_primeprime'] = -1.*((B/A) + (self.sym['E_prime']/self.sym['E'])*self.sym['phi_prime'])
+        self.symfunc['phi_primeprime'] = -1.*((B/A) + (self.symfunc['E_prime/E'])*self.sym['phi_prime'])
+
+
+    def get_phi_primeprime_ODE_new(self):
+        """
+        Returns the phi primeprime ODE.
+        """
+        self.symfunc['phi_primeprime_ODE_new'] = self.symfunc['A_new']*(self.sym['E']*self.sym['phi_primeprime'] + self.sym['E_prime']*self.sym['phi_prime']) + self.symfunc['B1_new']*self.sym['E_prime'] + self.symfunc['B2_new']*self.sym['E']
+
 
     def get_fried_closure(self):
         """
@@ -457,29 +563,9 @@ class HorndeskiModel:
         self.get_Omega_phi()
         self.symfunc['fried_closure'] = self.symfunc['Omega_phi'] + self.sym['Omega_b'] + self.sym['Omega_c'] + self.sym['Omega_g'] + self.sym['Omega_n1'] + self.sym['Omega_n2'] + self.sym['Omega_n3'] + self.sym['Omega_l'] - 1.
         # equation A.3 in https://arxiv.org/abs/2209.01666, 
-        Xreal = (1./2.)*(self.sym['E']**2.)*(self.sym['phi_prime']**2.)
-        self.symfunc['fried_closure'] = self.symfunc['fried_closure'].subs(self.sym['X'], Xreal)
-
-    
-    # def get_A(self):
-    #     """
-    #     Code equivalent of equation 2.7 in https://arxiv.org/abs/2209.01666.
-    #     """
-    #     # Note: replaces the A_func
-    #     self.symfunc['A'] = (self.sym['M_Ks']**2.)*self.symfunc['Kx'] - 2*self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['X']*self.sym['M_G3s']*self.symfunc['G3phix']
-    #     self.symfunc['A'] += 6*(self.sym['E']**2)*self.sym['phi_prime']*(self.sym['M_G3s']*self.symfunc['G3x'] + self.sym['X']*self.sym['M_G3s']*self.symfunc['G3xx']) 
-    #     self.symfunc['A'] += (self.sym['E']**2.)*(self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phix'])
-    
-
-    # def get_B2(self):
-    #     """
-    #     Code equivalent of equation 2.10 in https://arxiv.org/abs/2209.01666.
-    #     """
-    #     # Note: replaces the B2_func
-    #     M_G4s = 1./self.sym['M_sG4']
-    #     self.symfunc['B2'] = 3.*self.sym['phi_prime']*((self.sym['M_Ks']**2.)*self.symfunc['Kx'] - 2.*self.sym['M_G3s']*self.symfunc['G3phi'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phix'])
-    #     self.symfunc['B2'] += (self.sym['phi_prime']**2.)*((self.sym['M_Ks']**2.)*self.symfunc['Kxphi'] - 2.*self.sym['M_G3s']*self.symfunc['G3phiphi']) - ((self.sym['M_Ks']**2.)/(self.sym['E']**2.))*self.symfunc['Kphi']
-    #     self.symfunc['B2'] += -12.*(M_G4s**2.)*self.symfunc['G4phi'] + 18.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3x'] + 2.*self.sym['M_G3s']*self.sym['X']*self.symfunc['G3phiphi']*(1./self.sym['E']**2.)
+        # TODO: duplication of a step done later in construct model, remove these lines.
+        # Xreal = (1./2.)*(self.sym['E']**2.)*(self.sym['phi_prime']**2.)
+        # self.symfunc['fried_closure'] = self.symfunc['fried_closure'].subs(self.sym['X'], Xreal)
 
 
     def get_theta(self):
@@ -715,9 +801,44 @@ class HorndeskiModel:
         self.params['mass_ratios'] = {
             'M_p': M_p, 'M_s': M_sp/M_p, 'M_g': M_gp/M_p, 'M_K': M_Kp/M_p, 'M_G3': M_G3p/M_p, 'M_G4': M_G4p/M_p,  
         }
+    
+    def set_mass_ratios_new(self, M_sp=1, M_Kp2=1, M_G3p=1, M_G4p2=1):
+        """
+        Allows the users to assign specific values to mass ratios, those unchanged will be set to 1.
+
+        Parameters
+        ----------
+        M_sp : float, optional
+            Mass associated with the scalar field with respect to the Planck mass.
+        M_Kp2 : float, optional
+            Mass associated with the Kinetic expression with respect to the Planck mass squared.
+        M_G3p : float, optional
+            Mass associated with the G3 expression with respect to the Planck mass squared.
+        M_G4p : float, optional
+            Mass associated with the G4 expression with respect to the Planck mass squared.
+        """
+        self.params['mass_ratios_new'] = {
+            'M_sp': M_sp, 'M_Kp2': M_Kp2, 'M_G3p': M_G3p, 'M_G4p2': M_G4p2
+        }
 
 
     def get_absolute_mass_ratios(self):
+        """
+        Allows the users to assign specific values to mass ratios, those unchanged will be set to 1.
+        """
+        if self.params['mass_ratios'] is None:
+            self.set_mass_ratios()
+        self.params['mass_ratios']['M_pG4'] = self.params['mass_ratios']['M_p']/self.params['mass_ratios']['M_G4']
+        self.params['mass_ratios']['M_KG4'] = self.params['mass_ratios']['M_K']/self.params['mass_ratios']['M_G4']
+        self.params['mass_ratios']['M_G3s'] = self.params['mass_ratios']['M_G3']/self.params['mass_ratios']['M_s']
+        self.params['mass_ratios']['M_sG4'] = self.params['mass_ratios']['M_s']/self.params['mass_ratios']['M_G4']
+        self.params['mass_ratios']['M_G3G4'] = self.params['mass_ratios']['M_G3']/self.params['mass_ratios']['M_G4']
+        self.params['mass_ratios']['M_Ks'] = self.params['mass_ratios']['M_K']/self.params['mass_ratios']['M_s']
+        self.params['mass_ratios']['M_gp'] = self.params['mass_ratios']['M_g']/self.params['mass_ratios']['M_p']
+        self.params['mass_ratios']['M_sp'] = self.params['mass_ratios']['M_s']/self.params['mass_ratios']['M_p']
+
+
+    def get_absolute_mass_ratios_new(self):
         """
         Allows the users to assign specific values to mass ratios, those unchanged will be set to 1.
 
@@ -740,17 +861,9 @@ class HorndeskiModel:
         M_gp : float, optional
             Mass ratio M_g/M_p.
         """
-        if self.params['mass_ratios'] is None:
-            self.set_mass_ratios()
-        self.params['mass_ratios']['M_pG4'] = self.params['mass_ratios']['M_p']/self.params['mass_ratios']['M_G4']
-        self.params['mass_ratios']['M_KG4'] = self.params['mass_ratios']['M_K']/self.params['mass_ratios']['M_G4']
-        self.params['mass_ratios']['M_G3s'] = self.params['mass_ratios']['M_G3']/self.params['mass_ratios']['M_s']
-        self.params['mass_ratios']['M_sG4'] = self.params['mass_ratios']['M_s']/self.params['mass_ratios']['M_G4']
-        self.params['mass_ratios']['M_G3G4'] = self.params['mass_ratios']['M_G3']/self.params['mass_ratios']['M_G4']
-        self.params['mass_ratios']['M_Ks'] = self.params['mass_ratios']['M_K']/self.params['mass_ratios']['M_s']
-        self.params['mass_ratios']['M_gp'] = self.params['mass_ratios']['M_g']/self.params['mass_ratios']['M_p']
-        self.params['mass_ratios']['M_sp'] = self.params['mass_ratios']['M_s']/self.params['mass_ratios']['M_p']
-
+        if self.params['mass_ratios_new'] is None:
+            self.set_mass_ratios_new()
+    
 
     # Construct the symbolic model
 
@@ -958,6 +1071,221 @@ class HorndeskiModel:
             if self.verbose:
                 print(' - Done!')
 
+
+    def construct_model_new(self):
+        """
+        Constructs Horndeski model with user defined functions.
+        """
+
+        if self.verbose:
+            print('Hi-COLA: Constructing model')
+
+        if self._check_symfunc_keys(['K', 'G3', 'G4']) == False:
+            assert False, 'Functions for K, G3 and G4 remain undefined.'
+        else:
+            self._get_K_G3_G4_syms()
+            self.get_K_derivatives()
+            self.get_G3_derivatives()
+            self.get_G4_derivatives()
+
+            self.get_absolute_mass_ratios_new()
+
+            if self.verbose:
+                print(' - substituting X = 0.5 * E^2 * phi_prime^2')
+                print(
+                    ' - substituting mass ratios: M_sp=%0.2f, M_Kp2=%0.2f, M_G3p=%0.2f, M_G4p2=%0.2f' % (
+                        self.params['mass_ratios_new']['M_sp'], self.params['mass_ratios_new']['M_Kp2'], 
+                        self.params['mass_ratios_new']['M_G3p'], self.params['mass_ratios_new']['M_G4p2'],
+                    )
+                )
+
+            Xreal = 0.5*(self.sym['E']**2.)*self.sym['phi_prime']**2.
+
+            sub_dict = {
+                self.sym['X']: Xreal,
+                self.sym['M_sp']: self.params['mass_ratios_new']['M_sp'],
+                self.sym['M_Kp2']: self.params['mass_ratios_new']['M_Kp2'],
+                self.sym['M_G3p']: self.params['mass_ratios_new']['M_G3p'],
+                self.sym['M_G4p2']: self.params['mass_ratios_new']['M_G4p2'],
+            }
+
+            if self.verbose:
+                print(' - into symbolic functions...')
+
+            # self.get_G_G_4()
+            # G_G_4_GN = self.symfunc['G_G_4/G_N'].subs(sub_dict)
+            
+            # self.get_A()
+            # A = self.symfunc['A'].subs(sub_dict)
+
+            # self.get_B1()
+            # B1 = self.symfunc['B1'].subs(sub_dict)
+
+            # self.get_B2()
+            # B2 = self.symfunc['B2'].subs(sub_dict)
+
+            self.get_Omega_phi_new()
+            Omega_phi = self.symfunc['Omega_phi_new'].subs(sub_dict)
+
+            self.get_fried_closure_new()
+            fried_closure = self.symfunc['fried_closure_new'].subs(sub_dict)
+
+            self.get_A_new()
+            A = self.symfunc['A_new'].subs(sub_dict)
+
+            self.get_B1_new()
+            B1 = self.symfunc['B1_new'].subs(sub_dict)
+
+            self.get_B2_new()
+            B2 = self.symfunc['B2_new'].subs(sub_dict)
+
+            self.get_C1_new()
+            self.get_C2_new()
+            self.get_C_new()
+            C = self.symfunc['C_new'].subs(sub_dict)
+
+            self.get_Eprime_ODE_new()
+            E_prime_ODE = self.symfunc['E_prime_ODE_new'].subs(sub_dict)
+
+            self.get_phi_primeprime_ODE_new()
+            phi_primeprime_ODE = self.symfunc['phi_primeprime_ODE_new'].subs(sub_dict)
+
+            # self.get_alpha0()
+            # alpha0 = self.symfunc['alpha0'].subs(sub_dict)
+
+            # self.get_alpha1()
+            # alpha1 = self.symfunc['alpha1'].subs(sub_dict)
+
+            # self.get_alpha2()
+            # alpha2 = self.symfunc['alpha2'].subs(sub_dict)
+
+            # self.get_beta0()
+            # beta0 = self.symfunc['beta0'].subs(sub_dict)
+
+            # self.get_calB()
+            # calB = self.symfunc['calB'].subs(sub_dict)
+
+            # self.get_calC()
+            # calC = self.symfunc['calC'].subs(sub_dict)
+
+            # self.get_beta()
+            # beta = self.symfunc['beta'].subs(sub_dict)
+
+            # self.get_M_star_sq()
+            # M_star_sq = self.symfunc['M_star_sq'].subs(sub_dict)
+            
+            # self.get_alpha_M()
+            # alpha_M = self.symfunc['alpha_M'].subs(sub_dict)
+
+            # self.get_alpha_B()
+            # alpha_B = self.symfunc['alpha_B'].subs(sub_dict)
+
+            # self.get_alpha_K()
+            # alpha_K = self.symfunc['alpha_K'].subs(sub_dict)
+            
+            # self.get_rho_phi()
+            # rho_phi = self.symfunc['rho_phi'].subs(sub_dict)
+
+            # self.get_P_phi()
+            # P_phi = self.symfunc['P_phi'].subs(sub_dict)
+
+            # self.get_Q_s()
+            # D = self.symfunc['D'].subs(sub_dict)
+            # Q_s = self.symfunc['Q_s'].subs(sub_dict)
+
+            # self.get_c_s_sq()
+            # c_s_sq_D = self.symfunc['c_s_sq_D'].subs(sub_dict)
+            # c_s_sq = self.symfunc['c_s_sq'].subs(sub_dict)
+            
+            # we will copy these substituted and simplified functions to the class symfunc dictionary, we avoided 
+            # doing this before as some of these are re-called and redefined in the 'get' functions.
+            self.symfunc['E_prime_ODE'] = E_prime_ODE
+            self.symfunc['phi_primeprime_ODE'] = phi_primeprime_ODE
+            # self.symfunc['G_G_4/G_N'] = G_G_4_GN
+            # self.symfunc['E_prime/E'] = EprimeE
+            # self.symfunc['phi_primeprime'] = phi_primeprime
+            # self.symfunc['A'] = A
+            # self.symfunc['B1'] = B1
+            # self.symfunc['B2'] = B2
+            self.symfunc['Omega_phi'] = Omega_phi
+            self.symfunc['fried_closure'] = fried_closure
+            # self.symfunc['alpha0'] = alpha0
+            # self.symfunc['alpha1'] = alpha1
+            # self.symfunc['alpha2'] = alpha2
+            # self.symfunc['beta0'] = beta0
+            # self.symfunc['calB'] = calB
+            # self.symfunc['calC'] = calC
+            # self.symfunc['beta'] = beta
+            # self.symfunc['M_star_sq'] = M_star_sq
+            # self.symfunc['alpha_M'] = alpha_M
+            # self.symfunc['alpha_B'] = alpha_B
+            # self.symfunc['alpha_K'] = alpha_K
+            # self.symfunc['rho_phi'] = rho_phi
+            # self.symfunc['P_phi'] = P_phi
+            # self.symfunc['D'] = D
+            # self.symfunc['Q_s'] = Q_s
+            # self.symfunc['c_s_sq_D'] = c_s_sq_D
+            # self.symfunc['c_s_sq'] = c_s_sq
+
+            # Lambdify functions
+
+            if self.verbose:
+                print(" - 'Lambdify'ing symbolic functions")
+
+            # keep variables fixed to functions solved in the ODE + Horndeski variables
+            variables = [
+                self.sym['E'], self.sym['E_prime'], self.sym['phi'], self.sym['phi_prime'], self.sym['phi_primeprime'], 
+                self.sym['Omega_g'], self.sym['Omega_b'], self.sym['Omega_c'], self.sym['Omega_l'],
+                self.sym['Omega_n1'], self.sym['w_n1'], self.sym['Omega_n2'], self.sym['w_n2'], self.sym['Omega_n3'], self.sym['w_n3'], self.sym['w_l'], 
+                *self.sym['K_G3_G4_syms'], self.sym['f_H']]
+            
+            # Need to figure out how to input neutrino EoS, at the moment this is an effective EoS not a single one as calculated before.
+
+            # G_G_4/G_N function
+            # self.lambda_funcs['G_G_4/G_N'] = sym.lambdify(variables, self.symfunc['G_G_4/G_N'], 'numpy')
+
+            # # functions as part of the ODE set of equations relating phi and E.
+            self.lambda_funcs['E_prime_ODE'] = sym.lambdify(variables, self.symfunc['E_prime_ODE'], 'numpy')
+            self.lambda_funcs['phi_primeprime_ODE'] = sym.lambdify(variables, self.symfunc['phi_primeprime_ODE'], 'numpy')
+
+            # self.lambda_funcs['B2_lambda'] = sym.lambdify(variables, self.symfunc['B2'], 'numpy')
+            self.lambda_funcs['fried_closure_lambda'] = sym.lambdify(variables, self.symfunc['fried_closure'], 'numpy')
+            # self.lambda_funcs['E_prime/E_lambda'] = sym.lambdify(variables, self.symfunc['E_prime/E'], 'numpy')
+
+            # # Add E_prime to variables compute phi_primeprime
+            # variables = [self.sym['E_prime'], *variables]
+            # self.lambda_funcs['phi_primeprime_lambda'] = sym.lambdify(variables, self.symfunc['phi_primeprime'], 'numpy')
+            
+            # # Derived quantities
+            # # Add phi_primeprime to variables to compute the rest of the derived quantities
+            # variables = [self.sym['phi_primeprime'], *variables]
+
+            self.lambda_funcs['Omega_phi_lambda'] = sym.lambdify(variables, self.symfunc['Omega_phi_new'], 'numpy')
+            # self.lambda_funcs['A_lambda'] = sym.lambdify(variables, self.symfunc['A'], 'numpy')
+            # self.lambda_funcs['B1_lambda'] = sym.lambdify(variables, self.symfunc['B1'], 'numpy')
+            # self.lambda_funcs['B2_lambda'] = sym.lambdify(variables, self.symfunc['B2'], 'numpy')
+            # self.lambda_funcs['alpha0_lambda'] = sym.lambdify(variables, self.symfunc['alpha0'], 'numpy')
+            # self.lambda_funcs['alpha1_lambda'] = sym.lambdify(variables, self.symfunc['alpha1'], 'numpy')
+            # self.lambda_funcs['alpha2_lambda'] = sym.lambdify(variables, self.symfunc['alpha2'], 'numpy')
+            # self.lambda_funcs['beta0_lambda'] = sym.lambdify(variables, self.symfunc['beta0'], 'numpy')
+            # self.lambda_funcs['calB_lambda'] = sym.lambdify(variables, self.symfunc['calB'], 'numpy')
+            # self.lambda_funcs['calC_lambda'] = sym.lambdify(variables, self.symfunc['calC'], 'numpy')
+            # self.lambda_funcs['beta_lambda'] = sym.lambdify(variables, self.symfunc['beta'], 'numpy')
+            
+            # self.lambda_funcs['M_star_sq'] = sym.lambdify(variables, self.symfunc['M_star_sq'], 'numpy')
+            # self.lambda_funcs['alpha_M'] = sym.lambdify(variables, self.symfunc['alpha_M'], 'numpy')
+            # self.lambda_funcs['alpha_B'] = sym.lambdify(variables, self.symfunc['alpha_B'], 'numpy')
+            # self.lambda_funcs['alpha_K'] = sym.lambdify(variables, self.symfunc['alpha_K'], 'numpy')
+            # self.lambda_funcs['rho_phi'] = sym.lambdify([self.sym['H0'], *variables], self.symfunc['rho_phi'], 'numpy')
+            # self.lambda_funcs['P_phi'] = sym.lambdify([self.sym['H0'], *variables], self.symfunc['P_phi'], 'numpy')
+            # self.lambda_funcs['D'] = sym.lambdify(variables, self.symfunc['D'], 'numpy')
+            # self.lambda_funcs['Q_s'] = sym.lambdify(variables, self.symfunc['Q_s'], 'numpy')
+            # self.lambda_funcs['c_s_sq_D'] = sym.lambdify([self.sym['alpha_B_prime'], *variables], self.symfunc['c_s_sq_D'], 'numpy')
+            # self.lambda_funcs['c_s_sq'] = sym.lambdify([self.sym['alpha_B_prime'], *variables], self.symfunc['c_s_sq'], 'numpy')
+
+            if self.verbose:
+                print(' - Done!')
+    
     # Explore scaling symmetry
 
     def scaling_symmetry(self, K_G3_G4_sub):
