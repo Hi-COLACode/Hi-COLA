@@ -1,6 +1,5 @@
 
 from .model import HorndeskiModel
-from .modelv2 import HorndeskiModelV2
 
 from .lcdm import compute_Ez_LCDM
 from .lcdm import compute_Hz_LCDM
