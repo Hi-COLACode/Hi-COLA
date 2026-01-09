@@ -49,23 +49,16 @@ class HorndeskiModel(StandardModel):
         self.sym['rhohat_g'] = sym.symbols('\hat{rho}_g')
         self.sym['Omega_g'] = sym.symbols('Omega_g')
 
-        # Neutrino 1
-        self.sym['rho_n1'] = sym.symbols('rho_n1')
-        self.sym['rhohat_n1'] = sym.symbols('\hat{rho}_n1')
-        self.sym['Omega_n1'] = sym.symbols('Omega_n1')
-        self.sym['w_n1'] = sym.symbols('w_n1')
+        # Neutrino -- Ultrarelativisitc
+        self.sym['rho_n_ur'] = sym.symbols('rho_n_ur')
+        self.sym['rhohat_n_ur'] = sym.symbols('\hat{rho}_n_ur')
+        self.sym['Omega_n_ur'] = sym.symbols('Omega_n_ur')
         
-        # Neutrino 2
-        self.sym['rho_n2'] = sym.symbols('rho_n2')
-        self.sym['rhohat_n2'] = sym.symbols('\hat{rho}_n2')
-        self.sym['Omega_n2'] = sym.symbols('Omega_n2')
-        self.sym['w_n2'] = sym.symbols('w_n2')
-        
-        # Neutrino 3
-        self.sym['rho_n3'] = sym.symbols('rho_n3')
-        self.sym['rhohat_n3'] = sym.symbols('\hat{rho}_n3')
-        self.sym['Omega_n3'] = sym.symbols('Omega_n3')
-        self.sym['w_n3'] = sym.symbols('w_n3')
+        # Neutrino -- non-relativistic
+        self.sym['rho_n_nr'] = sym.symbols('rho_n_nr')
+        self.sym['rhohat_n_nr'] = sym.symbols('\hat{rho}_n_nr')
+        self.sym['Omega_n_nr'] = sym.symbols('Omega_n_nr')
+        self.sym['w_n_nr'] = sym.symbols('w_n_nr')
         
         # Baryon
         self.sym['rho_b'] = sym.symbols('rho_b')
@@ -341,7 +334,7 @@ class HorndeskiModel(StandardModel):
         Returns the scalar field fractional density function, following equation 2.4 in https://arxiv.org/pdf/2209.01666.pdf.
         """
         self.symfunc['rho_phi'] = (1/(2*self.sym['M_G4p2']*self.symfunc['G4']) - 1)
-        self.symfunc['rho_phi'] *= (self.sym['rho_g'] + self.sym['rho_n1'] + self.sym['rho_n2'] + self.sym['rho_n3'] + self.sym['rho_b'] + self.sym['rho_c'] + self.sym['rho_l'])/((self.sym['E']**2))
+        self.symfunc['rho_phi'] *= (self.sym['rho_g'] + self.sym['rho_n_ur'] + self.sym['rho_n_nr'] + self.sym['rho_b'] + self.sym['rho_c'] + self.sym['rho_l'])/((self.sym['E']**2))
         term1 = self.sym['M_Kp2']*self.sym['X']*self.symfunc['Kx']/(self.sym['E']**2)
         term1 -= self.sym['M_Kp2']*self.symfunc['K']/(2*self.sym['E']**2)
         term1 += 3*self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.sym['phi_prime']*self.symfunc['G3x']
@@ -362,7 +355,7 @@ class HorndeskiModel(StandardModel):
         Returns the Friedmann closure relation -> equation 2.3 in https://arxiv.org/abs/2209.01666, should be equal to 0. 
         """
         self.get_rho_phi()
-        self.symfunc['fried_closure'] = self.sym['rho_g'] + self.sym['rho_n1'] + self.sym['rho_n2'] + self.sym['rho_n3']
+        self.symfunc['fried_closure'] = self.sym['rho_g'] + self.sym['rho_n_ur'] + self.sym['rho_n_nr']
         self.symfunc['fried_closure'] += self.sym['rho_b'] + self.sym['rho_c'] + self.sym['rho_l']
         self.symfunc['fried_closure'] += self.symfunc['rho_phi']
         self.symfunc['fried_closure'] -= self.sym['E']**2
@@ -423,7 +416,7 @@ class HorndeskiModel(StandardModel):
         term1 += self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.symfunc['G3phi']/(self.sym['E']**2)
         term1 -= 2*self.sym['M_G4p2']*self.sym['phi_prime']*self.symfunc['G4phi']
         term1 -= 2*self.sym['M_G4p2']*self.sym['X']*self.symfunc['G4phiphi']/(2*self.sym['E']**2)
-        term1 -= (3/2)*((1/3)*self.sym['rho_g'] + self.sym['w_n1']*self.sym['rho_n1'] + self.sym['w_n2']*self.sym['rho_n2'] + self.sym['w_n3']*self.sym['rho_n3'] + self.sym['w_l']*self.sym['rho_l'])/(self.sym['E']**2)
+        term1 -= (3/2)*((1/3)*self.sym['rho_g'] + (1/3)*self.sym['rho_n_ur'] + self.sym['w_n_nr']*self.sym['rho_n_nr'] + self.sym['w_l']*self.sym['rho_l'])/(self.sym['E']**2)
         term1 -= 3*self.sym['M_G4p2']*self.symfunc['G4']
         term1 *= self.symfunc['A']
         term2 = self.sym['M_G3p']*self.sym['M_sp']*self.sym['X']*self.symfunc['G3x'] - self.sym['M_G4p2']*self.symfunc['G4phi']
@@ -655,9 +648,8 @@ class HorndeskiModel(StandardModel):
         self.symfunc['c_s_sq_D'] *= (self.symfunc['E_prime']/self.sym['E'] - 0.5*self.symfunc['alpha_B'] - self.symfunc['alpha_M'])
         self.symfunc['c_s_sq_D'] -= alpha_B_prime
         term1 = self.sym['rho_g']*(1 + 1/3)
-        term1 += self.sym['rho_n1']*(1 + self.sym['w_n1'])
-        term1 += self.sym['rho_n2']*(1 + self.sym['w_n2'])
-        term1 += self.sym['rho_n3']*(1 + self.sym['w_n3'])
+        term1 += self.sym['rho_n_ur']*(1 + 1/3)
+        term1 += self.sym['rho_n_nr']*(1 + self.sym['w_n_nr'])
         term1 += self.sym['rho_b']
         term1 += self.sym['rho_c']
         term1 += self.sym['rho_l']*(1 + self.sym['w_l'])
@@ -746,9 +738,8 @@ class HorndeskiModel(StandardModel):
                 self.sym['rho_b']: self.sym['rho_b']*self.sym['f_H']**2,
                 self.sym['rho_c']: self.sym['rho_c']*self.sym['f_H']**2,
                 self.sym['rho_l']: self.sym['rho_l']*self.sym['f_H']**2,
-                self.sym['rho_n1']: self.sym['rho_n1']*self.sym['f_H']**2,
-                self.sym['rho_n2']: self.sym['rho_n2']*self.sym['f_H']**2,
-                self.sym['rho_n3']: self.sym['rho_n3']*self.sym['f_H']**2,
+                self.sym['rho_n_ur']: self.sym['rho_n_ur']*self.sym['f_H']**2,
+                self.sym['rho_n_nr']: self.sym['rho_n_nr']*self.sym['f_H']**2,
             }
 
             if self.verbose:
@@ -955,12 +946,9 @@ class HorndeskiModel(StandardModel):
                 self.sym['rho_b'],
                 self.sym['rho_c'],
                 self.sym['rho_l'],
-                self.sym['rho_n1'],
-                self.sym['w_n1'],
-                self.sym['rho_n2'],
-                self.sym['w_n2'],
-                self.sym['rho_n3'],
-                self.sym['w_n3'],
+                self.sym['rho_n_ur'],
+                self.sym['rho_n_nr'],
+                self.sym['w_n_nr'],
                 self.sym['w_l'],
                 *self.sym['K_G3_G4_syms'],
                 self.sym['f_H']
@@ -1015,7 +1003,7 @@ class HorndeskiModel(StandardModel):
                 print(' - Done!')
     
 
-    def set_cosmo_params(self, H0_ref, Omega_c0_ref, Omega_b0_ref, fphi, K_G3_G4_values, w0=-1., wa=0., Tcmb=2.7255, Tnu0=1.9518, mnu=[0.,0.,0.], Neff=3.04):
+    def set_cosmo_params(self, H0_ref, Omega_c0_ref, Omega_b0_ref, fphi, K_G3_G4_values, w0=-1., wa=0., Tcmb=2.7255, Tnu0=1.9518, mnu=[0.,0.,0.], Neff=3.044):
         """
         Set cosmological and Horndeski parameters.
 
@@ -1041,7 +1029,7 @@ class HorndeskiModel(StandardModel):
         Tnu0 : float, optional
             The relic neutrino temperature today, set to 1.9518.
         mnu : list, optional
-            Neutrino mass for each species.
+            Neutrino mass for each massive species.
         Neff : float, optional
             Effective number of neutrino species used for computing the drag epoch.
         """
@@ -1056,12 +1044,14 @@ class HorndeskiModel(StandardModel):
         # neutrino density set by CMB temperature
         self._get_C_nu()
         self.params['mnu'] = mnu
+        self.params['N_ur'] = 3-len(mnu)
         self.params['Neff'] = Neff
-        self.params['Omega_nu10_ref'] = self.get_Omega_nu(1., 1e-2*self.params['H0_ref'], self.params['mnu'][0], 1.) 
-        self.params['Omega_nu20_ref'] = self.get_Omega_nu(1., 1e-2*self.params['H0_ref'], self.params['mnu'][1], 1.) 
-        self.params['Omega_nu30_ref'] = self.get_Omega_nu(1., 1e-2*self.params['H0_ref'], self.params['mnu'][2], 1.)
+        self.params['Omega_nu_ur0_ref'] = self.get_Omega_nu_ur(1., 1e-2*self.params['H0_ref'], 1.)
+        self.params['Omega_nu_nr0_ref'] = 0.
+        for _mnu in self.params['mnu']: 
+            self.params['Omega_nu_nr0_ref'] = self.get_Omega_nu_nr(1., 1e-2*self.params['H0_ref'], _mnu, 1.) 
         self.params['fphi'] = fphi
-        self.params['Omega_l0_LCDM'] = 1. - self.params['Omega_g0_ref'] - self.params['Omega_nu10_ref'] - self.params['Omega_nu20_ref'] - self.params['Omega_nu30_ref']- self.params['Omega_c0_ref'] - self.params['Omega_b0_ref']
+        self.params['Omega_l0_LCDM'] = 1. - self.params['Omega_g0_ref'] - self.params['Omega_nu_ur0_ref'] - self.params['Omega_nu_nr0_ref'] - self.params['Omega_c0_ref'] - self.params['Omega_b0_ref']
         self.params['Omega_phi0_ref'] = fphi*self.params['Omega_l0_LCDM']
         self.params['Omega_l0_ref'] = self.params['Omega_l0_LCDM'] - self.params['Omega_phi0_ref']
         assert len(K_G3_G4_values) == len(self.sym['K_G3_G4_syms']), "Length of Horndeski K_G3_G4_values must match number of defined K, G3, G4 variables."
@@ -1100,30 +1090,31 @@ class HorndeskiModel(StandardModel):
         # `_` used to denote current value.
         _phi, _phi_prime = Y
 
-        _w_nu1 = self.compute_w_nu(a, self.params['mnu'][0])
-        _w_nu2 = self.compute_w_nu(a, self.params['mnu'][1])
-        _w_nu3 = self.compute_w_nu(a, self.params['mnu'][2])
-        _w_l = self.compute_w_l(a, w0=self.params['w0'], wa=self.params['wa'])
+        _w_l = self.compute_w_l(a)
         
         _rho_g = self.get_rho_g(a, self.params['H0_ref']*1e-2)
         _rho_b = self.get_rho_b(a, self.params['Omega_b0_ref'])
         _rho_c = self.get_rho_c(a, self.params['Omega_c0_ref'])
         _rho_l = self.get_rho_l(a, self.params['Omega_l0_ref'], w0=self.params['w0'], wa=self.params['wa'])
-        _rho_nu1 = self.get_rho_nu(a, self.params['H0_ref']*1e-2, self.params['mnu'][0])
-        _rho_nu2 = self.get_rho_nu(a, self.params['H0_ref']*1e-2, self.params['mnu'][1])
-        _rho_nu3 = self.get_rho_nu(a, self.params['H0_ref']*1e-2, self.params['mnu'][2])
+        
+        _rho_nu_ur = self.get_rho_nu_ur(a, self.params['H0_ref']*1e-2)
+        _rho_nu_nr = 0.
+        for _mnu in self.params['mnu']:
+            _rho_nu_nr += self.get_rho_nu_nr(a, self.params['H0_ref']*1e-2, _mnu)
+        _w_nu_nr = 0.
+        for _mnu in self.params['mnu']:
+            _w_nu_nr += self.compute_w_nu_nr(a, _mnu)*self.get_rho_nu_nr(a, self.params['H0_ref']*1e-2, _mnu)
+        if _rho_nu_nr != 0.:
+            _w_nu_nr /= _rho_nu_nr
 
         variables = [
             _phi, _phi_prime, 
             _rho_g, _rho_b, _rho_c, _rho_l, 
-            _rho_nu1, _w_nu1, _rho_nu2, _w_nu2, _rho_nu3, _w_nu3, _w_l, 
+            _rho_nu_ur, _rho_nu_nr, _w_nu_nr, _w_l, 
             *self.params['K_G3_G4_values'], self.params['fH']
         ]
 
-        _E_guess = self.compute_E_LCDM(
-            a, 1e-2*self.params['H0_ref'], self.params['Omega_b0_ref'], self.params['Omega_c0_ref'], mnu=self.params['mnu'], 
-            w0=self.params['w0'], wa=self.params['wa']
-        )
+        _E_guess = self.compute_E_LCDM(a)
 
         _E = newton(
             lambda _E: self.lambda_funcs['fried_closure'](_E, *variables), 
@@ -1291,29 +1282,27 @@ class HorndeskiModel(StandardModel):
         self.output['initialiser']['forwards'] = forwards
 
         # Let's guess the values of the variables by assuming the solution lies close to the reference LCDM values.
-        E_ini = self.compute_E_LCDM(
-            a_start, 1e-2*self.params['H0_ref'], self.params['Omega_b0_ref'], self.params['Omega_c0_ref'], 
-            mnu=self.params['mnu'], w0=self.params['w0'], wa=self.params['wa']
-        )
-        E_prime_ini = self.compute_E_prime_LCDM(
-            a_start, 1e-2*self.params['H0_ref'], self.params['Omega_b0_ref'], self.params['Omega_c0_ref'], 
-            mnu=self.params['mnu'], w0=self.params['w0'], wa=self.params['wa']
-        )
+        E_ini = self.compute_E_LCDM(a_start)
+        E_prime_ini = self.compute_E_prime_LCDM(a_start)
 
         rho_g_ini = self.get_rho_g(a_start, self.params['H0_ref']*1e-2)
         rho_b_ini = self.get_rho_b(a_start, self.params['Omega_b0_ref'])
         rho_c_ini = self.get_rho_c(a_start, self.params['Omega_c0_ref'])
         rho_l_ini = self.get_rho_l(a_start, self.params['Omega_l0_ref'], w0=self.params['w0'], wa=self.params['wa'])
-        rho_nu1_ini = self.get_rho_nu(a_start, self.params['H0_ref']*1e-2, self.params['mnu'][0])
-        rho_nu2_ini = self.get_rho_nu(a_start, self.params['H0_ref']*1e-2, self.params['mnu'][1])
-        rho_nu3_ini = self.get_rho_nu(a_start, self.params['H0_ref']*1e-2, self.params['mnu'][2])
+        rho_nu_ur_ini = self.get_rho_nu_ur(a_start, self.params['H0_ref']*1e-2)
+        rho_nu_nr_ini = 0.
+        for _mnu in self.params['mnu']:
+            rho_nu_nr_ini += self.get_rho_nu_nr(a_start, self.params['H0_ref']*1e-2, _mnu)
 
-        w_nu1_ini = self.compute_w_nu(a_start, self.params['mnu'][0])
-        w_nu2_ini = self.compute_w_nu(a_start, self.params['mnu'][1])
-        w_nu3_ini = self.compute_w_nu(a_start, self.params['mnu'][2])
-        w_l_ini   = self.compute_w_l(a_start, w0=self.params['w0'], wa=self.params['wa'])
+        w_nu_nr_ini = 0.
+        for _mnu in self.params['mnu']:
+            w_nu_nr_ini += self.compute_w_nu_nr(a_start, _mnu)*self.get_rho_nu_nr(a_start, self.params['H0_ref']*1e-2, _mnu)
+        if rho_nu_nr_ini != 0:
+            w_nu_nr_ini /= rho_nu_nr_ini
         
-        return E_ini, E_prime_ini, rho_g_ini, rho_b_ini, rho_c_ini, rho_l_ini, w_l_ini, rho_nu1_ini, w_nu1_ini, rho_nu2_ini, w_nu2_ini, rho_nu3_ini, w_nu3_ini
+        w_l_ini   = self.compute_w_l(a_start)
+        
+        return E_ini, E_prime_ini, rho_g_ini, rho_b_ini, rho_c_ini, rho_l_ini, w_l_ini, rho_nu_ur_ini, rho_nu_nr_ini, w_nu_nr_ini
     
 
     def _run_solver_initialiser(
@@ -1321,7 +1310,7 @@ class HorndeskiModel(StandardModel):
             variable1, 
             E_ini, E_prime_ini, phi_ini, phi_prime_ini, 
             rho_g_ini, rho_b_ini, rho_c_ini, rho_l_ini, w_l_ini,
-            rho_nu1_ini, w_nu1_ini, rho_nu2_ini, w_nu2_ini, rho_nu3_ini, w_nu3_ini,
+            rho_nu_ur_ini, rho_nu_nr_ini, w_nu_nr_ini,
             variable2=None
         ):
         """
@@ -1351,18 +1340,12 @@ class HorndeskiModel(StandardModel):
             Initial fractional dark energy density.
         w_l_ini : float
             Initial dark energy equation of state.
-        rho_nu1_ini : float
-            Initial density for neutrino species 1.
-        w_nu1_ini : float
-            Initial equation of state for neutrino species 1.
-        rho_nu2_ini : float
-            Initial density for neutrino species 2.
-        w_nu2_ini : float
-            Initial equation of state for neutrino species 2.
-        rho_nu3_ini : float
-            Initial density for neutrino species 3.
-        w_nu3_ini : float
-            Initial equation of state for neutrino species 3.
+        rho_nu_ur_ini : float
+            Initial density for massless neutrinos.
+        rho_nu_nr_ini : float
+            Initial density for massive neutrinos.
+        w_nu_nr_ini : float
+            Initial equation of state for massive neutrinos.
         variable2 : int
             Second variable jointly solved via the closure and E_prime equation to set up the initial conditions.
         """
@@ -1408,12 +1391,9 @@ class HorndeskiModel(StandardModel):
         sub_dict[self.sym['rho_c']] = rho_c_ini
         sub_dict[self.sym['rho_l']] = rho_l_ini
         sub_dict[self.sym['w_l']] = w_l_ini
-        sub_dict[self.sym['rho_n1']] = rho_nu1_ini
-        sub_dict[self.sym['w_n1']] = w_nu1_ini
-        sub_dict[self.sym['rho_n2']] = rho_nu2_ini
-        sub_dict[self.sym['w_n2']] = w_nu2_ini
-        sub_dict[self.sym['rho_n3']] = rho_nu3_ini
-        sub_dict[self.sym['w_n3']] = w_nu3_ini
+        sub_dict[self.sym['rho_n_ur']] = rho_nu_ur_ini
+        sub_dict[self.sym['rho_n_nr']] = rho_nu_nr_ini
+        sub_dict[self.sym['w_n_nr']] = w_nu_nr_ini
         
         self.params['f_H_value'] = 1.
         sub_dict[self.sym['f_H']] = self.params['f_H_value']
@@ -1519,9 +1499,8 @@ class HorndeskiModel(StandardModel):
         self.output['Omega_b0'] = None
         self.output['Omega_c0'] = None
         self.output['Omega_l0'] = None
-        self.output['Omega_nu10'] = None
-        self.output['Omega_nu20'] = None
-        self.output['Omega_nu30'] = None
+        self.output['Omega_nu_ur0'] = None
+        self.output['Omega_nu_nr0'] = None
         self.output['Ehat'] = None
         self.output['Ehat_prime'] = None
         self.output['phihat'] = None
@@ -1537,28 +1516,23 @@ class HorndeskiModel(StandardModel):
         self.output['rhohat_b'] = None
         self.output['rhohat_c'] = None
         self.output['rhohat_l'] = None
-        self.output['rhohat_nu1'] = None
-        self.output['rhohat_nu2'] = None
-        self.output['rhohat_nu3'] = None
+        self.output['rhohat_nu_ur'] = None
+        self.output['rhohat_nu_nr'] = None
         self.output['rho_phi'] = None
         self.output['rho_g'] = None
         self.output['rho_b'] = None
         self.output['rho_c'] = None
         self.output['rho_l'] = None
-        self.output['rho_nu1'] = None
-        self.output['rho_nu2'] = None
-        self.output['rho_nu3'] = None
+        self.output['rho_nu_ur'] = None
+        self.output['rho_nu_nr'] = None
         self.output['Omega_phi'] = None
         self.output['Omega_g'] = None
         self.output['Omega_b'] = None
         self.output['Omega_c'] = None
         self.output['Omega_l'] = None
-        self.output['Omega_nu1'] = None
-        self.output['Omega_nu2'] = None
-        self.output['Omega_nu3'] = None
-        self.output['w_nu1'] = None
-        self.output['w_nu2'] = None
-        self.output['w_nu3'] = None
+        self.output['Omega_nu_ur'] = None
+        self.output['Omega_nu_nr'] = None
+        self.output['w_nu_nr'] = None
         self.output['w_l'] = None
     
 
@@ -1620,31 +1594,26 @@ class HorndeskiModel(StandardModel):
             Omega_b_arr = np.zeros((len(roots1), len(x_arr)))
             Omega_c_arr = np.zeros((len(roots1), len(x_arr)))
             Omega_l_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_nu1_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_nu2_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_nu3_arr = np.zeros((len(roots1), len(x_arr)))
+            Omega_nu_ur_arr = np.zeros((len(roots1), len(x_arr)))
+            Omega_nu_nr_arr = np.zeros((len(roots1), len(x_arr)))
             
             rhohat_phi_arr = np.zeros((len(roots1), len(x_arr)))
             rhohat_g_arr = np.zeros((len(roots1), len(x_arr)))
             rhohat_b_arr = np.zeros((len(roots1), len(x_arr)))
             rhohat_c_arr = np.zeros((len(roots1), len(x_arr)))
             rhohat_l_arr = np.zeros((len(roots1), len(x_arr)))
-            rhohat_nu1_arr = np.zeros((len(roots1), len(x_arr)))
-            rhohat_nu2_arr = np.zeros((len(roots1), len(x_arr)))
-            rhohat_nu3_arr = np.zeros((len(roots1), len(x_arr)))
+            rhohat_nu_ur_arr = np.zeros((len(roots1), len(x_arr)))
+            rhohat_nu_nr_arr = np.zeros((len(roots1), len(x_arr)))
 
             rho_phi_arr = np.zeros((len(roots1), len(x_arr)))
             rho_g_arr = np.zeros((len(roots1), len(x_arr)))
             rho_b_arr = np.zeros((len(roots1), len(x_arr)))
             rho_c_arr = np.zeros((len(roots1), len(x_arr)))
             rho_l_arr = np.zeros((len(roots1), len(x_arr)))
-            rho_nu1_arr = np.zeros((len(roots1), len(x_arr)))
-            rho_nu2_arr = np.zeros((len(roots1), len(x_arr)))
-            rho_nu3_arr = np.zeros((len(roots1), len(x_arr)))
+            rho_nu_ur_arr = np.zeros((len(roots1), len(x_arr)))
+            rho_nu_nr_arr = np.zeros((len(roots1), len(x_arr)))
             w_l_arr = np.zeros((len(roots1), len(x_arr)))
-            w_nu1_arr = np.zeros((len(roots1), len(x_arr)))
-            w_nu2_arr = np.zeros((len(roots1), len(x_arr)))
-            w_nu3_arr = np.zeros((len(roots1), len(x_arr)))
+            w_nu_nr_arr = np.zeros((len(roots1), len(x_arr)))
             
             H0 = np.zeros(len(roots1)) 
             Omega_phi0 = np.zeros(len(roots1)) 
@@ -1652,9 +1621,8 @@ class HorndeskiModel(StandardModel):
             Omega_b0 = np.zeros(len(roots1)) 
             Omega_c0 = np.zeros(len(roots1)) 
             Omega_l0 = np.zeros(len(roots1))
-            Omega_nu10 = np.zeros(len(roots1)) 
-            Omega_nu20 = np.zeros(len(roots1)) 
-            Omega_nu30 = np.zeros(len(roots1)) 
+            Omega_nu_ur0 = np.zeros(len(roots1)) 
+            Omega_nu_nr0 = np.zeros(len(roots1)) 
             fH = np.ones(len(roots1))
 
             for idx in range(0, len(roots1)):
@@ -1694,13 +1662,10 @@ class HorndeskiModel(StandardModel):
                 _rho_b_arr = np.zeros_like(_phi_arr)
                 _rho_c_arr = np.zeros_like(_phi_arr)
                 _rho_l_arr = np.zeros_like(_phi_arr)
-                _rho_nu1_arr = np.zeros_like(_phi_arr)
-                _rho_nu2_arr = np.zeros_like(_phi_arr)
-                _rho_nu3_arr = np.zeros_like(_phi_arr)
+                _rho_nu_ur_arr = np.zeros_like(_phi_arr)
+                _rho_nu_nr_arr = np.zeros_like(_phi_arr)
                 
-                _w_nu1_arr = np.zeros_like(_phi_arr)
-                _w_nu2_arr = np.zeros_like(_phi_arr)
-                _w_nu3_arr = np.zeros_like(_phi_arr)
+                _w_nu_nr_arr = np.zeros_like(_phi_arr)
                 _w_l_arr = np.zeros_like(_phi_arr)
 
                 _E_arr = np.zeros_like(_phi_arr)
@@ -1716,20 +1681,23 @@ class HorndeskiModel(StandardModel):
                     _rho_b = self.get_rho_b(a, self.params['Omega_b0_ref'])
                     _rho_c = self.get_rho_c(a, self.params['Omega_c0_ref'])
                     _rho_l = self.get_rho_l(a, self.params['Omega_l0_ref'], w0=self.params['w0'], wa=self.params['wa'])
-                    _rho_nu1 = self.get_rho_nu(a, self.params['H0_ref']*1e-2, self.params['mnu'][0])
-                    _rho_nu2 = self.get_rho_nu(a, self.params['H0_ref']*1e-2, self.params['mnu'][1])
-                    _rho_nu3 = self.get_rho_nu(a, self.params['H0_ref']*1e-2, self.params['mnu'][2])
+                    _rho_nu_ur = self.get_rho_nu_ur(a, self.params['H0_ref']*1e-2)
+                    _rho_nu_nr = 0.
+                    for _mnu in self.params['mnu']:
+                        _rho_nu_nr += self.get_rho_nu_nr(a, self.params['H0_ref']*1e-2, _mnu)
 
-                    _w_nu1 = self.compute_w_nu(a, self.params['mnu'][0])
-                    _w_nu2 = self.compute_w_nu(a, self.params['mnu'][1])
-                    _w_nu3 = self.compute_w_nu(a, self.params['mnu'][2])
-                    _w_l = self.compute_w_l(a, w0=self.params['w0'], wa=self.params['wa'])
+                    _w_nu_nr = 0.
+                    for _mnu in self.params['mnu']:
+                        _w_nu_nr += self.compute_w_nu_nr(a, _mnu)*self.get_rho_nu_nr(a, self.params['H0_ref']*1e-2, _mnu)
+                    if _rho_nu_nr != 0:
+                        _w_nu_nr /= _rho_nu_nr
+                    _w_l = self.compute_w_l(a)
                     
                     variables = [
-                        _phi, _phi_prime, _rho_g, _rho_b, _rho_c, _rho_l, _rho_nu1, _w_nu1, _rho_nu2, _w_nu2, _rho_nu3, _w_nu3, _w_l, *self.params['K_G3_G4_values'], self.params['fH']
+                        _phi, _phi_prime, _rho_g, _rho_b, _rho_c, _rho_l, _rho_nu_ur, _rho_nu_nr, _w_nu_nr,  _w_l, *self.params['K_G3_G4_values'], self.params['fH']
                     ]
                     
-                    _E_guess = self.compute_E_LCDM(a, 1e-2*self.params['H0_ref'], self.params['Omega_b0_ref'], self.params['Omega_c0_ref'], mnu=self.params['mnu'], w0=self.params['w0'], wa=self.params['wa'])
+                    _E_guess = self.compute_E_LCDM(a)
 
                     _E_arr[i] = newton(
                         lambda _E: self.lambda_funcs['fried_closure'](_E, *variables), 
@@ -1743,19 +1711,16 @@ class HorndeskiModel(StandardModel):
                     _rho_b_arr[i] = _rho_b
                     _rho_c_arr[i] = _rho_c
                     _rho_l_arr[i] = _rho_l
-                    _rho_nu1_arr[i] = _rho_nu1
-                    _rho_nu2_arr[i] = _rho_nu2
-                    _rho_nu3_arr[i] = _rho_nu3
+                    _rho_nu_ur_arr[i] = _rho_nu_ur
+                    _rho_nu_nr_arr[i] = _rho_nu_nr
 
-                    _w_nu1_arr[i] = _w_nu1
-                    _w_nu2_arr[i] = _w_nu2
-                    _w_nu3_arr[i] = _w_nu3
+                    _w_nu_nr_arr[i] = _w_nu_nr
                     _w_l_arr[i] = _w_l
 
                 variables = [
                     _E_arr, _phi_arr, _phi_prime_arr, 
                     _rho_g_arr, _rho_b_arr, _rho_c_arr, _rho_l_arr,
-                    _rho_nu1_arr, _w_nu1_arr, _rho_nu2_arr, _w_nu2_arr, _rho_nu3_arr, _w_nu3_arr, 
+                    _rho_nu_ur_arr, _rho_nu_nr_arr, _w_nu_nr_arr,
                     _w_l_arr, *self.params['K_G3_G4_values'], self.params['fH']
                 ]
 
@@ -1780,20 +1745,16 @@ class HorndeskiModel(StandardModel):
                     rhohat_b_arr[idx] = _rho_b_arr
                     rhohat_c_arr[idx] = _rho_c_arr
                     rhohat_l_arr[idx] = _rho_l_arr
-                    rhohat_nu1_arr[idx] = _rho_nu1_arr
-                    rhohat_nu2_arr[idx] = _rho_nu2_arr
-                    rhohat_nu3_arr[idx] = _rho_nu3_arr
+                    rhohat_nu_ur_arr[idx] = _rho_nu_ur_arr
+                    rhohat_nu_nr_arr[idx] = _rho_nu_nr_arr
                     Omega_phi_arr[idx] = _rho_phi_arr/(_E_arr**2)
                     Omega_g_arr[idx] = _rho_g_arr/(_E_arr**2)
                     Omega_b_arr[idx] = _rho_b_arr/(_E_arr**2)
                     Omega_c_arr[idx] = _rho_c_arr/(_E_arr**2)
                     Omega_l_arr[idx] = _rho_l_arr/(_E_arr**2)
-                    Omega_nu1_arr[idx] = _rho_nu1_arr/(_E_arr**2)
-                    Omega_nu2_arr[idx] = _rho_nu2_arr/(_E_arr**2)
-                    Omega_nu3_arr[idx] = _rho_nu3_arr/(_E_arr**2)
-                    w_nu1_arr[idx] = _w_nu1_arr
-                    w_nu2_arr[idx] = _w_nu2_arr
-                    w_nu3_arr[idx] = _w_nu3_arr
+                    Omega_nu_ur_arr[idx] = _rho_nu_ur_arr/(_E_arr**2)
+                    Omega_nu_nr_arr[idx] = _rho_nu_nr_arr/(_E_arr**2)
+                    w_nu_nr_arr[idx] = _w_nu_nr_arr
                     w_l_arr[idx] = _w_l_arr
                 else:
                     Ehat_arr[idx][:split] = _E_arr
@@ -1816,12 +1777,10 @@ class HorndeskiModel(StandardModel):
                     rhohat_c_arr[idx][split:] = np.nan
                     rhohat_l_arr[idx][:split] = _rho_l_arr
                     rhohat_l_arr[idx][split:] = np.nan
-                    rhohat_nu1_arr[idx][:split] = _rho_nu1_arr
-                    rhohat_nu1_arr[idx][split:] = np.nan
-                    rhohat_nu2_arr[idx][:split] = _rho_nu2_arr
-                    rhohat_nu2_arr[idx][split:] = np.nan
-                    rhohat_nu3_arr[idx][:split] = _rho_nu3_arr
-                    rhohat_nu3_arr[idx][split:] = np.nan
+                    rhohat_nu_ur_arr[idx][:split] = _rho_nu_ur_arr
+                    rhohat_nu_ur_arr[idx][split:] = np.nan
+                    rhohat_nu_nr_arr[idx][:split] = _rho_nu_nr_arr
+                    rhohat_nu_nr_arr[idx][split:] = np.nan
                     Omega_phi_arr[idx][:split] = _rho_phi_arr/(_E_arr**2)
                     Omega_phi_arr[idx][split:] = np.nan
                     Omega_g_arr[idx][:split] = _rho_g_arr/(_E_arr**2)
@@ -1832,18 +1791,12 @@ class HorndeskiModel(StandardModel):
                     Omega_c_arr[idx][split:] = np.nan
                     Omega_l_arr[idx][:split] = _rho_l_arr/(_E_arr**2)
                     Omega_l_arr[idx][split:] = np.nan
-                    Omega_nu1_arr[idx][:split] = _rho_nu1_arr/(_E_arr**2)
-                    Omega_nu1_arr[idx][split:] = np.nan
-                    Omega_nu2_arr[idx][:split] = _rho_nu2_arr/(_E_arr**2)
-                    Omega_nu2_arr[idx][split:] = np.nan
-                    Omega_nu3_arr[idx][:split] = _rho_nu3_arr/(_E_arr**2)
-                    Omega_nu3_arr[idx][split:] = np.nan
-                    w_nu1_arr[idx][:split] = _w_nu1_arr
-                    w_nu1_arr[idx][split:] = np.nan
-                    w_nu2_arr[idx][:split] = _w_nu2_arr
-                    w_nu2_arr[idx][split:] = np.nan
-                    w_nu3_arr[idx][:split] = _w_nu3_arr
-                    w_nu3_arr[idx][split:] = np.nan
+                    Omega_nu_ur_arr[idx][:split] = _rho_nu_ur_arr/(_E_arr**2)
+                    Omega_nu_ur_arr[idx][split:] = np.nan
+                    Omega_nu_nr_arr[idx][:split] = _rho_nu_nr_arr/(_E_arr**2)
+                    Omega_nu_nr_arr[idx][split:] = np.nan
+                    w_nu_nr_arr[idx][:split] = _w_nu_nr_arr
+                    w_nu_nr_arr[idx][split:] = np.nan
                     w_l_arr[idx][:split] = _w_l_arr
                     w_l_arr[idx][split:] = np.nan
                 
@@ -1870,9 +1823,8 @@ class HorndeskiModel(StandardModel):
                 rho_c_arr[idx] = rhohat_b_arr[idx]/(self.params['f_H_value']**2)
                 rho_b_arr[idx] = rhohat_c_arr[idx]/(self.params['f_H_value']**2)
                 rho_l_arr[idx] = rhohat_l_arr[idx]/(self.params['f_H_value']**2)
-                rho_nu1_arr[idx] = rhohat_nu1_arr[idx]/(self.params['f_H_value']**2)
-                rho_nu2_arr[idx] = rhohat_nu2_arr[idx]/(self.params['f_H_value']**2)
-                rho_nu3_arr[idx] = rhohat_nu3_arr[idx]/(self.params['f_H_value']**2)
+                rho_nu_ur_arr[idx] = rhohat_nu_ur_arr[idx]/(self.params['f_H_value']**2)
+                rho_nu_nr_arr[idx] = rhohat_nu_nr_arr[idx]/(self.params['f_H_value']**2)
 
                 fH[idx] = self.params['f_H_value']
                 H0[idx] = self.params['H0']
@@ -1883,9 +1835,8 @@ class HorndeskiModel(StandardModel):
                     self.params['Omega_b0'] = Omega_b_arr[idx][0]
                     self.params['Omega_c0'] = Omega_c_arr[idx][0]
                     self.params['Omega_l0'] = Omega_l_arr[idx][0]
-                    self.params['Omega_nu10'] = Omega_nu1_arr[idx][0]
-                    self.params['Omega_nu20'] = Omega_nu2_arr[idx][0]
-                    self.params['Omega_nu30'] = Omega_nu3_arr[idx][0]
+                    self.params['Omega_nu_ur0'] = Omega_nu_ur_arr[idx][0]
+                    self.params['Omega_nu_nr0'] = Omega_nu_nr_arr[idx][0]
                 else:
                     if self._solver_success == True:
                         self.params['Omega_phi0'] = Omega_phi_arr[idx][-1]
@@ -1893,27 +1844,24 @@ class HorndeskiModel(StandardModel):
                         self.params['Omega_b0'] = Omega_b_arr[idx][-1]
                         self.params['Omega_c0'] = Omega_c_arr[idx][-1]
                         self.params['Omega_l0'] = Omega_l_arr[idx][-1]
-                        self.params['Omega_nu10'] = Omega_nu1_arr[idx][-1]
-                        self.params['Omega_nu20'] = Omega_nu2_arr[idx][-1]
-                        self.params['Omega_nu30'] = Omega_nu3_arr[idx][-1]
+                        self.params['Omega_nu_ur0'] = Omega_nu_ur_arr[idx][-1]
+                        self.params['Omega_nu_nr0'] = Omega_nu_nr_arr[idx][-1]
                     else:
                         self.params['Omega_phi0'] = np.nan
                         self.params['Omega_g0'] = np.nan
                         self.params['Omega_b0'] = np.nan
                         self.params['Omega_c0'] = np.nan
                         self.params['Omega_l0'] = np.nan
-                        self.params['Omega_nu10'] = np.nan
-                        self.params['Omega_nu20'] = np.nan
-                        self.params['Omega_nu30'] = np.nan
+                        self.params['Omega_nu_ur0'] = np.nan
+                        self.params['Omega_nu_nr0'] = np.nan
                 
                 Omega_phi0[idx] = self.params['Omega_phi0']
                 Omega_g0[idx] = self.params['Omega_g0']
                 Omega_b0[idx] = self.params['Omega_b0']
                 Omega_c0[idx] = self.params['Omega_c0']
                 Omega_l0[idx] = self.params['Omega_l0']
-                Omega_nu10[idx] = self.params['Omega_nu10']
-                Omega_nu20[idx] = self.params['Omega_nu20']
-                Omega_nu30[idx] = self.params['Omega_nu30']
+                Omega_nu_ur0[idx] = self.params['Omega_nu_ur0']
+                Omega_nu_nr0[idx] = self.params['Omega_nu_nr0']
             
             self.output['solver_success'] = solver_success
             self.output['success'] = solver_success
@@ -1924,9 +1872,8 @@ class HorndeskiModel(StandardModel):
             self.output['Omega_b0'] = Omega_b0
             self.output['Omega_c0'] = Omega_c0
             self.output['Omega_l0'] = Omega_l0
-            self.output['Omega_nu10'] = Omega_nu10
-            self.output['Omega_nu20'] = Omega_nu20
-            self.output['Omega_nu30'] = Omega_nu30
+            self.output['Omega_nu_ur0'] = Omega_nu_ur0
+            self.output['Omega_nu_nr0'] = Omega_nu_nr0
             if store_hat:
                 self.output['Ehat'] = Ehat_arr
                 self.output['Ehat_prime'] = Ehat_prime_arr
@@ -1950,37 +1897,31 @@ class HorndeskiModel(StandardModel):
                 self.output['rhohat_b'] = rhohat_b_arr
                 self.output['rhohat_c'] = rhohat_c_arr
                 self.output['rhohat_l'] = rhohat_l_arr
-                self.output['rhohat_nu1'] = rhohat_nu1_arr
-                self.output['rhohat_nu2'] = rhohat_nu2_arr
-                self.output['rhohat_nu3'] = rhohat_nu3_arr
+                self.output['rhohat_nu_ur'] = rhohat_nu_ur_arr
+                self.output['rhohat_nu_nr'] = rhohat_nu_nr_arr
             else:
                 self.output['rhohat_phi'] = None
                 self.output['rhohat_g'] = None
                 self.output['rhohat_b'] = None
                 self.output['rhohat_c'] = None
                 self.output['rhohat_l'] = None
-                self.output['rhohat_nu1'] = None
-                self.output['rhohat_nu2'] = None
-                self.output['rhohat_nu3'] = None
+                self.output['rhohat_nu_ur'] = None
+                self.output['rhohat_nu_nr'] = None
             self.output['rho_phi'] = rho_phi_arr
             self.output['rho_g'] = rho_g_arr
             self.output['rho_b'] = rho_b_arr
             self.output['rho_c'] = rho_c_arr
             self.output['rho_l'] = rho_l_arr
-            self.output['rho_nu1'] = rho_nu1_arr
-            self.output['rho_nu2'] = rho_nu2_arr
-            self.output['rho_nu3'] = rho_nu3_arr
+            self.output['rho_nu_ur'] = rho_nu_ur_arr
+            self.output['rho_nu_nr'] = rho_nu_nr_arr
             self.output['Omega_phi'] = Omega_phi_arr
             self.output['Omega_g'] = Omega_g_arr
             self.output['Omega_b'] = Omega_b_arr
             self.output['Omega_c'] = Omega_c_arr
             self.output['Omega_l'] = Omega_l_arr
-            self.output['Omega_nu1'] = Omega_nu1_arr
-            self.output['Omega_nu2'] = Omega_nu2_arr
-            self.output['Omega_nu3'] = Omega_nu3_arr
-            self.output['w_nu1'] = w_nu1_arr
-            self.output['w_nu2'] = w_nu2_arr
-            self.output['w_nu3'] = w_nu3_arr
+            self.output['Omega_nu_ur'] = Omega_nu_ur_arr
+            self.output['Omega_nu_nr'] = Omega_nu_nr_arr
+            self.output['w_nu_nr'] = w_nu_nr_arr
             self.output['w_l'] = w_l_arr
     
 
@@ -1995,13 +1936,6 @@ class HorndeskiModel(StandardModel):
         self.output['Omega_DE'] = None
         self.output['w_DE'] = None
         self.output['Omega_phi_via_closure'] = None
-        self.output['Omega_g_prime'] = None
-        self.output['Omega_b_prime'] = None
-        self.output['Omega_c_prime'] = None
-        self.output['Omega_l_prime'] = None
-        self.output['Omega_nu1_prime'] = None
-        self.output['Omega_nu2_prime'] = None
-        self.output['Omega_nu3_prime'] = None
         self.output['calB'] = None
         self.output['calC'] = None
         self.output['beta'] = None
@@ -2042,20 +1976,16 @@ class HorndeskiModel(StandardModel):
             rho_b_arr = self.output['rho_b']
             rho_c_arr = self.output['rho_c']
             rho_l_arr = self.output['rho_l']
-            rho_nu1_arr = self.output['rho_nu1']
-            rho_nu2_arr = self.output['rho_nu2']
-            rho_nu3_arr = self.output['rho_nu3']
+            rho_nu_ur_arr = self.output['rho_nu_ur']
+            rho_nu_nr_arr = self.output['rho_nu_nr']
             Omega_phi_arr = self.output['Omega_phi']
             Omega_g_arr = self.output['Omega_g']
             Omega_b_arr = self.output['Omega_b']
             Omega_c_arr = self.output['Omega_c']
             Omega_l_arr = self.output['Omega_l']
-            Omega_nu1_arr = self.output['Omega_nu1']
-            Omega_nu2_arr = self.output['Omega_nu2']
-            Omega_nu3_arr = self.output['Omega_nu3']
-            w_nu1_arr = self.output['w_nu1']
-            w_nu2_arr = self.output['w_nu2']
-            w_nu3_arr = self.output['w_nu3']
+            Omega_nu_ur_arr = self.output['Omega_nu_ur']
+            Omega_nu_nr_arr = self.output['Omega_nu_nr']
+            w_nu_nr_arr = self.output['w_nu_nr']
             w_l_arr = self.output['w_l']
 
             roots1 = self.output['initialiser']['roots1']
@@ -2065,14 +1995,6 @@ class HorndeskiModel(StandardModel):
             Omega_DE_arr = np.zeros((len(roots1), len(x_arr)))
             w_DE_arr = np.zeros((len(roots1), len(x_arr)))
             Omega_phi_via_closure_arr = np.zeros((len(roots1), len(x_arr)))
-
-            Omega_g_prime_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_b_prime_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_c_prime_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_l_prime_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_nu1_prime_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_nu2_prime_arr = np.zeros((len(roots1), len(x_arr)))
-            Omega_nu3_prime_arr = np.zeros((len(roots1), len(x_arr)))
 
             calB_arr = np.zeros((len(roots1), len(x_arr)))
             calC_arr = np.zeros((len(roots1), len(x_arr)))
@@ -2105,25 +2027,16 @@ class HorndeskiModel(StandardModel):
                     E_arr[idx], phi_arr[idx], phi_prime_arr[idx], 
                     rho_g_arr[idx], rho_b_arr[idx],
                     rho_c_arr[idx], rho_l_arr[idx], 
-                    rho_nu1_arr[idx], w_nu1_arr[idx], 
-                    rho_nu2_arr[idx], w_nu2_arr[idx], 
-                    rho_nu3_arr[idx], w_nu3_arr[idx], 
+                    rho_nu_ur_arr[idx],
+                    rho_nu_nr_arr[idx], w_nu_nr_arr[idx], 
                     w_l_arr[idx], *self.params['K_G3_G4_values'], self.params['f_H_value']
                 ]
 
                 G_G_4_G_N[idx] = self.lambda_funcs['G_G_4/G_N'](*variables)
                 A_arr[idx] = self.lambda_funcs['A'](*variables)
                 
-                Omega_DE_arr[idx] = 1. - Omega_g_arr[idx] - Omega_b_arr[idx] - Omega_c_arr[idx] - Omega_nu1_arr[idx] - Omega_nu2_arr[idx] - Omega_nu3_arr[idx]
-                Omega_phi_via_closure_arr[idx] = 1 - Omega_g_arr[idx] - Omega_b_arr[idx] - Omega_c_arr[idx] - Omega_l_arr[idx] - Omega_nu1_arr[idx] - Omega_nu2_arr[idx] - Omega_nu3_arr[idx]
-
-                Omega_g_prime_arr[idx] = self.compute_Omega_g_prime(Omega_g_arr[idx], E_arr[idx], E_prime_arr[idx])
-                Omega_b_prime_arr[idx] = self.compute_Omega_b_prime(Omega_b_arr[idx], E_arr[idx], E_prime_arr[idx])
-                Omega_c_prime_arr[idx] = self.compute_Omega_c_prime(Omega_c_arr[idx], E_arr[idx], E_prime_arr[idx])
-                Omega_l_prime_arr[idx] = self.compute_Omega_l_prime(a_arr, Omega_l_arr[idx], E_arr[idx], E_prime_arr[idx])
-                Omega_nu1_prime_arr[idx] = self.compute_Omega_nu_prime(a_arr, Omega_nu1_arr[idx], E_arr[idx], E_prime_arr[idx], self.params['H0']*1e-2, self.params['mnu'][0])
-                Omega_nu2_prime_arr[idx] = self.compute_Omega_nu_prime(a_arr, Omega_nu2_arr[idx], E_arr[idx], E_prime_arr[idx], self.params['H0']*1e-2, self.params['mnu'][1])
-                Omega_nu3_prime_arr[idx] = self.compute_Omega_nu_prime(a_arr, Omega_nu3_arr[idx], E_arr[idx], E_prime_arr[idx], self.params['H0']*1e-2, self.params['mnu'][2])
+                Omega_DE_arr[idx] = 1. - Omega_g_arr[idx] - Omega_b_arr[idx] - Omega_c_arr[idx] - Omega_nu_ur_arr[idx] - Omega_nu_nr_arr[idx]
+                Omega_phi_via_closure_arr[idx] = 1 - Omega_g_arr[idx] - Omega_b_arr[idx] - Omega_c_arr[idx] - Omega_l_arr[idx] - Omega_nu_ur_arr[idx] - Omega_nu_nr_arr[idx]
 
                 calB_arr[idx] = self.lambda_funcs['calB'](*variables)
                 calC_arr[idx] = self.lambda_funcs['calC'](*variables)
@@ -2142,7 +2055,7 @@ class HorndeskiModel(StandardModel):
                 # given by eq. 3.10 of Bellini and Sawicki 2014
                 w_phi_arr[idx] = tilde_calP_arr[idx]/tilde_calE_arr[idx]
                 
-                w_DE_arr[idx] = self.compute_w_l(a_arr, w0=self.params['w0'], wa=self.params['wa'])*Omega_l_arr[idx] + w_phi_arr[idx]*Omega_phi_arr[idx]
+                w_DE_arr[idx] = self.compute_w_l(a_arr)*Omega_l_arr[idx] + w_phi_arr[idx]*Omega_phi_arr[idx]
                 w_DE_arr[idx] /= Omega_l_arr[idx] + Omega_phi_arr[idx]
 
                 D_arr[idx] = self.lambda_funcs['D'](*variables)
@@ -2177,14 +2090,7 @@ class HorndeskiModel(StandardModel):
             self.output['A'] = A_arr
             self.output['Omega_DE'] = Omega_DE_arr
             self.output['w_DE'] = w_DE_arr
-            self.output['Omega_phi_via_closure'] = Omega_phi_via_closure_arr 
-            self.output['Omega_g_prime'] = Omega_g_prime_arr
-            self.output['Omega_b_prime'] = Omega_b_prime_arr
-            self.output['Omega_c_prime'] = Omega_c_prime_arr
-            self.output['Omega_l_prime'] = Omega_l_prime_arr
-            self.output['Omega_nu1_prime'] = Omega_nu1_prime_arr
-            self.output['Omega_nu2_prime'] = Omega_nu2_prime_arr
-            self.output['Omega_nu3_prime'] = Omega_nu3_prime_arr
+            self.output['Omega_phi_via_closure'] = Omega_phi_via_closure_arr
             self.output['calB'] = calB_arr
             self.output['calC'] = calC_arr
             self.output['beta'] = beta_arr
@@ -2242,7 +2148,7 @@ class HorndeskiModel(StandardModel):
             Instructs the solver to use LCDM initial conditions.
         values_ini : bool, optional
             Directly supply initial values for initial conditions for [E_ini, E_prime_ini, Omega_g_ini, Omega_b_ini, Omega_c_ini, Omega_l_ini, 
-            w_l_ini, Omega_nu1, w_nu1_ini, Omega_nu2, w_nu2_ini, Omega_nu3, w_nu3_ini].
+            w_l_ini, Omega_nu_ur, Omega_nu_nr, w_nu_nr_ini].
         store_hat : bool, optional
             If true will store raw ODE outputs before normalisation corrections for E renormalisation via f_H.
         
@@ -2259,20 +2165,19 @@ class HorndeskiModel(StandardModel):
         self.output = {}
 
         (E_ini, E_prime_ini, Omega_g_ini, Omega_b_ini, Omega_c_ini, Omega_l_ini,
-         w_l_ini, Omega_nu1_ini, w_nu1_ini, Omega_nu2_ini, w_nu2_ini, Omega_nu3_ini, w_nu3_ini) = \
+         w_l_ini, Omega_nu_ur_ini, Omega_nu_nr_ini, w_nu_nr_ini) = \
             self._run_solver_start(z_max, Npoints, forwards)
         
         if LCDM_ini == False:
             assert values_ini is not None, (
                 "values_ini must be a list with the initial values for "
                 "[E_ini, E_prime_ini, Omega_g_ini, Omega_b_ini, Omega_c_ini, Omega_l_ini, "
-                "w_l_ini, Omega_nu1, w_nu1_ini, Omega_nu2, w_nu2_ini, Omega_nu3, w_nu3_ini]"
+                "w_l_ini, Omega_nu_ur, Omega_nu_nr, w_nu_nr_ini]"
             )
             (E_ini, E_prime_ini,
              Omega_g_ini, Omega_b_ini, Omega_c_ini, Omega_l_ini, w_l_ini,
-             Omega_nu1_ini, w_nu1_ini,
-             Omega_nu2_ini, w_nu2_ini,
-             Omega_nu3_ini, w_nu3_ini) = values_ini
+             Omega_nu_ur_ini, 
+             Omega_nu_nr_ini, w_nu_nr_ini) = values_ini
         
         if GR:
             if self.verbose:
@@ -2297,7 +2202,7 @@ class HorndeskiModel(StandardModel):
                 variable1,
                 E_ini, E_prime_ini, phi_ini, phi_prime_ini, 
                 Omega_g_ini, Omega_b_ini, Omega_c_ini, Omega_l_ini, w_l_ini,
-                Omega_nu1_ini, w_nu1_ini, Omega_nu2_ini, w_nu2_ini, Omega_nu3_ini, w_nu3_ini, 
+                Omega_nu_ur_ini, Omega_nu_nr_ini, w_nu_nr_ini,
                 variable2,
             )
 
