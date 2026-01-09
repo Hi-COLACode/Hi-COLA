@@ -156,6 +156,76 @@ class StandardModel:
         return Omega_g_prime
 
     ## Neutrinos, given by CMB temperature and Neutrino mass and Hierarchy.
+    
+    # Massless neutrinos
+
+    def get_rho_nu_ur(self, a, h):
+        """
+        Returns the E^2 Omega_nu_ur (massless neutrino) density.
+
+        Parameters
+        ----------
+        a : float or array
+            Scale factor.
+        h : float
+            Little h = H0 * 1e-2.
+        """
+        return self.params['Neff']*(self.params['N_ur']/3)*(7/8)*((4/11)**(4/3))*self.get_rho_g(a, h)
+    
+
+    def get_rho_nu_ur_prime(self, a, h):
+        """
+        Returns the E^2 Omega_nu_ur (massless neutrino) density derivative.
+
+        Parameters
+        ----------
+        a : float or array
+            Scale factor.
+        h : float
+            Little h = H0 * 1e-2.
+        """
+        return -4*self.get_rho_nu_ur(a, h)
+    
+
+    def get_Omega_nu_ur(self, a, h, E):
+        """
+        Returns the Omega_nu_ur (massless neutrino) fractional density.
+
+        Parameters
+        ----------
+        a : float or array
+            Scale factor.
+        h : float
+            Little h = H0 * 1e-2.
+        E : float or array
+            The normalised Hubble expansion rate.
+        """
+        return self.get_rho_nu_ur(a, h)/(E**2)
+
+    
+    def compute_Omega_nu_ur_prime(self, Omega_nu_ur, E, E_prime):
+        """
+        Computes Omega_nu_ur (massless neutrino) prime.
+
+        Parameters
+        ----------
+        Omega_g : float or array
+            Radiation density.
+        E : float or array
+            Normalised Hubble expansion.
+        E_prime : float or array
+            Derivative of the normalised Hubble expansion.
+        
+        Returns
+        -------
+        Omega_nu_ur_prime : float or array
+            Omega massless neutrino prime.
+        """
+        E_prime_E = E_prime/E
+        Omega_nu_ur_prime = -Omega_nu_ur*(4. + 2.*E_prime_E)
+        return Omega_nu_ur_prime
+
+    # Massive neutrinos
 
     def _get_C_nu(self):
         """
@@ -241,7 +311,7 @@ class StandardModel:
         self.neutrino_table['Jy_interp_high'] = Jy_asymp_high
 
 
-    def get_rho_nu(self, a, h, mnu):
+    def get_rho_nu_nr(self, a, h, mnu):
         """
         Returns the neutrino density, i.e. Omega_nu*E**2.
 
@@ -264,26 +334,26 @@ class StandardModel:
         y = a * mnu / (self.params['Tnu0']*self.const['kB[eV]'])
         if utils.isscalar(y):
             if y <= self.neutrino_table['ymin']:
-                rho_nu = self.neutrino_table['Iy_interp_low'](y)
+                rho_nu_nr = self.neutrino_table['Iy_interp_low'](y)
             elif y >= self.neutrino_table['ymax']:
-                rho_nu = self.neutrino_table['Iy_interp_high'](y)
+                rho_nu_nr = self.neutrino_table['Iy_interp_high'](y)
             else:
-                rho_nu = self.neutrino_table['Iy_interp'](y)
+                rho_nu_nr = self.neutrino_table['Iy_interp'](y)
         else:
-            rho_nu = np.zeros(len(y))
+            rho_nu_nr = np.zeros(len(y))
             cond = np.where((y <= self.neutrino_table['ymin']))[0]
-            rho_nu[cond] = self.neutrino_table['Iy_interp_low'](y[cond])
+            rho_nu_nr[cond] = self.neutrino_table['Iy_interp_low'](y[cond])
             cond = np.where((y >= self.neutrino_table['ymax']))[0]
-            rho_nu[cond] = self.neutrino_table['Iy_interp_high'](y[cond])
+            rho_nu_nr[cond] = self.neutrino_table['Iy_interp_high'](y[cond])
             cond = np.where((y > self.neutrino_table['ymin']) & (y < self.neutrino_table['ymax']))[0]
-            rho_nu[cond] = self.neutrino_table['Iy_interp'](y[cond])
-        rho_nu *= self.const['C_nu']/((h**2) * (a**4))
-        return rho_nu
+            rho_nu_nr[cond] = self.neutrino_table['Iy_interp'](y[cond])
+        rho_nu_nr *= self.const['C_nu']/((h**2) * (a**4))
+        return rho_nu_nr
     
     
-    def get_rho_nu_prime(self, a, h, mnu):
+    def get_rho_nu_nr_prime(self, a, h, mnu):
         """
-        Returns the neutrino density (i.e. Omega_nu*E**2) prime.
+        Returns the massive neutrino density (i.e. Omega_nu*E**2) prime.
 
         Parameters
         ----------
@@ -299,31 +369,31 @@ class StandardModel:
         rho_nu_prime : float or array
             Neutrino density derivative wrt log a.
         """
-        rho_nu_prime = -4*self.get_rho_nu(a, h, mnu)
+        rho_nu_nr_prime = -4*self.get_rho_nu_nr(a, h, mnu)
         y = a * mnu / (self.params['Tnu0']*self.const['kB[eV]'])
         if utils.isscalar(y):
             if y <= self.neutrino_table['ymin']:
-                _rho_nu_prime = self.neutrino_table['Iy_prime_interp_low'](y)
+                _rho_nu_nr_prime = self.neutrino_table['Iy_prime_interp_low'](y)
             elif y >= self.neutrino_table['ymax']:
-                _rho_nu_prime = self.neutrino_table['Iy_prime_interp_high'](y)
+                _rho_nu_nr_prime = self.neutrino_table['Iy_prime_interp_high'](y)
             else:
-                _rho_nu_prime = self.neutrino_table['Iy_prime_interp'](y)
+                _rho_nu_nr_prime = self.neutrino_table['Iy_prime_interp'](y)
         else:
-            _rho_nu_prime = np.zeros(len(y))
+            _rho_nu_nr_prime = np.zeros(len(y))
             cond = np.where((y <= self.neutrino_table['ymin']))[0]
-            _rho_nu_prime[cond] = self.neutrino_table['Iy_prime_interp_low'](y[cond])
+            _rho_nu_nr_prime[cond] = self.neutrino_table['Iy_prime_interp_low'](y[cond])
             cond = np.where((y >= self.neutrino_table['ymax']))[0]
-            _rho_nu_prime[cond] = self.neutrino_table['Iy_prime_interp_high'](y[cond])
+            _rho_nu_nr_prime[cond] = self.neutrino_table['Iy_prime_interp_high'](y[cond])
             cond = np.where((y > self.neutrino_table['ymin']) & (y < self.neutrino_table['ymax']))[0]
-            _rho_nu_prime[cond] = self.neutrino_table['Iy_prime_interp'](y[cond])
-        _rho_nu_prime *= self.const['C_nu']/((h**2) * (a**4))
-        rho_nu_prime += _rho_nu_prime
-        return rho_nu_prime
+            _rho_nu_nr_prime[cond] = self.neutrino_table['Iy_prime_interp'](y[cond])
+        _rho_nu_nr_prime *= self.const['C_nu']/((h**2) * (a**4))
+        rho_nu_nr_prime += _rho_nu_nr_prime
+        return rho_nu_nr_prime
     
     
-    def get_Omega_nu(self, a, h, mnu, E):
+    def get_Omega_nu_nr(self, a, h, mnu, E):
         """
-        Returns the Omega_nu fractional density for a specific neutrinos.
+        Returns the Omega_nu fractional density for a specific massive neutrino species.
 
         Parameters
         ----------
@@ -341,23 +411,23 @@ class StandardModel:
         Omega_nu : float or array
             Omega_nu fractional density.
         """
-        return self.get_rho_nu(a, h, mnu)/(E**2)
+        return self.get_rho_nu_nr(a, h, mnu)/(E**2)
 
 
-    def compute_Omega_nu_prime(self, a, Omega_nu, E, E_prime, h, mnu):
+    def compute_Omega_nu_nr_prime(self, a, Omega_nu_nr, E, E_prime, h, mnu):
         """
-        Computes Omega photon prime.
+        Computes Omega massive neutrino prime.
 
         Parameters
         ----------
-        Omega_g : float or array
-            Radiation density.
+        a : float or array
+            Scale factor.
+        Omega_nu_nr : float or array
+            Neutrino density.
         E : float or array
             Normalised Hubble expansion.
         E_prime : float or array
             Derivative of the normalised Hubble expansion.
-        a : float or array
-            Scale factor.
         h : float
             Little h = H0 * 1e-2.
         mnu : float
@@ -365,35 +435,35 @@ class StandardModel:
         
         Returns
         -------
-        Omega_nu_prime : float or array
-            Omega neutrino prime.
+        Omega_nu_nr_prime : float or array
+            Omega massive neutrino prime.
         """
         E_prime_E = E_prime/E
-        Omega_nu_prime = -(4 + 2*E_prime_E)*Omega_nu
+        Omega_nu_nr_prime = -(4 + 2*E_prime_E)*Omega_nu_nr
         y = a * mnu / (self.params['Tnu0']*self.const['kB[eV]'])
         if utils.isscalar(y):
             if y <= self.neutrino_table['ymin']:
-                _Omega_nu_prime = self.neutrino_table['Iy_prime_interp_low'](y)
+                _Omega_nu_nr_prime = self.neutrino_table['Iy_prime_interp_low'](y)
             elif y >= self.neutrino_table['ymax']:
-                _Omega_nu_prime = self.neutrino_table['Iy_prime_interp_high'](y)
+                _Omega_nu_nr_prime = self.neutrino_table['Iy_prime_interp_high'](y)
             else:
-                _Omega_nu_prime = self.neutrino_table['Iy_prime_interp'](y)
+                _Omega_nu_nr_prime = self.neutrino_table['Iy_prime_interp'](y)
         else:
-            _Omega_nu_prime = np.zeros(len(y))
+            _Omega_nu_nr_prime = np.zeros(len(y))
             cond = np.where((y <= self.neutrino_table['ymin']))[0]
-            _Omega_nu_prime[cond] = self.neutrino_table['Iy_prime_interp_low'](y[cond])
+            _Omega_nu_nr_prime[cond] = self.neutrino_table['Iy_prime_interp_low'](y[cond])
             cond = np.where((y >= self.neutrino_table['ymax']))[0]
-            _Omega_nu_prime[cond] = self.neutrino_table['Iy_prime_interp_high'](y[cond])
+            _Omega_nu_nr_prime[cond] = self.neutrino_table['Iy_prime_interp_high'](y[cond])
             cond = np.where((y > self.neutrino_table['ymin']) & (y < self.neutrino_table['ymax']))[0]
-            _Omega_nu_prime[cond] = self.neutrino_table['Iy_prime_interp'](y[cond])
-        _Omega_nu_prime *= self.const['C_nu']/((h**2) * (E**2) * (a**4))
-        Omega_nu_prime += _Omega_nu_prime
-        return Omega_nu_prime
+            _Omega_nu_nr_prime[cond] = self.neutrino_table['Iy_prime_interp'](y[cond])
+        _Omega_nu_nr_prime *= self.const['C_nu']/((h**2) * (E**2) * (a**4))
+        Omega_nu_nr_prime += _Omega_nu_nr_prime
+        return Omega_nu_nr_prime
     
 
-    def compute_w_nu(self, a, mnu):
+    def compute_w_nu_nr(self, a, mnu):
         """
-        Computes the neutrino equation of state.
+        Computes the massive neutrino equation of state.
 
         Parameters
         ----------
@@ -405,25 +475,25 @@ class StandardModel:
         Returns
         -------
         w_nu : float or array
-            Neutrino equation of state.
+            Massive neutrino equation of state.
         """
         y = a * mnu / (self.params['Tnu0']*self.const['kB[eV]'])
         if utils.isscalar(y):
             if y <= self.neutrino_table['ymin']:
-                w_nu = self.neutrino_table['Jy_interp_low'](y)/(3*self.neutrino_table['Iy_interp_low'](y))
+                w_nu_nr = self.neutrino_table['Jy_interp_low'](y)/(3*self.neutrino_table['Iy_interp_low'](y))
             elif y >= self.neutrino_table['ymax']:
-                w_nu = self.neutrino_table['Jy_interp_high'](y)/(3*self.neutrino_table['Iy_interp_high'](y))
+                w_nu_nr = self.neutrino_table['Jy_interp_high'](y)/(3*self.neutrino_table['Iy_interp_high'](y))
             else:
-                w_nu = self.neutrino_table['Jy_interp'](y)/(3*self.neutrino_table['Iy_interp'](y))
+                w_nu_nr = self.neutrino_table['Jy_interp'](y)/(3*self.neutrino_table['Iy_interp'](y))
         else:
-            w_nu = np.zeros(len(y))
+            w_nu_nr = np.zeros(len(y))
             cond = np.where((y <= self.neutrino_table['ymin']))[0]
-            w_nu[cond] = self.neutrino_table['Jy_interp_low'](y[cond])/(3*self.neutrino_table['Iy_interp_low'](y[cond]))
+            w_nu_nr[cond] = self.neutrino_table['Jy_interp_low'](y[cond])/(3*self.neutrino_table['Iy_interp_low'](y[cond]))
             cond = np.where((y >= self.neutrino_table['ymax']))[0]
-            w_nu[cond] = self.neutrino_table['Jy_interp_high'](y[cond])/(3*self.neutrino_table['Iy_interp_high'](y[cond]))
+            w_nu_nr[cond] = self.neutrino_table['Jy_interp_high'](y[cond])/(3*self.neutrino_table['Iy_interp_high'](y[cond]))
             cond = np.where((y > self.neutrino_table['ymin']) & (y < self.neutrino_table['ymax']))[0]
-            w_nu[cond] = self.neutrino_table['Jy_interp'](y[cond])/(3*self.neutrino_table['Iy_interp'](y[cond]))
-        return w_nu
+            w_nu_nr[cond] = self.neutrino_table['Jy_interp'](y[cond])/(3*self.neutrino_table['Iy_interp'](y[cond]))
+        return w_nu_nr
     
     ## Matter
     
@@ -650,7 +720,7 @@ class StandardModel:
         return Omega_l_prime
     
 
-    def compute_w_l(self, a, w0=-1., wa=0.):
+    def compute_w_l(self, a):
         """
         Returns the dark energy equation of state
 
@@ -658,17 +728,13 @@ class StandardModel:
         ----------
         a : float or array
             Scale factor.
-        w0 : float, optional
-            Set dark energy equation of state today.
-        wa : float, optional
-            Set dark energy equation of state gradient.
         """
-        return w0 + wa*(1-a)
+        return self.params['w0'] + +self.params['wa']*(1-a)
 
     
     # LCDM functions
 
-    def compute_E_LCDM(self, a, h, Omega_b0, Omega_c0, mnu=[0.,0.,0.], w0=-1., wa=0.):
+    def compute_E_LCDM(self, a):
         """
         Computes the dimensionless Hubble expansion rate in LCDM.
 
@@ -676,18 +742,6 @@ class StandardModel:
         ----------
         a : float or array
             Scale factor.
-        h : float
-            Little h = H0 * 1e-2.
-        Omega_b0 : float
-            Baryon fractional density at redshift zero.
-        Omega_c0 : float
-            Cold dark matter fractional density at redshift zero.
-        mnu : list, optional
-            Sets the mass of the neutrino species.
-        w0 : float, optional
-            Set dark energy equation of state today.
-        wa : float, optional
-            Set dark energy equation of state gradient.
 
         Returns
         -------
@@ -695,22 +749,18 @@ class StandardModel:
             The normalised Hubble expansion rate.
         """
 
-        # Obtain photon and neutrino fractional density today to obtain dark energy density
-        # assuming a spatially flat universe.
-
-        Omega_g0 = self.get_Omega_g(1., h, 1.)
-        Omega_nu0 = self.get_Omega_nu(1., h, mnu[0], 1.) + self.get_Omega_nu(1., h, mnu[1], 1.) + self.get_Omega_nu(1., h, mnu[2], 1.)
-        
-        Omega_l0 = 1. - Omega_g0 - Omega_nu0 - Omega_c0 - Omega_b0
+        h = self.params['H0_ref']*1e-2
 
         # Add each component to E2.
 
         E2 = self.get_rho_g(a, h)
-        E2 += self.get_rho_c(a, Omega_c0)
-        E2 += self.get_rho_b(a, Omega_b0)
-        E2 += self.get_rho_l(a, Omega_l0, w0=w0, wa=wa)
-        E2 += self.get_rho_nu(a, h, mnu[0]) + self.get_rho_nu(a, h, mnu[1]) + self.get_rho_nu(a, h, mnu[2])
-
+        E2 += self.get_rho_c(a, self.params['Omega_c0_ref'])
+        E2 += self.get_rho_b(a, self.params['Omega_b0_ref'])
+        E2 += self.get_rho_l(a, self.params['Omega_l0_LCDM'], w0=self.params['w0'], wa=self.params['wa'])
+        E2 += self.get_rho_nu_ur(a, h)
+        for _mnu in self.params['mnu']:
+            E2 += self.get_rho_nu_nr(a, h, _mnu)
+        
         # Sqrt to obtain E
 
         E = np.sqrt(E2)
@@ -718,7 +768,7 @@ class StandardModel:
         return E
     
 
-    def compute_E_prime_LCDM(self, a, h, Omega_b0, Omega_c0, mnu=[0.,0.,0.], w0=-1., wa=0.):
+    def compute_E_prime_LCDM(self, a):
         """
         Computes the dimensionless Hubble expansion rate in LCDM.
 
@@ -726,18 +776,6 @@ class StandardModel:
         ----------
         a : float or array
             Scale factor.
-        h : float
-            Little h = H0 * 1e-2.
-        Omega_b0 : float
-            Baryon fractional density at redshift zero.
-        Omega_c0 : float
-            Cold dark matter fractional density at redshift zero.
-        mnu : list, optional
-            Sets the mass of the neutrino species.
-        w0 : float, optional
-            Set dark energy equation of state today.
-        wa : float, optional
-            Set dark energy equation of state gradient.
 
         Returns
         -------
@@ -745,21 +783,17 @@ class StandardModel:
             The derivative of normalised Hubble expansion rate.
         """
 
-        E = self.compute_E_LCDM(a, h, Omega_b0, Omega_c0, mnu=mnu, w0=-1., wa=0.)
+        h = self.params['H0_ref']*1e-2
 
-        # Obtain photon and neutrino fractional density today to obtain dark energy density
-        # assuming a spatially flat universe.
-
-        Omega_g0 = self.get_Omega_g(1., h, 1.)
-        Omega_nu0 = self.get_Omega_nu(1., h, mnu[0], 1.) + self.get_Omega_nu(1., h, mnu[1], 1.) + self.get_Omega_nu(1., h, mnu[2], 1.)
+        E = self.compute_E_LCDM(a)
         
-        Omega_l0 = 1. - Omega_g0 - Omega_nu0 - Omega_c0 - Omega_b0
-
         E_prime = self.get_rho_g_prime(a, h)
-        E_prime += self.get_rho_nu_prime(a, h, mnu[0]) + self.get_rho_nu_prime(a, h, mnu[1]) + self.get_rho_nu_prime(a, h, mnu[2])
-        E_prime += self.get_rho_b_prime(a, Omega_b0)
-        E_prime += self.get_rho_c_prime(a, Omega_c0)
-        E_prime += self.get_rho_l_prime(a, Omega_l0, w0=w0, wa=wa)
+        E_prime += self.get_rho_nu_ur_prime(a, h)
+        for _mnu in self.params['mnu']:
+            E_prime += self.get_rho_nu_nr_prime(a, h, _mnu)
+        E_prime += self.get_rho_b_prime(a, self.params['Omega_b0_ref'])
+        E_prime += self.get_rho_c_prime(a, self.params['Omega_c0_ref'])
+        E_prime += self.get_rho_l_prime(a, self.params['Omega_l0_LCDM'],  w0=self.params['w0'], wa=self.params['wa'])
 
         E_prime /= 2*E
 
@@ -807,11 +841,13 @@ class StandardModel:
         # neutrino density set by CMB temperature
         self._get_C_nu()
         self.params['mnu'] = mnu
+        self.params['N_ur'] = 3-len(mnu)
         self.params['Neff'] = Neff
-        self.params['Omega_nu10_ref'] = self.get_Omega_nu(1., 1e-2*self.params['H0_ref'], self.params['mnu'][0], 1.) 
-        self.params['Omega_nu20_ref'] = self.get_Omega_nu(1., 1e-2*self.params['H0_ref'], self.params['mnu'][1], 1.) 
-        self.params['Omega_nu30_ref'] = self.get_Omega_nu(1., 1e-2*self.params['H0_ref'], self.params['mnu'][2], 1.)
-        self.params['Omega_l0_LCDM'] = 1. - self.params['Omega_g0_ref'] - self.params['Omega_nu10_ref'] - self.params['Omega_nu20_ref'] - self.params['Omega_nu30_ref']- self.params['Omega_c0_ref'] - self.params['Omega_b0_ref']
+        self.params['Omega_nu_ur0_ref'] = self.get_rho_nu_ur(1., 1e-2*self.params['H0_ref'])
+        self.params['Omega_nu_nr0_ref'] = 0.
+        for _mnu in self.params['mnu']:
+            self.params['Omega_nu_nr0_ref'] += self.get_Omega_nu_nr(1., 1e-2*self.params['H0_ref'], _mnu, 1.) 
+        self.params['Omega_l0_LCDM'] = 1. - self.params['Omega_g0_ref'] - self.params['Omega_nu_ur0_ref'] - self.params['Omega_nu_nr0_ref'] - self.params['Omega_c0_ref'] - self.params['Omega_b0_ref']
         self.params['Omega_l0_ref'] = self.params['Omega_l0_LCDM']
         self.params['w0'] = w0
         self.params['wa'] = wa
@@ -1362,16 +1398,16 @@ class StandardModel:
 
             if utils.isscalar(self.output['Omega_b0']):
                 
-                fnu = 0.405
-                Theta27 = 2.7255/2.7
-                w_bc = (self.output['Omega_b0'] + self.output['Omega_c0'])*(1e-2*self.output['H0'])**2
-                a_eq = 2.35*1e-5*Theta27**4
-                a_eq /= w_bc*(1-fnu)
+                ## Hu & Sugiyama approximation:
+                # fnu = 0.405
+                # Theta27 = 2.7255/2.7
+                # w_bc = (self.output['Omega_b0'] + self.output['Omega_c0'])*(1e-2*self.output['H0'])**2
+                # a_eq = 2.35*1e-5*Theta27**4
+                # a_eq /= w_bc*(1-fnu)
 
-                ## Note: below is the previous equation which computes this more exactly, however if we are
-                ## going to use the Hu-Sugiyama approximation we need to do so self-consistently.
-                # a_eq = self.const['C_gamma'] + self.const['C_nu']*7.*(np.pi**4)/40.
-                # a_eq /= (self.output['Omega_b0'] + self.output['Omega_c0'])*(1e-2*self.output['H0'])**2
+                a_eq = 1 + self.params['Neff']*(7/8)*(4/11)**(4/3)
+                a_eq *= self.const['C_gamma']
+                a_eq /= (self.output['Omega_b0'] + self.output['Omega_c0'])*(1e-2*self.output['H0'])**2
                 
             else:
 
@@ -1379,19 +1415,21 @@ class StandardModel:
 
                 for idx in range(0, len(self.output['Omega_b0'])):
 
-                    fnu = 0.405
-                    Theta27 = 2.7255/2.7
-                    w_bc = (self.output['Omega_b0'][idx] + self.output['Omega_c0'][idx])*(1e-2*self.output['H0'][idx])**2
-                    a_eq[idx] = 2.35*1e-5*Theta27**4
-                    a_eq[idx] /= w_bc*(1-fnu)
+                    ## Hu & Sugiyama approximation:
+                    # fnu = 0.405
+                    # Theta27 = 2.7255/2.7
+                    # w_bc = (self.output['Omega_b0'][idx] + self.output['Omega_c0'][idx])*(1e-2*self.output['H0'][idx])**2
+                    # a_eq[idx] = 2.35*1e-5*Theta27**4
+                    # a_eq[idx] /= w_bc*(1-fnu)
 
-                    # a_eq[idx] = self.const['C_gamma'] + self.const['C_nu']*7.*(np.pi**4)/40.
-                    # a_eq[idx] /= (self.output['Omega_b0'][idx] + self.output['Omega_c0'][idx])*(1e-2*self.output['H0'][idx])**2
+                    a_eq[idx] = 1 + self.params['Neff']*(7/8)*(4/11)**(4/3)
+                    a_eq[idx] *= self.const['C_gamma']
+                    a_eq[idx] /= (self.output['Omega_b0'][idx] + self.output['Omega_c0'][idx])*(1e-2*self.output['H0'][idx])**2
         
         self.output['a_eq'] = a_eq
     
 
-    def get_z_star(self):
+    def get_z_star(self, apply_correction=True):
         """
         Computes the redshift for last scattering, using the Hu-Sugiyama fitting function.
         """
@@ -1410,6 +1448,10 @@ class StandardModel:
                 g2 = 0.560/(1+21.1*w_b**1.81)
 
                 z_star = 1048 * (1 + 0.00124*w_b**-0.738)*(1 + g1*w_bc**g2)
+                if apply_correction:
+                    # Correcting bias in Hu & Sugiyama near the Planck prior, applicable for models where the early universe follows LCDM very closely
+                    # The correction corrects a bias from camb z_star vs the Hu & Sugiyama approximation assuming the bias is a linear function of w_b
+                    z_star += 91.95*w_b - 3.9896
                 
             else:
 
@@ -1424,6 +1466,10 @@ class StandardModel:
                     g2 = 0.560/(1+21.1*w_b**1.81)
 
                     z_star[idx] = 1048. * (1 + 0.00124*w_b**-0.738)*(1 + g1*w_bc**g2)
+                    if apply_correction:
+                        # Correcting bias in Hu & Sugiyama near the Planck prior, applicable for models where the early universe follows LCDM very closely
+                        # The correction corrects a bias from camb z_star vs the Hu & Sugiyama approximation assuming the bias is a linear function of w_b
+                        z_star[idx] += 91.95*w_b - 3.9896
 
         self.output['a_star'] = redshift.z2a(z_star)
     
@@ -1440,29 +1486,28 @@ class StandardModel:
 
             if utils.isscalar(self.output['Omega_b0']):
                 
-                w_b = self.output['Omega_b0']*(1e-2*self.output['H0'])**2
                 Omega_bc = self.output['Omega_b0']+self.output['Omega_c0']
-                Theta27 = 2.726/2.7
 
                 H0 = self.output['H0'] # in km s^-1 Mpc^-1
                 H0 /= self.const['c[km/s]'] # in Mpc^-1
 
-                ## Note this is the exact equation but we need to use the Hu-Sugiyama approximations
-                ## self-consistently
-                # R = (3/4)*self.get_rho_b(self.output['a_star'], self.output['Omega_b0'])
-                # R /= self.get_rho_g(self.output['a_star'], self.output['H0']*1e-2)
+                R = (3/4)*self.get_rho_b(self.output['a_star'], self.output['Omega_b0'])
+                R /= self.get_rho_g(self.output['a_star'], self.output['H0']*1e-2)
 
-                # R_eq = (3/4)*self.get_rho_b(self.output['a_eq'], self.output['Omega_b0'])
-                # R_eq /= self.get_rho_g(self.output['a_eq'], self.output['H0']*1e-2)
+                R_eq = (3/4)*self.get_rho_b(self.output['a_eq'], self.output['Omega_b0'])
+                R_eq /= self.get_rho_g(self.output['a_eq'], self.output['H0']*1e-2)
 
-                R = 31.5*w_b*(Theta27**-4)*1e3/redshift.a2z(self.output['a_star'])
-                R_eq = 31.5*w_b*(Theta27**-4)*1e3/redshift.a2z(self.output['a_eq'])
-                
+                ## Hu & Sugiyama approximation for R_eq is below, we use the more accurate form above.
+                # w_b = self.output['Omega_b0']*(1e-2*self.output['H0'])**2
+                # Theta27 = 2.726/2.7
+                # R = 31.5*w_b*(Theta27**-4)*1e3/redshift.a2z(self.output['a_star'])
+                # R_eq = 31.5*w_b*(Theta27**-4)*1e3/redshift.a2z(self.output['a_eq'])
+
                 r_star = 2*np.sqrt(3)/3
                 r_star /= np.sqrt(Omega_bc*H0**2)
                 r_star *= np.sqrt(self.output['a_eq']/R_eq)
                 r_star *= np.log((np.sqrt(1+R) + np.sqrt(R+R_eq))/(1+np.sqrt(R_eq)))
-                
+
             else:
 
                 r_star = np.zeros(np.shape(self.output['Omega_b0']))
@@ -1471,26 +1516,27 @@ class StandardModel:
 
                     Omega_bc = self.output['Omega_b0'][idx]+self.output['Omega_c0'][idx]
 
-                    w_b = self.output['Omega_b0'][idx]*(1e-2*self.output['H0'][idx])**2
-                    Omega_bc = self.output['Omega_b0'][idx]+self.output['Omega_c0'][idx]
-                    Theta27 = 2.726/2.7
-
                     H0 = self.output['H0'][idx] # in km s^-1 Mpc^-1
                     H0 /= self.const['c[km/s]'] # in Mpc^-1
                     
-                    # R = (3/4)*self.get_rho_b(self.output['a_star'][idx], self.output['Omega_b0'][idx])
-                    # R /= self.get_rho_g(self.output['a_star'][idx], self.output['H0'][idx]*1e-2)
+                    R = (3/4)*self.get_rho_b(self.output['a_star'][idx], self.output['Omega_b0'][idx])
+                    R /= self.get_rho_g(self.output['a_star'][idx], self.output['H0'][idx]*1e-2)
 
-                    # R_eq = (3/4)*self.get_rho_b(self.output['a_eq'][idx], self.output['Omega_b0'][idx])
-                    # R_eq /= self.get_rho_g(self.output['a_eq'][idx], self.output['H0'][idx]*1e-2)
+                    R_eq = (3/4)*self.get_rho_b(self.output['a_eq'][idx], self.output['Omega_b0'][idx])
+                    R_eq /= self.get_rho_g(self.output['a_eq'][idx], self.output['H0'][idx]*1e-2)
 
-                    R = 31.5*w_b*(Theta27**-4)*1e3/redshift.a2z(self.output['a_star'][idx])
-                    R_eq = 31.5*w_b*(Theta27**-4)*1e3/redshift.a2z(self.output['a_eq'][idx])
-                    
+                    ## Hu & Sugiyama approximation for R_eq is below, we use the more accurate form above.
+                    # w_b = self.output['Omega_b0'][idx]*(1e-2*self.output['H0'][idx])**2
+                    # Theta27 = 2.726/2.7
+                    # R = 31.5*w_b*(Theta27**-4)*1e3/redshift.a2z(self.output['a_star'][idx])
+                    # R_eq = 31.5*w_b*(Theta27**-4)*1e3/redshift.a2z(self.output['a_eq'][idx])
+
                     r_star[idx] = 2*np.sqrt(3)/3
                     r_star[idx] /= np.sqrt(Omega_bc*H0**2)
                     r_star[idx] *= np.sqrt(self.output['a_eq'][idx]/R_eq)
                     r_star[idx] *= np.log((np.sqrt(1+R) + np.sqrt(R+R_eq))/(1+np.sqrt(R_eq)))
+                    
+                    
 
         self.output['r_star'] = r_star
 
@@ -1524,6 +1570,7 @@ class StandardModel:
                     theta_star[idx] = self.output['r_star'][idx]/self.interp['Dc%i_vs_x[Mpc]' % idx](redshift.a2x(self.output['a_star'][idx]))
             
         self.output['theta_star'] = theta_star
+    
 
     # The main solver function
 
@@ -1571,9 +1618,8 @@ class StandardModel:
         self.params['Omega_b0'] = self.params['Omega_b0_ref']
         self.params['Omega_c0'] = self.params['Omega_c0_ref']
         self.params['Omega_l0'] = self.params['Omega_l0_LCDM']
-        self.params['Omega_nu10'] = self.params['Omega_nu10_ref']
-        self.params['Omega_nu20'] = self.params['Omega_nu20_ref']
-        self.params['Omega_nu30'] = self.params['Omega_nu30_ref']
+        self.params['Omega_nu_ur0'] = self.params['Omega_nu_ur0_ref']
+        self.params['Omega_nu_nr0'] = self.params['Omega_nu_nr0_ref']
 
         self.output['success'] = True
         self.output['solver_success'] = True
@@ -1583,9 +1629,8 @@ class StandardModel:
         self.output['Omega_b0'] = self.params['Omega_b0']
         self.output['Omega_c0'] = self.params['Omega_c0']
         self.output['Omega_l0'] = self.params['Omega_l0']
-        self.output['Omega_nu10'] = self.params['Omega_nu10']
-        self.output['Omega_nu20'] = self.params['Omega_nu20']
-        self.output['Omega_nu30'] = self.params['Omega_nu30']
+        self.output['Omega_nu_ur0'] = self.params['Omega_nu_ur0']
+        self.output['Omega_nu_nr0'] = self.params['Omega_nu_nr0']
 
         self.output['Ehat'] = None
         self.output['Ehat_prime'] = None
@@ -1593,8 +1638,8 @@ class StandardModel:
         self.output['phihat_prime'] = None
         self.output['phihat_primeprime'] = None
 
-        self.output['E'] = self.compute_E_LCDM(self.output['a'], 1e-2*self.params['H0'], self.params['Omega_b0'], self.params['Omega_c0'], self.params['mnu'], w0=self.params['w0'], wa=self.params['wa'])
-        self.output['E_prime'] = self.compute_E_prime_LCDM(self.output['a'], 1e-2*self.params['H0'], self.params['Omega_b0'], self.params['Omega_c0'], self.params['mnu'], w0=self.params['w0'], wa=self.params['wa'],)
+        self.output['E'] = self.compute_E_LCDM(self.output['a'])
+        self.output['E_prime'] = self.compute_E_prime_LCDM(self.output['a'])
         self.output['phi'] = np.zeros(len(self.output['z']))
         self.output['phi_prime'] = np.zeros(len(self.output['z']))
         self.output['phi_primeprime'] = np.zeros(len(self.output['z']))
@@ -1604,32 +1649,35 @@ class StandardModel:
         self.output['rhohat_b'] = None
         self.output['rhohat_c'] = None
         self.output['rhohat_l'] = None
-        self.output['rhohat_nu1'] = None
-        self.output['rhohat_nu2'] = None
-        self.output['rhohat_nu3'] = None
+        self.output['rhohat_nu_ur'] = None
+        self.output['rhohat_nu_nr'] = None
 
         self.output['rho_phi'] = np.zeros(len(self.output['z']))
         self.output['rho_g'] = self.get_rho_g(self.output['a'], 1e-2*self.params['H0'])
         self.output['rho_b'] = self.get_rho_b(self.output['a'], self.params['Omega_b0'])
         self.output['rho_c'] = self.get_rho_c(self.output['a'], self.params['Omega_c0'])
         self.output['rho_l'] = self.get_rho_l(self.output['a'], self.params['Omega_l0'], w0=self.params['w0'], wa=self.params['wa'])
-        self.output['rho_nu1'] = self.get_rho_nu(self.output['a'], 1e-2*self.params['H0'], self.params['mnu'][0])
-        self.output['rho_nu2'] = self.get_rho_nu(self.output['a'], 1e-2*self.params['H0'], self.params['mnu'][1])
-        self.output['rho_nu3'] = self.get_rho_nu(self.output['a'], 1e-2*self.params['H0'], self.params['mnu'][2])
+        self.output['rho_nu_ur'] = self.get_rho_nu_ur(self.output['a'], 1e-2*self.params['H0'])
+        self.output['rho_nu_nr'] = 0.
+        for _mnu in self.params['mnu']:
+            self.output['rho_nu_nr'] += self.get_rho_nu_nr(self.output['a'], 1e-2*self.params['H0'], _mnu)
 
         self.output['Omega_phi'] = np.zeros(len(self.output['z']))
         self.output['Omega_g'] = self.get_Omega_g(self.output['a'], 1e-2*self.params['H0'], self.output['E'])
         self.output['Omega_b'] = self.get_Omega_b(self.output['a'], self.params['Omega_b0'], self.output['E'])
         self.output['Omega_c'] = self.get_Omega_c(self.output['a'], self.params['Omega_c0'], self.output['E'])
         self.output['Omega_l'] = self.get_Omega_l(self.output['a'], self.params['Omega_l0'], self.output['E'], w0=self.params['w0'], wa=self.params['wa'])
-        self.output['Omega_nu1'] = self.get_Omega_nu(self.output['a'], 1e-2*self.params['H0'], self.params['mnu'][0], self.output['E'])
-        self.output['Omega_nu2'] = self.get_Omega_nu(self.output['a'], 1e-2*self.params['H0'], self.params['mnu'][1], self.output['E'])
-        self.output['Omega_nu3'] = self.get_Omega_nu(self.output['a'], 1e-2*self.params['H0'], self.params['mnu'][2], self.output['E'])
+        self.output['Omega_nu_ur'] = self.get_Omega_nu_ur(self.output['a'], 1e-2*self.params['H0'], self.output['E'])
+        self.output['Omega_nu_nr'] = 0.
+        for _mnu in self.params['mnu']:
+            self.output['Omega_nu_nr'] += self.get_Omega_nu_nr(self.output['a'], 1e-2*self.params['H0'], _mnu, self.output['E'])
 
-        self.output['w_l'] = self.compute_w_l(self.output['a'], w0=self.params['w0'], wa=self.params['wa'])
-        self.output['w_nu1'] = self.compute_w_nu(self.output['a'], self.params['mnu'][0])
-        self.output['w_nu2'] = self.compute_w_nu(self.output['a'], self.params['mnu'][1])
-        self.output['w_nu3'] = self.compute_w_nu(self.output['a'], self.params['mnu'][2])
+        self.output['w_l'] = self.compute_w_l(self.output['a'])
+        self.output['w_nu_nr'] = 0.
+        for _mnu in self.params['mnu']:
+            self.output['w_nu_nr'] += self.compute_w_nu_nr(self.output['a'], _mnu)*self.get_rho_nu_nr(self.output['a'], 1e-2*self.params['H0'], _mnu)
+        if len(self.params['mnu']) > 0 and np.sum(self.params['mnu']) > 0.:
+            self.output['w_nu_nr'] /= self.output['rho_nu_nr']
 
 
     def _run_solver_derived_GR(self):
@@ -1644,31 +1692,18 @@ class StandardModel:
         Omega_b_arr = self.output['Omega_b']
         Omega_c_arr = self.output['Omega_c']
         Omega_l_arr = self.output['Omega_l']
-        Omega_nu1_arr = self.output['Omega_nu1']
-        Omega_nu2_arr = self.output['Omega_nu2']
-        Omega_nu3_arr = self.output['Omega_nu3']
+        Omega_nu_ur_arr = self.output['Omega_nu_ur']
+        Omega_nu_nr_arr = self.output['Omega_nu_nr']
         w_l_arr = self.output['w_l']
 
         G_G_4_G_N = np.ones(len(x_arr))
 
-        E_prime_arr = self.compute_E_prime_LCDM(a_arr, self.params['H0']*1e-2, self.params['Omega_b0'], self.params['Omega_c0'], mnu=self.params['mnu'], w0=self.params['w0'], wa=self.params['wa'])
-
-        Omega_l_prime_arr = self.compute_Omega_l_prime(a_arr, Omega_l_arr, E_arr, E_prime_arr)
-
         A_arr = np.zeros(len(x_arr))
 
         Omega_phi_arr = self.output['Omega_phi']
-        Omega_DE_arr = 1. - Omega_g_arr - Omega_b_arr - Omega_c_arr - Omega_nu1_arr - Omega_nu2_arr - Omega_nu3_arr
+        Omega_DE_arr = 1. - Omega_g_arr - Omega_b_arr - Omega_c_arr - Omega_nu_ur_arr - Omega_nu_nr_arr
 
         Omega_phi_via_closure_arr = Omega_DE_arr - Omega_l_arr
-
-        Omega_g_prime_arr = self.compute_Omega_g_prime(Omega_g_arr, E_arr, E_prime_arr)
-        Omega_b_prime_arr = self.compute_Omega_b_prime(Omega_b_arr, E_arr, E_prime_arr)
-        Omega_c_prime_arr = self.compute_Omega_c_prime(Omega_c_arr, E_arr, E_prime_arr)
-        Omega_l_prime_arr = self.compute_Omega_l_prime(a_arr, Omega_l_arr, E_arr, E_prime_arr)
-        Omega_nu1_prime_arr = self.compute_Omega_nu_prime(a_arr, Omega_nu1_arr, E_arr, E_prime_arr, self.params['H0']*1e-2, self.params['mnu'][0])
-        Omega_nu2_prime_arr = self.compute_Omega_nu_prime(a_arr, Omega_nu2_arr, E_arr, E_prime_arr, self.params['H0']*1e-2, self.params['mnu'][1])
-        Omega_nu3_prime_arr = self.compute_Omega_nu_prime(a_arr, Omega_nu3_arr, E_arr, E_prime_arr, self.params['H0']*1e-2, self.params['mnu'][2])
 
         calB_arr = np.zeros(len(x_arr))
         calC_arr = np.zeros(len(x_arr))
@@ -1712,13 +1747,6 @@ class StandardModel:
         self.output['Omega_DE'] = Omega_DE_arr
         self.output['w_DE'] = w_DE_arr
         self.output['Omega_phi_via_closure'] = Omega_phi_via_closure_arr
-        self.output['Omega_g_prime'] = Omega_g_prime_arr
-        self.output['Omega_b_prime'] = Omega_b_prime_arr
-        self.output['Omega_c_prime'] = Omega_c_prime_arr
-        self.output['Omega_l_prime'] = Omega_l_prime_arr
-        self.output['Omega_nu1_prime'] = Omega_nu1_prime_arr
-        self.output['Omega_nu2_prime'] = Omega_nu2_prime_arr
-        self.output['Omega_nu3_prime'] = Omega_nu3_prime_arr
         self.output['calB'] = calB_arr
         self.output['calC'] = calC_arr
         self.output['beta'] = beta_arr
@@ -1748,15 +1776,13 @@ class StandardModel:
                 'a', 'z', 'x', 
                 'Ehat', 'Ehat_prime', 'phihat', 'phihat_prime', 'phihat_primeprime', 
                 'E', 'E_prime', 'phi', 'phi_prime', 'phi_primeprime', 
-                'rhohat_phi', 'rhohat_g', 'rhohat_b', 'rhohat_c', 'rhohat_l', 'rhohat_nu1', 'rhohat_nu2', 'rhohat_nu3', 
-                'rho_phi', 'rho_g', 'rho_b', 'rho_c', 'rho_l', 'rho_nu1', 'rho_nu2', 'rho_nu3', 
-                'Omega_phi', 'Omega_g', 'Omega_b', 'Omega_c', 'Omega_l', 'Omega_nu1', 'Omega_nu2', 'Omega_nu3', 
-                'w_nu1', 'w_nu2', 'w_nu3', 'w_l',
+                'rhohat_phi', 'rhohat_g', 'rhohat_b', 'rhohat_c', 'rhohat_l', 'rhohat_nu_ur', 'rhohat_nu_nr', 
+                'rho_phi', 'rho_g', 'rho_b', 'rho_c', 'rho_l', 'rho_nu_ur', 'rho_nu_nr',
+                'Omega_phi', 'Omega_g', 'Omega_b', 'Omega_c', 'Omega_l', 'Omega_nu_ur', 'Omega_nu_nr',
+                'w_nu_nr', 'w_l',
                 # derived quantities
                 'H', 'Dc', 'G_G_4/G_N',
                 'A', 'Omega_DE', 'w_DE', 'Omega_phi_via_closure', 
-                'Omega_g_prime', 'Omega_b_prime', 'Omega_c_prime', 'Omega_l_prime', 
-                'Omega_nu1_prime', 'Omega_nu2_prime', 'Omega_nu3_prime', 
                 'calB', 'calC', 'beta', 'chi/delta', 'M_star_sq',
                 'alpha_M', 'alpha_B', 'alpha_B_prime', 'alpha_K' ,
                 'tilde_calE', 'tilde_calP', 'w_phi', 'D', 'Q_s', 'c_s_sq_D', 'c_s_sq'
@@ -1766,10 +1792,10 @@ class StandardModel:
                 'a', 'z', 'x', 
                 'Ehat', 'Ehat_prime', 'phihat', 'phihat_prime', 'phihat_primeprime', 
                 'E', 'E_prime', 'phi', 'phi_prime', 'phi_primeprime', 
-                'rhohat_g', 'rhohat_b', 'rhohat_c', 'rhohat_l', 'rhohat_nu1', 'rhohat_nu2', 'rhohat_nu3', 
-                'rho_g', 'rho_b', 'rho_c', 'rho_l', 'rho_nu1', 'rho_nu2', 'rho_nu3', 
-                'Omega_g', 'Omega_b', 'Omega_c', 'Omega_l', 'Omega_nu1', 'Omega_nu2', 'Omega_nu3', 
-                'w_nu1', 'w_nu2', 'w_nu3', 'w_l',
+                'rhohat_phi', 'rhohat_g', 'rhohat_b', 'rhohat_c', 'rhohat_l', 'rhohat_nu_ur', 'rhohat_nu_nr', 
+                'rho_phi', 'rho_g', 'rho_b', 'rho_c', 'rho_l', 'rho_nu_ur', 'rho_nu_nr',
+                'Omega_phi', 'Omega_g', 'Omega_b', 'Omega_c', 'Omega_l', 'Omega_nu_ur', 'Omega_nu_nr',
+                'w_nu_nr', 'w_l',
             ]
 
         for key in keys:
@@ -1781,7 +1807,7 @@ class StandardModel:
 
 
     def run_solver(
-            self, z_max=2000., Npoints=1000, forwards=True, derived=True
+            self, z_max=2000., Npoints=1000, forwards=True, derived=True, HS_correction=True
         ):
         """
         Runs the numerical solver for a user defined Horndeski model.
@@ -1796,6 +1822,9 @@ class StandardModel:
             Defines whether the solver runs forwards in time (high redshift to low) or backwards.
         derived : bool, optional
             Instructs the solver whether derived quantities should be computed.
+        HS_correction : bool, optional
+            Applies a bias correction to the Hu & Sugiyama prediction for z_star which is only valid
+            for models close to Planck LCDM values during the early universe.
         
         Returns
         -------
@@ -1849,6 +1878,13 @@ class StandardModel:
             # compute mu, Sigma and gamma variables
             self.get_mu_Sigma_gamma()
             self.get_Sigma_derivatives()
+            
+            # compute BA0 related quantities
+            self.get_r_drag()
+            self.get_a_eq()
+            self.get_z_star(apply_correction=HS_correction)
+            self.get_r_star()
+            self.get_theta_star()
 
         if self.verbose:
                 print(' - Done!')
