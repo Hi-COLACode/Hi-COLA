@@ -2113,7 +2113,7 @@ class HorndeskiModel(StandardModel):
     def run_solver(
             self, z_max=2000., Npoints=1000, forwards=True, GR=False, variable1=2, variable2=None, 
             phi_ini=1e-6, phi_prime_ini=1e-6, method='RK45', timeout=5, newton_tol=1e-5,
-            derived=True, LCDM_ini=True, values_ini=None, store_hat=False
+            derived=True, LCDM_ini=True, values_ini=None, store_hat=False, HS_correction=True
         ):
         """
         Runs the numerical solver for a user defined Horndeski model.
@@ -2151,6 +2151,9 @@ class HorndeskiModel(StandardModel):
             w_l_ini, Omega_nu_ur, Omega_nu_nr, w_nu_nr_ini].
         store_hat : bool, optional
             If true will store raw ODE outputs before normalisation corrections for E renormalisation via f_H.
+        HS_correction : bool, optional
+            Applies a bias correction to the Hu & Sugiyama prediction for z_star which is only valid
+            for models close to Planck LCDM values during the early universe.
         
         Returns
         -------
@@ -2262,6 +2265,14 @@ class HorndeskiModel(StandardModel):
             # compute mu, Sigma and gamma variables
             self.get_mu_Sigma_gamma()
             self.get_Sigma_derivatives()
+
+            # compute BA0 related quantities
+            self.get_r_drag()
+            self.get_a_eq()
+            self.get_z_star(apply_correction=HS_correction)
+            self.get_r_star()
+            self.get_theta_star()
+
 
         if self.verbose:
                 print(' - Done!')
