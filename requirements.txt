@@ -1,0 +1,6 @@
+# Python frontend runtime dependencies
+numpy
+scipy
+sympy
+matplotlib
+configobj

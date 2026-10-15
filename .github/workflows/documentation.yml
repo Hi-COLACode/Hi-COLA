@@ -1,0 +1,155 @@
+name: Documentation
+
+on:
+  pull_request:
+    paths:
+      - 'Documentation/**'
+      - 'HiCOLA/Frontend/**'
+      - 'HiCOLA/Utilities/**'
+      - 'HiCOLA/__init__.py'
+      - 'README.md'
+      - 'Hi-COLA-*.png'
+      - 'requirements*'
+      - 'setup.py'
+      - '.github/workflows/documentation.yml'
+  push:
+    paths:
+      - 'Documentation/**'
+      - 'HiCOLA/Frontend/**'
+      - 'HiCOLA/Utilities/**'
+      - 'HiCOLA/__init__.py'
+      - 'README.md'
+      - 'Hi-COLA-*.png'
+      - 'requirements*'
+      - 'setup.py'
+      - '.github/workflows/documentation.yml'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+concurrency:
+  group: documentation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' || github.event_name == 'release' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      MPLBACKEND: Agg
+      DOCS_SOURCE_REF: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12.14'
+          cache: pip
+          cache-dependency-path: requirements-docs.lock
+      - name: Build current documentation
+        run: |
+          python -m pip install -r requirements-docs.lock
+          DOCS_SOURCE_REF="$(git rev-parse HEAD)" python -m sphinx -W --keep-going -b html Documentation Documentation/_build/html
+          git rev-parse HEAD > Documentation/_build/html/source-commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentation-html
+          path: Documentation/_build/html
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name != 'pull_request' && (github.event_name == 'release' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: documentation-publish
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      MPLBACKEND: Agg
+      SITE: ${{ runner.temp }}/documentation-site
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12.14'
+      - uses: actions/download-artifact@v4
+        with:
+          name: documentation-html
+          path: current-build
+      - name: Read the previous gh_pages site
+        run: |
+          mkdir -p "$SITE"
+          if git ls-remote --exit-code --heads origin gh_pages; then
+            git fetch origin gh_pages
+            git worktree add --detach "$RUNNER_TEMP/previous-docs" FETCH_HEAD
+            rsync -a --exclude=.git "$RUNNER_TEMP/previous-docs/" "$SITE/"
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then exit "$status"; fi
+          fi
+      - name: Archive the released version once
+        if: github.event_name == 'release'
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || [[ "$RELEASE_TAG" =~ ^(current|index.html|versions.json|CNAME)$ ]]; then
+            echo "Unsupported release directory: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          tag_commit=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+          if [ -d "$SITE/$RELEASE_TAG" ]; then
+            test "$(cat "$SITE/$RELEASE_TAG/source-commit.txt")" = "$tag_commit"
+          elif [ -f "$SITE/current/source-commit.txt" ] && [ "$(cat "$SITE/current/source-commit.txt")" = "$tag_commit" ]; then
+            mv "$SITE/current" "$SITE/$RELEASE_TAG"
+          elif [ "$(cat current-build/source-commit.txt)" = "$tag_commit" ]; then
+            cp -a current-build "$SITE/$RELEASE_TAG"
+          else
+            git worktree add --detach "$RUNNER_TEMP/release-source" "$tag_commit"
+            cd "$RUNNER_TEMP/release-source"
+            python -m pip install -r requirements-docs.lock
+            DOCS_SOURCE_REF="$RELEASE_TAG" python -m sphinx -W --keep-going -b html Documentation "$SITE/$RELEASE_TAG"
+            printf '%s\n' "$tag_commit" > "$SITE/$RELEASE_TAG/source-commit.txt"
+          fi
+      - name: Replace current and update the version list
+        run: |
+          rm -rf "$SITE/current"
+          cp -a current-build "$SITE/current"
+          find "$SITE" -mindepth 2 -maxdepth 2 -name source-commit.txt -exec dirname {} \; | sed "s|^$SITE/||" | sort -Vr | jq -R -s '
+            [{name: "Current (development)", version: "current"}] +
+            (split("\n") | map(select(. != "" and . != "current") | {name: ., version: .}))
+          ' > "$SITE/versions.json"
+          touch "$SITE/.nojekyll"
+          printf '<!doctype html><html lang="en"><meta charset="utf-8"><title>Hi-COLA documentation</title><meta http-equiv="refresh" content="0;url=current/"><a href="current/">Hi-COLA documentation</a></html>\n' > "$SITE/index.html"
+      - name: Commit the site to gh_pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh_pages
+          folder: ${{ runner.temp }}/documentation-site
+          clean: true
+          single-commit: false
+      - name: Read the committed site for deployment
+        run: |
+          git fetch origin gh_pages
+          git worktree add --detach "$RUNNER_TEMP/pages-deploy" FETCH_HEAD
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/pages-deploy
+      - name: Deploy the committed gh_pages site
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,4 @@
+-r requirements.txt
+sphinx==8.2.3
+myst-parser==4.0.1
+pydata-sphinx-theme==0.16.1
