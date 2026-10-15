@@ -1,0 +1,14 @@
+version: 2
+
+updates:
+  # Check Python dependency declarations at the repository root.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Check actions referenced by the GitHub workflows.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
