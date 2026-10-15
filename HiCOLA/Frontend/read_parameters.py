@@ -4,6 +4,7 @@ import numpy as np
 import HiCOLA.Frontend.expression_builder as eb
 from HiCOLA.Utilities.Other.support import generate_scan_array as gsa
 from HiCOLA.Utilities.Other.support import make_scan_array as msa
+from HiCOLA.Utilities.Other.support import littleH_to_massH0
 
 def read_in_parameters(horndeski_path, numerical_path):
     read_out = {}
@@ -12,12 +13,16 @@ def read_in_parameters(horndeski_path, numerical_path):
 
     h = numerical_read.as_float("h")
 
+    H0_mass_units = littleH_to_massH0(h)
+
     Npoints = numerical_read.as_int('Npoints')
     max_redshift = numerical_read.as_float('max_redshift')
 
     suppression_flag = numerical_read.as_bool('suppression_flag')
 
     GR_flag = numerical_read.as_bool('GR_flag')
+
+    forwards_flag = numerical_read.as_bool('forwards_flag') if 'forwards_flag' in numerical_read else False
 
     threshold_value = numerical_read.as_float('threshold')
 
@@ -30,7 +35,7 @@ def read_in_parameters(horndeski_path, numerical_path):
 
         Omega_m0 = Omega_b0h2/h/h + Omega_c0h2/h/h
     else:
-        Omega_m0 = numerical_read.as_float("Omega_r0")
+        Omega_m0 = numerical_read.as_float("Omega_m0")
 
     if numerical_read["Omega_r0"] == "None":
         Omega_r0h2 = numerical_read.as_float("Omega_r0h2")
@@ -79,16 +84,20 @@ def read_in_parameters(horndeski_path, numerical_path):
     Omega_l0 = (1. - f_phi)*Omega_DE0
 
     Hubble0 = horndeski_read.as_float("Hubble0")
+    phi0 = horndeski_read.as_float("phi0") if "phi0" in horndeski_read else 0.0
     phiprime0 = horndeski_read.as_float("phiprime0")
 
     cosmological_parameters = [Omega_r0, Omega_m0, Omega_l0]
-    initial_conditions = [Hubble0, phiprime0]
+    initial_conditions = [Hubble0, phi0, phiprime0]
 
     closure_guess = horndeski_read.as_float('closure_guess_value')
     odeint_declaration = horndeski_read.as_bool('use_constraint_eq_on_odeint_variables')
     if odeint_declaration:
         closure_decl_string = 'odeint_parameters'
         closure_decl_int = horndeski_read.as_int('which_odeint_par')
+        # Files without phi0 index Hubble, scalar derivative, radiation, and matter.
+        if 'phi0' not in horndeski_read and closure_decl_int > 0:
+            closure_decl_int += 1
         initial_conditions[closure_decl_int] = closure_guess
     else:
         closure_decl_string = 'parameters'
@@ -110,10 +119,11 @@ def read_in_parameters(horndeski_path, numerical_path):
     lists = {'mass_ratio_list':mass_ratio_list, 'symbol_list':symbol_list, 'closure_declaration':closure_declaration}
     read_out.update(lists)
 
-    simulation_dict = {'simulation_parameters':simulation_parameters, 'threshold_value':threshold_value,'GR_flag':GR_flag}
+    simulation_dict = {'simulation_parameters':simulation_parameters, 'threshold_value':threshold_value,'GR_flag':GR_flag, 'forwards_flag':forwards_flag}
     read_out.update(simulation_dict)
 
-    parameters_dict = {'cosmological_parameters':cosmological_parameters, 'Horndeski_parameters':parameters,'initial_conditions':initial_conditions}
+    parameters_dict = {'cosmological_parameters':cosmological_parameters, 'Horndeski_parameters':parameters,'initial_conditions':initial_conditions,
+                        'little_h':h, 'H0_in_mass_units':H0_mass_units}
     read_out.update(parameters_dict)
 
     return read_out
@@ -245,6 +255,9 @@ def old_read_in_scan_parameters(horndeski_scanning_path, numerical_scanning_path
     if odeint_declaration:
         closure_decl_string = 'odeint_parameters'
         closure_decl_int = horndeski_read.as_int('which_odeint_par')
+        # Files without phi0 index Hubble, scalar derivative, radiation, and matter.
+        if 'phi0' not in horndeski_read and closure_decl_int > 0:
+            closure_decl_int += 1
 
         initial_condition_arrays[closure_decl_int] = [closure_guess]#*np.ones(size)
     else:
@@ -292,10 +305,16 @@ def read_in_scan_settings(path_to_settings):
     model_name = numerical_read['model_name']
     cosmo_name = numerical_read['cosmo_name']
     
+    #output directory
+    output_directory = numerical_read['output_directory']
+    
+    #processors
+    N_proc = numerical_read.as_int('processor_number')
+    
     #reading scan values from file
     scan_values_from_file = numerical_read.as_bool('read_scan_parameters_from_file')
     
-    read_out_dict.update({'scan_values_from_file':scan_values_from_file})
+    read_out_dict.update({'scan_values_from_file':scan_values_from_file, 'processor_number':N_proc, 'output_directory':output_directory})
     
     #integration settings
     suppression_flag = numerical_read.as_bool('suppression_flag')
@@ -311,6 +330,7 @@ def read_in_scan_settings(path_to_settings):
     yellow_switch = numerical_read.as_bool("yellow_switch")
     blue_switch = numerical_read.as_bool("blue_switch")
     red_switch = numerical_read.as_bool("red_switch")
+    pink_switch = numerical_read.as_bool("pink_switch")
     tolerance = numerical_read.as_float("tolerance")
     Omega_m_crit= numerical_read.as_float("Omega_m_crit")
     
@@ -394,7 +414,10 @@ def read_in_scan_parameters(path_to_scan_parameters):
     #cosmological parameter values
     h = scan_read.as_float("h")
     Omega_m0_number = scan_read.as_int("Omega_m0_number")
+    Omega_m0_spacing = scan_read["Omega_m0_spacing"]
     Omega_r0_number = scan_read.as_int("Omega_r0_number")
+    Omega_r0_spacing = scan_read["Omega_r0_spacing"]
+    f_phi_spacing = scan_read["f_phi_spacing"]
 
     if scan_read["Omega_m0_min"] == "None":
         Omega_b0h2_min = scan_read.as_float("Omega_b0h2_min")
@@ -406,26 +429,26 @@ def read_in_scan_parameters(path_to_scan_parameters):
         Omega_c0h2_min = scan_read.as_float("Omega_c0h2_min")
         Omega_c0h2_max = scan_read.as_float("Omega_c0h2_max")
         # Omega_c0h2_array = msa(Omega_c0h2_min, Omega_c0h2_max, Omega_m0_number)
-        Omega_c0h2_array = msa(Omega_c0h2_min, Omega_c0h2_max, Omega_m0_number)
+        Omega_c0h2_array = msa(Omega_c0h2_min, Omega_c0h2_max, Omega_m0_number, Omega_m0_spacing)
 
         Omega_m0_array = Omega_b0h2_array/h/h + Omega_c0h2_array/h/h
     else:
         Omega_m0_min = scan_read.as_float("Omega_m0_min")
         Omega_m0_max = scan_read.as_float("Omega_m0_max")
-        Omega_m0_array = msa(Omega_m0_min, Omega_m0_max, Omega_m0_number)
+        Omega_m0_array = msa(Omega_m0_min, Omega_m0_max, Omega_m0_number, Omega_m0_spacing)
 
     if scan_read["Omega_r0_min"] == "None":
         Omega_r0h2_min = scan_read.as_float("Omega_r0h2_min")
         Omega_r0h2_max = scan_read.as_float("Omega_r0h2_max")
         # Omega_r0h2_array = msa(Omega_r0h2_min, Omega_r0h2_max, Omega_m0_number)
-        Omega_r0h2_array = msa(Omega_r0h2_min, Omega_r0h2_max, Omega_r0_number)
+        Omega_r0h2_array = msa(Omega_r0h2_min, Omega_r0h2_max, Omega_r0_number, Omega_r0_spacing)
 
         Omega_r0_array = Omega_r0h2_array/h/h
     else:
         # Omega_r0_min = scan_read.as_float("Omega_r0_min")
         # Omega_r0_max = scan_read.as_float("Omega_r0_max")
         # Omega_r0_array = msa(Omega_r0_min, Omega_r0_max, Omega_r0_number)
-        Omega_r0_array = gsa(scan_read, "Omega_r0")
+        Omega_r0_array = gsa(scan_read, "Omega_r0", Omega_r0_spacing)
 
     Omega_DE0_array = 1. - Omega_m0_array - Omega_r0_array
 
@@ -433,18 +456,21 @@ def read_in_scan_parameters(path_to_scan_parameters):
     # f_phi_max = numerical_read.as_float("f_phi_max")
     # f_phi_number = numerical_read.as_int("f_phi_number")
     # f_phi_array = msa(f_phi_min, f_phi_max, f_phi_number)
-    f_phi_array = gsa(scan_read,"f_phi")
+    f_phi_array = gsa(scan_read,"f_phi",f_phi_spacing)
 
     Omega_l0_array = (1. - f_phi_array)*Omega_DE0_array
     
     cosmological_parameter_arrays = [Omega_r0_array, Omega_m0_array, Omega_l0_array]
     
     #initial conditions
-    Hubble0_array = gsa(scan_read,"Hubble0")
-    phiprime0_array = gsa(scan_read, "phiprime0")
+    Hubble0_spacing  = scan_read["Hubble0_spacing"]
+    Hubble0_array = gsa(scan_read,"Hubble0",Hubble0_spacing)
+    phi0_spacing  = scan_read["phi0_spacing"]
+    phi0_array = gsa(scan_read, "phi0",phi0_spacing)
+    phiprime0_spacing  = scan_read["phiprime0_spacing"]
+    phiprime0_array = gsa(scan_read, "phiprime0",phiprime0_spacing)
     
-    initial_condition_arrays = [Hubble0_array, phiprime0_array]
-    
+    initial_condition_arrays = [Hubble0_array, phi0_array, phiprime0_array]
     
     parameters_dict = {'cosmological_parameter_arrays':cosmological_parameter_arrays, 'Horndeski_parameter_arrays':parameter_arrays,'initial_condition_arrays':initial_condition_arrays}
     read_out_dict.update(parameters_dict)
@@ -452,12 +478,48 @@ def read_in_scan_parameters(path_to_scan_parameters):
     return read_out_dict
 
 
-#####
-# float_vars = ['a','b1','Om','Ol','Or']
-# integer_vars = ['integer constant']
-
-# params = params_read.copy()
-# for key in float_vars:
-#     params[key] = params_read.as_float(key)
-# for key in integer_vars:
-#     params[key] = params_read.as_int(key)
+def read_scan_result(filename):
+    U0_arr = []
+    phi0_arr = []
+    phiprime0_arr = []
+    Or0_arr = []
+    Om0_arr = []
+    Ol0_arr= []
+    fsolveier_arr = []
+    k1_arr = []
+    k2_arr = []
+    g31_arr = []
+    g32_arr = []
+    
+    with open(filename, 'r') as file:
+        counter = 0 #to skip first 2 lines in scan files
+        # should replace with a method that just skips lines with a preceding "#" or empty line ("\n") after fixing 
+        # new line that is getting printed unintentionally
+        
+        # Iterate over each line in the file
+        for line in file:
+            if counter > 1: #this if block only triggers when past line 2 in file
+                
+                nowhitespace = line.strip()
+                nosqbrackets = nowhitespace[1:-1]
+                data_string_list = nosqbrackets.split(', ')
+                #print(data_string_list)
+                # Save the number at each position in the appropriate array
+                U0_arr.append(float(data_string_list[0]))
+                phi0_arr.append(float(data_string_list[1]))
+                phiprime0_arr.append(float(data_string_list[2]))
+                Or0_arr.append(float(data_string_list[3]))
+                Om0_arr.append(float(data_string_list[4]))
+                Ol0_arr.append(float(data_string_list[5]))
+                fsolveier_arr.append(float(data_string_list[6]))
+                k1_arr.append(float(data_string_list[7]))
+                k2_arr.append(float(data_string_list[8]))
+                g31_arr.append(float(data_string_list[9]))
+                g32_arr.append(float(data_string_list[10]))
+            
+            counter += 1
+    
+    dictionary = {'U0_arr':U0_arr, 'phi0_arr':phi0_arr, 'phiprime0_arr':phiprime0_arr, 'Omega_m0_arr':Om0_arr,
+                  'Omega_r0_arr':Or0_arr, 'Omega_l0_arr':Ol0_arr, 'fsolveier_arr':fsolveier_arr, 'k1_arr':k1_arr,
+                  'k2_arr':k2_arr, 'g31_arr':g31_arr, 'g32_arr':g32_arr}
+    return dictionary

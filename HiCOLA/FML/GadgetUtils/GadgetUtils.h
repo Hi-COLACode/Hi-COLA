@@ -71,7 +71,7 @@ namespace FML {
 
             /// The GADGET header format
             // Do not change the order of the fields below as this is read as one piece of memory from file
-            typedef struct {
+            typedef struct GadgetHeader {
                 // npart[1] gives the number of DM particles in the file, other particle types are ignored
                 unsigned int npart[6]{0, 0, 0, 0, 0, 0};
                 double mass[6]{0., 0., 0., 0., 0., 0.}; // mass[1] gives the particle mass
@@ -97,7 +97,7 @@ namespace FML {
             } GadgetHeader;
             static_assert(sizeof(GadgetHeader) == 256);
 
-            void print_header_info(GadgetHeader & header);
+            void print_header_info(const GadgetHeader & header);
 
             /// Class for reading Gadget files. Checks and corrects for different endian-ness.
             class GadgetReader {
@@ -114,7 +114,6 @@ namespace FML {
                 std::vector<std::string> fields_in_file = {"POS", "VEL", "ID"};
 
                 void throw_error(std::string errormessage) const;
-                void set_endian_swap();
 
               public:
                 GadgetReader() = default;
@@ -232,8 +231,8 @@ namespace FML {
             }
 
             template <typename T>
-            void swap_endian_vector(T * vec, int n) {
-                for (int i = 0; i < n; i++) {
+            void swap_endian_vector(T * vec, size_t n) {
+                for (size_t i = 0; i < n; i++) {
                     vec[i] = swap_endian(vec[i]);
                 }
             }
@@ -410,6 +409,8 @@ namespace FML {
                                       << " BytesPerParticle: " << sizeof(float) * NDIM << "\n";
                         buffer.resize(bytes);
                         read_section(fp, buffer);
+                        if (endian_swap)
+                          swap_endian_vector((float *) buffer.data(), buffer.size() / sizeof(float));
 
                         size_t index = index_start;
                         for (unsigned int i = 0; i < NumPartFileTot; i++) {
@@ -441,8 +442,6 @@ namespace FML {
                                 auto * pos = FML::PARTICLE::GetPos(part[index++]);
                                 for (int idim = 0; idim < NDIM; idim++) {
                                     pos[idim] = float_buffer[NDIM * i + idim] * pos_norm;
-                                    if (endian_swap)
-                                        pos[idim] = swap_endian(pos[idim]);
                                     if (pos[idim] >= 1.0)
                                         pos[idim] -= 1.0;
                                     if (pos[idim] < 0.0)
@@ -472,6 +471,8 @@ namespace FML {
                                       << " BytesPerParticle: " << sizeof(float) * NDIM << "\n";
                         buffer.resize(bytes);
                         read_section(fp, buffer);
+                        if (endian_swap)
+                          swap_endian_vector((float *) buffer.data(), buffer.size() / sizeof(float));
 
                         // Check if velocities exists in Particle
                         if constexpr (FML::PARTICLE::has_get_vel<T>()) {
@@ -490,8 +491,6 @@ namespace FML {
                                 auto * vel = FML::PARTICLE::GetVel(part[index++]);
                                 for (int idim = 0; idim < NDIM; idim++) {
                                     vel[idim] = float_buffer[NDIM * i + idim] * vel_norm;
-                                    if (endian_swap)
-                                        vel[idim] = swap_endian(vel[idim]);
                                 }
                             }
                         }
@@ -503,6 +502,8 @@ namespace FML {
                                       << " BytesPerParticle: " << sizeof(gadget_particle_id_type) << "\n";
                         buffer.resize(bytes);
                         read_section(fp, buffer);
+                        if (endian_swap)
+                          swap_endian_vector((gadget_particle_id_type *) buffer.data(), buffer.size() / sizeof(gadget_particle_id_type));
 
                         // Check if particle has ID
                         if constexpr (FML::PARTICLE::has_set_id<T>()) {
@@ -518,17 +519,13 @@ namespace FML {
                                 if (i >= header.npart[0] + header.npart[1])
                                     continue;
 #endif
-                                if (endian_swap) {
-                                    FML::PARTICLE::SetID(part[index++], swap_endian(id_buffer[i]));
-                                } else {
-                                    FML::PARTICLE::SetID(part[index++], id_buffer[i]);
-                                }
+                                FML::PARTICLE::SetID(part[index++], id_buffer[i]);
                             }
                         }
                     }
                 }
             }
-
+            
             // For multiple species
             template <class T>
             void GadgetWriter::write_gadget_single(std::string filename,
@@ -558,23 +555,32 @@ namespace FML {
 
                 // Count how many of each type we have
                 std::vector<size_t> npart_family(6, 0);
+                std::vector<size_t> npart_family_tot(6, 0);
 #ifdef GADGET_ONLY_READ_DM
                 npart_family[1] = NumPart;
+                npart_family_tot[1] = NumPartTot;
                 OmegaFamilyOverOmegaM = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 #else
                 if constexpr (FML::PARTICLE::has_get_family<T>()) {
+                    // Multiple species
                     for (size_t i = 0; i < NumPart; i++) {
                         auto family = FML::PARTICLE::GetFamily(part[i]);
                         if (family >= 0 and family < 6)
                             npart_family[family]++;
                     }
                 } else {
+                    // Only CDM
                     npart_family[1] = NumPart;
+                    npart_family_tot[1] = NumPartTot;
                 }
 #endif
 
-                std::vector<size_t> npart_family_tot = npart_family;
-                FML::SumArrayOverTasks(npart_family_tot.data(), npart_family_tot.size());
+                // If OmegaCDM/OmegaM = 1 then we only have CDM and do not need to sum up over tasks
+                // to compute the total number of particles and avoids MPI calls
+                if(OmegaFamilyOverOmegaM[1] != 1.0){
+                  npart_family_tot = npart_family;
+                  FML::SumArrayOverTasks(npart_family_tot.data(), npart_family_tot.size());
+                }
 
                 // Take as input std::vector<double> OmegaFamilyOverOmegaM(6, 1.0);
                 std::vector<double> mass_in_1e10_msunh(6, 0.0);
