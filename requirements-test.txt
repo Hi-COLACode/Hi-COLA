@@ -1,0 +1,6 @@
+# Runtime imports needed by the frontend; unittest is included with Python.
+numpy>=1.26,<2.0
+scipy>=1.11,<2.0
+sympy>=1.12,<2.0
+matplotlib>=3.8,<4.0
+configobj>=5.0,<6.0
