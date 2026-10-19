@@ -6,6 +6,30 @@ from HiCOLA.Utilities.Other.support import generate_scan_array as gsa
 from HiCOLA.Utilities.Other.support import make_scan_array as msa
 
 def read_in_parameters(horndeski_path, numerical_path):
+    """Read the theory and numerical INI files into solver inputs.
+
+    Parameters
+    ----------
+    horndeski_path : str or path-like
+        Theory file containing functions, ordered symbols and parameter values,
+        mass ratios, initial values, and closure settings.
+    numerical_path : str or path-like
+        Integration settings and present-day cosmological densities.
+
+    Returns
+    -------
+    dict
+        Symbolic functions and ordered parameter lists, cosmological and initial
+        values, integration settings, closure declaration, and output names.
+        Add the lambdified model functions before passing this to the solver.
+
+    Notes
+    -----
+    Use physical matter densities with ``Omega_m0 = None``; the direct-matter
+    branch reads the radiation key. The initial-value closure selector supports
+    indices zero and one in this reader; Hubble closure also requires independent
+    validation of the closure solver. Scalar-derivative closure uses index one.
+    """
     read_out = {}
     horndeski_read = ConfigObj(horndeski_path)
     numerical_read = ConfigObj(numerical_path)

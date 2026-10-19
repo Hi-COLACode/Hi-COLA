@@ -201,6 +201,29 @@ def chi_over_delta(a_arr, E_arr, calB_arr, calC_arr, Omega_m0): #the E_arr is ac
 
 
 def run_solver(read_out_dict):
+    """Solve closure and integrate the background from today to earlier times.
+
+    Parameters
+    ----------
+    read_out_dict : dict
+        Inputs returned by the parameter reader, augmented with functions from
+        ``create_Horndeski`` and the ``odeint_parameter_symbols`` list. Hubble
+        quantities follow the model's chosen normalisation.
+
+    Returns
+    -------
+    dict
+        Arrays of scale factor, Hubble quantities, scalar derivatives, density
+        fractions and derivatives, and force quantities, plus ``closure_value``.
+        Arrays run from scale factor one toward the earliest integration epoch.
+        The exporter reverses them and normalises Hubble values for the backend.
+
+    Notes
+    -----
+    Integration uses ``solve_ivp`` with RK45 and log scale factor as the time
+    variable. Model-parameter closure updates the input parameter list in place.
+    Check numerical convergence and finite outputs before using the result.
+    """
 
 
     [Omega_r0, Omega_m0, Omega_l0] = read_out_dict['cosmological_parameters']

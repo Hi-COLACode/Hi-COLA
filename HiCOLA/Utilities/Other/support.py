@@ -37,6 +37,21 @@ def write_all_data(a_arr_inv, E_arr, E_prime_arr, phi_prime_arr, phi_primeprime_
     datafile_id.close()    #close the file
 
 def write_data_flex(data, output_filename_as_string):
+    """Export equal-length arrays as columns in a headerless ASCII table.
+
+    Parameters
+    ----------
+    data : sequence of array-like
+        One array per column, in decreasing scale-factor order. Every column is
+        reversed before export, giving increasing scale factor for solver data.
+    output_filename_as_string : str or path-like
+        Destination file. Its parent directory must exist. An existing file is
+        overwritten; collision avoidance is handled by the caller.
+
+    Notes
+    -----
+    Values use ``%.4e`` formatting, retaining five significant digits.
+    """
     datafile_id = open(output_filename_as_string, 'wb')    #here you open the ascii file
     format_list = list(np.repeat('%.4e',len(data)))
     newdata = []

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 580" role="img" aria-labelledby="title desc">
+<title id="title">Hi-COLA inputs, frontend, backend, and outputs</title>
+<desc id="desc">Theory and cosmology INI files feed the Python frontend. Expansion and force tables feed the C++ backend alongside Lua parameters and initial conditions. The backend writes diagnostic tables, spectra, and optional particle snapshots.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/></marker></defs>
+<style>text{font:15px sans-serif;fill:#172033}.label{font-weight:bold}.box{fill:#fff;stroke:#64748b;stroke-width:1.5;rx:8}.flow{fill:none;stroke:#475569;stroke-width:2;marker-end:url(#arrow)}</style>
+<rect x="10" y="10" width="605" height="295" rx="12" fill="#fff1f2" stroke="#be123c"/>
+<text x="25" y="35" class="label">Python frontend</text>
+<rect x="10" y="320" width="900" height="250" rx="12" fill="#eff6ff" stroke="#1d4ed8"/>
+<text x="25" y="345" class="label">C++ backend</text>
+<rect class="box" x="30" y="50" width="250" height="50"/>
+<text x="45" y="72">Theory INI: K, G3, G4,</text><text x="45" y="91">parameters and initial values</text>
+<rect class="box" x="340" y="50" width="250" height="50"/>
+<text x="355" y="72">Numerical/cosmology INI:</text><text x="355" y="91">densities and integration settings</text>
+<rect class="box" x="340" y="135" width="250" height="55"/>
+<text x="355" y="158" class="label">generate_simulation_input</text><text x="355" y="180">Symbolic equations and integration</text>
+<path class="flow" d="M155 100 V160 H340"/><path class="flow" d="M465 100 V135"/>
+<rect class="box" x="30" y="235" width="250" height="50"/>
+<text x="45" y="256">Expansion table</text><text x="45" y="276">a, H/H0, d ln H/d ln a</text>
+<rect class="box" x="340" y="235" width="250" height="50"/>
+<text x="355" y="256">Pre-force table</text><text x="355" y="276">a, chi/delta, coupling</text>
+<path class="flow" d="M405 190 V215 H155 V235"/><path class="flow" d="M465 190 V235"/>
+<rect class="box" x="340" y="360" width="250" height="55"/>
+<text x="355" y="383" class="label">nbody</text><text x="355" y="404">Growth, COLA evolution, forces</text>
+<path class="flow" d="M155 285 V387 H340"/><path class="flow" d="M465 285 V360"/>
+<rect class="box" x="650" y="355" width="235" height="45"/><text x="665" y="383">Lua simulation parameters</text>
+<rect class="box" x="650" y="425" width="235" height="50"/><text x="665" y="446">Initial spectrum or</text><text x="665" y="465">GADGET particle snapshot</text>
+<path class="flow" d="M650 377 H590"/><path class="flow" d="M650 450 H620 V401 H590"/>
+<rect class="box" x="30" y="500" width="250" height="50"/><text x="45" y="522">Cosmology and gravity</text><text x="45" y="542">diagnostic tables</text>
+<rect class="box" x="340" y="500" width="250" height="50"/><text x="355" y="522">Matter spectra and</text><text x="355" y="542">optional on-the-fly statistics</text>
+<rect class="box" x="650" y="500" width="235" height="50"/><text x="665" y="522">Optional particle</text><text x="665" y="542">positions and velocities</text>
+<path class="flow" d="M410 415 V480 H155 V500"/><path class="flow" d="M465 415 V500"/><path class="flow" d="M520 415 V488 H767 V500"/>
+</svg>

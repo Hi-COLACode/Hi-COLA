@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+
+# Generated Sphinx output and API stubs
+Documentation/_build/
+Documentation/api/index.rst
+Documentation/api/generated/
