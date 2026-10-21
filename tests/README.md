@@ -22,11 +22,12 @@ not measure C++ execution. No minimum percentage is enforced yet.
 
 CI uploads `coverage.xml` to Codecov after generating the local reports. Before
 using this integration, enable `Hi-COLACode/Hi-COLA` in Codecov and add its upload
-token as the repository's GitHub Actions secret `CODECOV_TOKEN`. Fork pull
-requests do not receive repository secrets; configure Codecov's public-repository
-tokenless-upload settings if those uploads should be accepted.
+token as the repository's GitHub Actions secret `CODECOV_TOKEN`. If the token is
+absent, including on fork pull requests, the Codecov upload is skipped. Unit tests
+and local coverage reporting still run.
 
-Upload failures fail the job; the HTML/XML artifacts remain available. Codecov
+With a token configured, upload failures fail the job; the HTML/XML artifacts
+remain available. Codecov
 analyses coverage produced by GitHub Actions; it does not execute the unit tests.
 The README badge is deferred until collaborator approval and account setup.
 The initial local public-branch coverage baseline was 41% on 21 October 2026.
