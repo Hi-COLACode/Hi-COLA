@@ -2,6 +2,10 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
+coverage.json
+coverage-badge.json
 htmlcov/
 *egg-info/
 *build/

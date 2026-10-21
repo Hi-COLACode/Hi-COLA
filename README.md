@@ -1,5 +1,7 @@
 # Hi-COLA
 
+[![Python coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FHi-COLACode%2FHi-COLA%2Fcoverage-badges%2Fcoverage.json)](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml)
+
 <p align="left">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="logos/Hi-COLA-dark.png">

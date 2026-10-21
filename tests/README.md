@@ -7,6 +7,34 @@ python -m pip install -e '.[tests]'
 MPLBACKEND=Agg python -m unittest discover -s tests -v
 ```
 
+To measure Python statement and branch coverage:
+
+```sh
+MPLBACKEND=Agg python -m coverage run -m unittest discover -s tests -v
+python -m coverage report
+python -m coverage html
+```
+
+Open `htmlcov/index.html` for uncovered lines and branches. CI publishes a summary
+and uploads HTML/XML reports as `python-coverage`, including when tests fail.
+Coverage includes untested Python modules under `HiCOLA`, excludes FML, and does
+not measure C++ execution. No minimum percentage is enforced yet.
+
+After a successful default-branch push, CI publishes the generated badge value
+to `coverage.json` on the dedicated `coverage-badges` branch. This branch contains
+only badge data; it is created automatically on the first publication. Shields.io
+reads that file for the README badge, with a short caching delay. Until the first
+publication, the badge will be unavailable. Pull requests upload reports without
+publishing. The badge shows the latest successful default-branch run; older runs
+cannot overwrite a newer default-branch revision's result.
+
+Only the separate publishing job has `contents: write`, using the built-in
+`GITHUB_TOKEN`; no additional account or secret is needed. Repository rules must
+allow that token to update `coverage-badges`. The README endpoint targets the
+canonical `Hi-COLACode/Hi-COLA` repository; forks can change that owner/name in the
+badge URL to display their own published value. The initial local public-branch
+baseline was 41% on 21 October 2026.
+
 Discovery is restricted to `tests/`; neither `FML/` nor `HiCOLA/FML/` is
 collected or modified. The base branch is `Hi-COLA_public`. Its C++ code is
 entirely under FML, so this suite tests Python and the actual SciPy integration
