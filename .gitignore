@@ -4,8 +4,6 @@ __pycache__/
 .coverage
 .coverage.*
 coverage.xml
-coverage.json
-coverage-badge.json
 htmlcov/
 *egg-info/
 *build/

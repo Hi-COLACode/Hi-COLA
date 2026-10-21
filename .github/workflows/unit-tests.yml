@@ -33,18 +33,7 @@ jobs:
           python -m coverage report
           python -m coverage xml
           python -m coverage html
-          python -m coverage json
           python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          totals = json.loads(Path('coverage.json').read_text())['totals']
-          percent = totals['percent_covered']
-          badge = dict(schemaVersion=1, label='Python coverage',
-                       message=totals['percent_covered_display'] + '%',
-                       color='brightgreen' if percent >= 80 else 'orange' if percent >= 50 else 'red')
-          Path('coverage-badge.json').write_text(json.dumps(badge) + '\n')
-          PY
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -52,57 +41,14 @@ jobs:
           name: python-coverage
           path: |
             coverage.xml
-            coverage-badge.json
             htmlcov/
           retention-days: 14
           if-no-files-found: error
-
-  publish-coverage:
-    needs: unit-tests
-    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    concurrency:
-      group: coverage-badge
-      cancel-in-progress: false
-    steps:
-      - uses: actions/download-artifact@v8
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() && hashFiles('coverage.xml') != '' }}
+        uses: codecov/codecov-action@v7
         with:
-          name: python-coverage
-          path: badge
-      - name: Publish badge value
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const fs = require('node:fs');
-            const { owner, repo } = context.repo;
-            const branch = 'coverage-badges';
-            const head = await github.rest.git.getRef({
-              owner, repo, ref: `heads/${context.payload.repository.default_branch}`
-            });
-            if (head.data.object.sha !== context.sha) {
-              core.info('Skipping a superseded default-branch run');
-              return;
-            }
-            const content = fs.readFileSync('badge/coverage-badge.json', 'utf8');
-            let parent;
-            try {
-              const result = await github.rest.git.getRef({ owner, repo, ref: `heads/${branch}` });
-              parent = result.data.object.sha;
-            } catch (error) {
-              if (error.status !== 404) throw error;
-            }
-            const tree = await github.rest.git.createTree({
-              owner, repo, tree: [{ path: 'coverage.json', mode: '100644', type: 'blob', content }]
-            });
-            const commit = await github.rest.git.createCommit({
-              owner, repo, message: `Publish coverage for ${context.sha.slice(0, 12)}`,
-              tree: tree.data.sha, parents: parent ? [parent] : []
-            });
-            if (parent) {
-              await github.rest.git.updateRef({ owner, repo, ref: `heads/${branch}`, sha: commit.data.sha, force: false });
-            } else {
-              await github.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: commit.data.sha });
-            }
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          disable_search: true
+          fail_ci_if_error: true

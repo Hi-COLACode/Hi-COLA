@@ -20,20 +20,16 @@ and uploads HTML/XML reports as `python-coverage`, including when tests fail.
 Coverage includes untested Python modules under `HiCOLA`, excludes FML, and does
 not measure C++ execution. No minimum percentage is enforced yet.
 
-After a successful default-branch push, CI publishes the generated badge value
-to `coverage.json` on the dedicated `coverage-badges` branch. This branch contains
-only badge data; it is created automatically on the first publication. Shields.io
-reads that file for the README badge, with a short caching delay. Until the first
-publication, the badge will be unavailable. Pull requests upload reports without
-publishing. The badge shows the latest successful default-branch run; older runs
-cannot overwrite a newer default-branch revision's result.
+CI uploads `coverage.xml` to Codecov after generating the local reports. Before
+using this integration, enable `Hi-COLACode/Hi-COLA` in Codecov and add its upload
+token as the repository's GitHub Actions secret `CODECOV_TOKEN`. Fork pull
+requests do not receive repository secrets; configure Codecov's public-repository
+tokenless-upload settings if those uploads should be accepted.
 
-Only the separate publishing job has `contents: write`, using the built-in
-`GITHUB_TOKEN`; no additional account or secret is needed. Repository rules must
-allow that token to update `coverage-badges`. The README endpoint targets the
-canonical `Hi-COLACode/Hi-COLA` repository; forks can change that owner/name in the
-badge URL to display their own published value. The initial local public-branch
-baseline was 41% on 21 October 2026.
+Upload failures fail the job; the HTML/XML artifacts remain available. Codecov
+analyses coverage produced by GitHub Actions; it does not execute the unit tests.
+The README badge is deferred until collaborator approval and account setup.
+The initial local public-branch coverage baseline was 41% on 21 October 2026.
 
 Discovery is restricted to `tests/`; neither `FML/` nor `HiCOLA/FML/` is
 collected or modified. The base branch is `Hi-COLA_public`. Its C++ code is
