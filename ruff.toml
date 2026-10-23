@@ -1,0 +1,12 @@
+# Keep dependency code outside Hi-COLA's lint scope.
+extend-exclude = ["HiCOLA/FML", "work"]
+force-exclude = true
+
+[lint]
+# Check syntax and common correctness errors without enforcing formatting.
+select = ["E9", "F63", "F7", "F82"]
+
+[lint.per-file-ignores]
+# These modules create SymPy symbols dynamically with exec(declare_symbols()).
+"HiCOLA/Frontend/expression_builder.py" = ["F821"]
+"HiCOLA/Frontend/generate_simulation_input.py" = ["F821"]

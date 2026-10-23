@@ -4,3 +4,4 @@ scipy>=1.11,<2.0
 sympy>=1.12,<2.0
 matplotlib>=3.8,<4.0
 configobj>=5.0,<6.0
+coverage>=7.6,<8

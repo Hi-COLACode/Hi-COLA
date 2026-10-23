@@ -1,5 +1,11 @@
 # Hi-COLA
 
+| Category | Status |
+| --- | --- |
+| Tests | [![Unit tests](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml/badge.svg?branch=Hi-COLA_public&event=push)](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml) |
+| Coverage | [![Coverage](https://codecov.io/gh/Hi-COLACode/Hi-COLA/branch/Hi-COLA_public/graph/badge.svg)](https://codecov.io/gh/Hi-COLACode/Hi-COLA) |
+| Code quality | [![Ruff](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/ruff.yml/badge.svg?branch=Hi-COLA_public&event=push)](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/ruff.yml) |
+
 <p align="left">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="Hi-COLA-dark.png">
