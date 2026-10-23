@@ -1,5 +1,7 @@
 # Hi-COLA
 
+[![Unit tests](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml/badge.svg?branch=Hi-COLA_public&event=push)](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml?query=branch%3AHi-COLA_public+event%3Apush)
+
 <p align="left">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="Hi-COLA-dark.png">
