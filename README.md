@@ -21,3 +21,8 @@ Hi-COLA is set up to natively operate with Vainshtein screening. However, with a
 How does the accuracy of Hi-COLA fare relative to other approximate tools for LSS? You can find a detailed comparison exercise [in this paper](https://academic.oup.com/mnras/article/536/1/664/7903359?login=true) ([pre-print version here](https://arxiv.org/abs/2406.13667)). 
 
 Hi-COLA remains under active development. You can contact the Hi-COLA team at team.hicola@gmail.com, or at our individual emails (see papers linked above).
+
+For runnable small simulations and the Docker runtime, see
+[examples/small_simulations](examples/small_simulations/README.md).
+For baseline/MPI comparisons, see the
+[regression workflow](.github/workflows/regression-tests.yml).

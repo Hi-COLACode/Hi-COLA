@@ -1,0 +1,60 @@
+name: Regression tests
+
+on:
+  push:
+    branches: [Hi-COLA_public, regression_tests]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch pinned numerical baseline
+        run: python tests/regression_tests/baseline.py --repository .
+      - name: Build runtime environment
+        run: docker build -t hicola-runtime .
+      - name: Check regression comparison logic
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/repository:ro" -w /repository \
+            hicola-runtime python -m unittest discover -s tests/regression_tests -p 'test_*.py' -v
+      - name: Compare one-rank and two-rank workflows with pre-migration baseline
+        run: |
+          mkdir -p "$RUNNER_TEMP/hicola-regression"
+          docker run --rm \
+            -e OMPI_ALLOW_RUN_AS_ROOT=1 -e OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory \
+            -e GIT_CONFIG_VALUE_0=/repository/.git \
+            -v "$GITHUB_WORKSPACE:/repository:ro" \
+            -v "$RUNNER_TEMP/hicola-regression:/artifacts" \
+            hicola-runtime python /repository/tests/regression_tests/run.py \
+            --repository /repository --candidate-ref "$GITHUB_SHA" \
+            --prefix /usr --make-arg LUA_INCLUDE=/usr/include/lua5.4 \
+            --make-arg 'LUA_LINK=-llua5.4 -ldl' \
+            --work /artifacts/run
+      - name: Upload regression report, logs and outputs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regression-results
+          path: |
+            ${{ runner.temp }}/hicola-regression/run/report.json
+            ${{ runner.temp }}/hicola-regression/run/*.log
+            ${{ runner.temp }}/hicola-regression/run/baseline/*.log
+            ${{ runner.temp }}/hicola-regression/run/baseline/*.json
+            ${{ runner.temp }}/hicola-regression/run/baseline/frontend/
+            ${{ runner.temp }}/hicola-regression/run/baseline/*-np*/
+            ${{ runner.temp }}/hicola-regression/run/candidate/*.log
+            ${{ runner.temp }}/hicola-regression/run/candidate/*.json
+            ${{ runner.temp }}/hicola-regression/run/candidate/frontend/
+            ${{ runner.temp }}/hicola-regression/run/candidate/*-np*/
+          retention-days: 14
+          if-no-files-found: error

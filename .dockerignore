@@ -1,0 +1,4 @@
+# Source and outputs are mounted when running the container.
+**
+!Dockerfile
+!requirements-test.txt
