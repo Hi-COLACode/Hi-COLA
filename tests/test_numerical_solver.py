@@ -77,30 +77,29 @@ class SolverTests(unittest.TestCase):
         for index in range(1,5):
             with self.subTest(index=index):
                 result = ns.fried_RHS_wrapper(9., ['odeint_parameters',index],
-                    lambda *args: args, 1.,2.,3.,4.,5.,[6.])
-                expected = [1.,2.,3.,4.,5.,6.]
+                    lambda *args: args, 1.,2.,3.,4.,5.,6.,[7.])
+                expected = [1.,2.,3.,4.,5.,6.,7.]
                 expected[index] = 9.
                 self.assertEqual(result, tuple(expected))
         self.assertEqual(ns.fried_RHS_wrapper(9., ['parameters',0],lambda *a:a,
-                         1.,2.,3.,4.,5.,[6.]), (1.,2.,3.,4.,5.,9.))
+                         1.,2.,3.,4.,5.,6.,[7.]), (1.,2.,3.,4.,5.,6.,9.))
 
     def test_invalid_closure_declaration(self):
         for declaration in (['unknown',0], ['odeint_parameters',99]):
             with self.assertRaisesRegex(Exception, 'Invalid'):
-                ns.fried_RHS_wrapper(1.,declaration,lambda *a:0.,1.,2.,3.,4.,5.,[])
+                ns.fried_RHS_wrapper(1.,declaration,lambda *a:0.,1.,2.,3.,4.,5.,6.,[])
 
-    @unittest.expectedFailure
     def test_hubble_closure_argument_substitution(self):
-        # The five background arguments and model parameters define the callback API.
+        # The six background arguments and model parameters define the callback API.
         self.assertEqual(ns.fried_RHS_wrapper(9.,['odeint_parameters',0],lambda *a:a,
-                         1.,2.,3.,4.,5.,[6.]), (9.,2.,3.,4.,5.,6.))
+                         1.,2.,3.,4.,5.,6.,[7.]), (9.,2.,3.,4.,5.,6.,7.))
 
     def test_root_solver_against_exact_linear_root(self):
         for index in range(1,5):
             def residual(*args):
                 return args[index] - .75
             self.assertAlmostEqual(ns.comp_param_close(residual,['odeint_parameters',index],
-                                   1.,.1,.01,.3,.69,[]), .75)
+                                   1.,.1,.01,.3,.69,.28,[])[0], .75)
 
     def test_primes_normal_safe_and_gr_paths(self):
         for A in (1., 1e-5, -1e-5):
@@ -111,21 +110,23 @@ class SolverTests(unittest.TestCase):
             def safe(*args):
                 calls.append(('safe',args[-1]))
                 return -1.5
-            result = ns.comp_primes(0., [0.,1.,0.,1.,0.], 1.,0.,1.,0.,
+            result = ns.comp_primes(0., [0.,0.,1.,0.,1.,0.], 1.,0.,1.,0.,
                 normal,safe,lambda *a:0.,lambda *a:0.,lambda *a:A,['parameters',0],[])
-            np.testing.assert_allclose(result,[0.,-1.5,0.,0.,0.])
+            np.testing.assert_allclose(result,[0.,0.,-1.5,0.,0.,0.])
             self.assertEqual(calls, ['normal'] if abs(A)>=1e-3 else [('safe',np.sign(A))])
 
     def test_run_solver_matter_universe(self):
         # Exercise SciPy integration through the real wrapper; EdS has E=a^-3/2.
-        data = dict(cosmological_parameters=[0.,1.,0.], initial_conditions=[1.,0.],
+        data = dict(cosmological_parameters=[0.,1.,0.], initial_conditions=[1.,0.,0.],
             simulation_parameters=[30,3.,False,0.,True], Horndeski_parameters=[],
             symbol_list=[], odeint_parameter_symbols=[], closure_declaration=['odeint_parameters',1],
-            fried_RHS_lambda=lambda E,p,r,m,l:p,
+            forwards_flag=False, EpE_debug={}, omega_phi_debug={},
+            fried_RHS_lambda=lambda E,p,pp,r,m,l:p,
             E_prime_E_lambda=lambda *a:-1.5, E_prime_E_safelambda=lambda *a:-1.5,
             phi_primeprime_lambda=lambda *a:0., phi_primeprime_safelambda=lambda *a:0.,
             omega_phi_lambda=lambda *a:0., A_lambda=lambda *a:1.,
-            calB_lambda=lambda *a:0., calC_lambda=lambda *a:0., coupling_factor=lambda *a:0.)
+            calB_lambda=lambda *a:0., calC_lambda=lambda *a:0., coupling_factor=lambda *a:0.,
+            GG4_over_GN=lambda *a:0., Horndeski_K=lambda *a:0.)
         import warnings
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=UserWarning, module=r'^scipy(\.|$)')

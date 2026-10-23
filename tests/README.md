@@ -3,7 +3,7 @@
 From the repository root, with Python 3 and the dependencies installed:
 
 ```sh
-python -m pip install -r requirements-test.txt
+python -m pip install -e '.[tests]'
 MPLBACKEND=Agg python -m unittest discover -s tests -v
 ```
 

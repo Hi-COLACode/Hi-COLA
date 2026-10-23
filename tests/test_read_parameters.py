@@ -14,13 +14,28 @@ def scan_settings():
         read_scan_parameters_from_file='False', suppression_flag='False',
         max_redshift='3', Npoints='30', GR_flag='True', threshold='0',
         early_DE_threshold='0.1', yellow_switch='True', blue_switch='True',
-        red_switch='True', tolerance='0.01', Omega_m_crit='0.3',
+        red_switch='True', pink_switch='True', tolerance='0.01', Omega_m_crit='0.3',
         set_all_to_one='True', K='X', G3='0', G4='0.5',
         closure_guess_value='0', use_constraint_eq_on_odeint_variables='True',
         which_odeint_par='1'))
 
 
 class ParameterTests(unittest.TestCase):
+    def test_forwards_flag_boolean(self):
+        model = ROOT/'Parameter_files/Frontend_parameter_files/examples/ESS/ESS-A.ini'
+        numerical = ROOT/'Parameter_files/Frontend_parameter_files/numerical_parameters.ini'
+        with tempfile.TemporaryDirectory() as directory:
+            for value, expected in [('True', True), ('False', False), (None, False)]:
+                config = ConfigObj(str(numerical))
+                config.pop('forwards_flag', None)
+                if value is not None:
+                    config['forwards_flag'] = value
+                config.filename = str(Path(directory)/'numerical.ini')
+                config.write()
+                with self.subTest(value=value):
+                    result = rp.read_in_parameters(str(model), config.filename)
+                    self.assertIs(result['forwards_flag'], expected)
+
     def test_scan_settings_types(self):
         with tempfile.TemporaryDirectory() as directory:
             config = scan_settings()

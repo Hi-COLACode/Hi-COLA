@@ -305,11 +305,11 @@ def read_in_scan_settings(path_to_settings):
     model_name = numerical_read['model_name']
     cosmo_name = numerical_read['cosmo_name']
     
-    #output directory
-    output_directory = numerical_read['output_directory']
+    #output directory (optional; only required when the scanner writes output)
+    output_directory = numerical_read.get('output_directory', None)
     
-    #processors
-    N_proc = numerical_read.as_int('processor_number')
+    #processors (optional; default to a single process when not specified)
+    N_proc = numerical_read.as_int('processor_number') if 'processor_number' in numerical_read else 1
     
     #reading scan values from file
     scan_values_from_file = numerical_read.as_bool('read_scan_parameters_from_file')
