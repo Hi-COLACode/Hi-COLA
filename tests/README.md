@@ -7,6 +7,31 @@ python -m pip install -r requirements-test.txt
 MPLBACKEND=Agg python -m unittest discover -s tests -v
 ```
 
+To measure Python statement and branch coverage:
+
+```sh
+MPLBACKEND=Agg python -m coverage run -m unittest discover -s tests -v
+python -m coverage report
+python -m coverage html
+```
+
+Open `htmlcov/index.html` for uncovered lines and branches. CI publishes a summary
+and uploads HTML/XML reports as `python-coverage`, including when tests fail.
+Coverage includes untested Python modules under `HiCOLA`, excludes FML, and does
+not measure C++ execution. No minimum percentage is enforced yet.
+
+CI uploads `coverage.xml` to Codecov after generating the local reports. Before
+using this integration, enable `Hi-COLACode/Hi-COLA` in Codecov and add its upload
+token as the repository's GitHub Actions secret `CODECOV_TOKEN`. If the token is
+absent, including on fork pull requests, the Codecov upload is skipped. Unit tests
+and local coverage reporting still run.
+
+With a token configured, upload failures fail the job; the HTML/XML artifacts
+remain available. Codecov
+analyses coverage produced by GitHub Actions; it does not execute the unit tests.
+The README badge is deferred until collaborator approval and account setup.
+The initial local public-branch coverage baseline was 41% on 21 October 2026.
+
 Discovery is restricted to `tests/`; neither `FML/` nor `HiCOLA/FML/` is
 collected or modified. The base branch is `Hi-COLA_public`. Its C++ code is
 entirely under FML, so this suite tests Python and the actual SciPy integration

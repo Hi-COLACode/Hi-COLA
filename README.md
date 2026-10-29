@@ -1,5 +1,7 @@
 # Hi-COLA
 
+[![Coverage](https://codecov.io/gh/Hi-COLACode/Hi-COLA/branch/Hi-COLA_public/graph/badge.svg)](https://codecov.io/gh/Hi-COLACode/Hi-COLA)
+
 <p align="left">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="Hi-COLA-dark.png">
