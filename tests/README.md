@@ -15,13 +15,17 @@ python -m coverage report
 python -m coverage html
 ```
 
+CI runs the suite on Python 3.11, 3.12, 3.13, 3.14, and 3.15. A failure on any
+version fails the workflow without cancelling the other versions.
+
 Open `htmlcov/index.html` for uncovered lines and branches. CI publishes a summary
-and uploads HTML/XML reports as `python-coverage`, including when tests fail.
+and uploads HTML/XML reports as `python-coverage-<python-version>`, including
+when tests fail.
 Coverage includes untested Python modules under `HiCOLA`, excludes FML, and does
 not measure C++ execution. No minimum percentage is enforced yet.
 
-CI uploads `coverage.xml` to Codecov after generating the local reports. Before
-using this integration, enable `Hi-COLACode/Hi-COLA` in Codecov and add its upload
+The Python 3.11 job uploads `coverage.xml` to Codecov after generating the local
+reports. Before using this integration, enable `Hi-COLACode/Hi-COLA` in Codecov and add its upload
 token as the repository's GitHub Actions secret `CODECOV_TOKEN`. If the token is
 absent, including on fork pull requests, the Codecov upload is skipped. Unit tests
 and local coverage reporting still run.
