@@ -2,9 +2,9 @@
 
 <p align="left">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="Hi-COLA-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="Hi-COLA-light.png">
-    <img alt="Hi-COLA logo" src="Hi-COLA-light.png" width="120">
+    <source media="(prefers-color-scheme: dark)" srcset="logos/Hi-COLA-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="logos/Hi-COLA-light.png">
+    <img alt="Hi-COLA logo" src="logos/Hi-COLA-light.png" width="120">
   </picture>
 </p>
 
