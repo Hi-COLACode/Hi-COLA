@@ -2,9 +2,12 @@
 
 `run_simulations.py` builds Hi-COLA, prepares model tables and runs GR,
 Horndeski, K-mouflage and lightcone examples. Each simulation uses 16³ particles,
-a 256 Mpc/h box and five timesteps from redshift 49 to zero. Outputs include
+a box of 80 Mpc/h, a 32³ force mesh and five timesteps from redshift 49 to zero. Outputs include
 power spectra and particle snapshots; the lightcone example also writes ASCII
 particle crossings. These small runs demonstrate execution, not convergence.
+The lightcone starts at redshift 0.25 with box replication enabled to cover its
+radial extent beyond the original box. Replication makes this example more
+expensive than the other small simulations.
 
 The K-mouflage example uses an analytic LCDM expansion and manufactured coupling
 and screening tables. It demonstrates the backend, not a calibrated physical
