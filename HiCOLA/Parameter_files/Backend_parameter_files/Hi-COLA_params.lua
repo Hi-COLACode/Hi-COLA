@@ -115,7 +115,7 @@ gravity_model = "HiCOLA"
 -- HiCOLA model
 if gravity_model == "HiCOLA" then
   -- Name of file that contains [k, chi/delta, coupling]
-  HiCOLA_input_filename = "<install_dir>/Hi-COLA/Output/my_new_Horndeski_model_force.txt"
+  HiCOLA_preforce_filename = "<install_dir>/Hi-COLA/Output/my_new_Horndeski_model_force.txt"
   -- Approximate screening model (otherwise linear)
   gravity_model_screening = true
   -- For screening approx: smoothing filter for density (tophat, gaussian, sharpk)

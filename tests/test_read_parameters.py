@@ -11,10 +11,11 @@ ROOT = Path(__file__).resolve().parents[1] / 'HiCOLA'
 
 def scan_settings():
     return ConfigObj(dict(model_name='test', cosmo_name='test',
+        output_directory='output', processor_number='1', pink_switch='True',
         read_scan_parameters_from_file='False', suppression_flag='False',
         max_redshift='3', Npoints='30', GR_flag='True', threshold='0',
         early_DE_threshold='0.1', yellow_switch='True', blue_switch='True',
-        red_switch='True', pink_switch='True', tolerance='0.01', Omega_m_crit='0.3',
+        red_switch='True', tolerance='0.01', Omega_m_crit='0.3',
         set_all_to_one='True', K='X', G3='0', G4='0.5',
         closure_guess_value='0', use_constraint_eq_on_odeint_variables='True',
         which_odeint_par='1'))
