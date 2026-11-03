@@ -1,4 +1,4 @@
-# Experimental (test-only) release-artifact workflow.
+# Build, verify and publish Hi-COLA distributions.
 # Builds a pure-Python wheel + sdist, rebuilds the same-named wheel from the
 # sdist (with build isolation), validates both wheels, and runs an independent
 # installed smoke test against both artifact variants on 3 OS / 4 Python
@@ -6,8 +6,8 @@
 #
 # Default-branch pushes publish Python artifacts to TestPyPI and native conda
 # packages to the configured Anaconda.org account's test label.
-# Production PyPI publication is present but FULLY COMMENTED OUT and must
-# stay disabled until production publishing is explicitly configured.
+# Version-tag pushes publish verified Python artifacts to PyPI and native conda
+# packages to the Anaconda.org account's main label.
 
 name: Build and verify Python distributions
 
@@ -20,8 +20,8 @@ on:
   workflow_dispatch:
 
 # Read-only at the top level: only the publishing jobs grant scoped
-# id-token write permissions, and they are conditional. Pull requests and
-# tag pushes have no active publication job.
+# id-token write permissions, and they are conditional. Pull requests have
+# no publication job.
 permissions:
   contents: read
 
@@ -277,7 +277,7 @@ jobs:
                   print('::endgroup::', flush=True)
           PY
 
-  # Test PyPI (test-only) publication.
+  # TestPyPI publication.
   # - Runs only on push to the repository's current default branch, never on
   #   pull requests, tags, or manual dispatch.
   # - Requires BOTH build and test-matrix to succeed.
@@ -310,44 +310,44 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           skip-existing: true
 
-  # PRODUCTION PYPI PUBLICATION — INTENTIONALLY DISABLED.
-  # Enable this job ONLY when production publishing (Trusted Publishing on
-  # pypi.org, version policy, and the pypi GitHub environment) is fully
-  # configured. Until then this job MUST remain entirely commented out so
-  # that no production publication can ever be triggered.
+  # Production PyPI publication from version tags.
+  # Requires Trusted Publishing on pypi.org and the pypi GitHub environment.
   #
-  # publish-pypi:
-  #   name: Publish to PyPI
-  #   needs: [build, test-matrix]
-  #   if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 10
-  #   environment:
-  #     name: pypi
-  #   permissions:
-  #     contents: read
-  #     id-token: write
-  #   steps:
-  #     - name: Download original artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: artifacts-original
-  #         path: dist
-  #     - name: Publish original artifacts to PyPI (production)
-  #       uses: pypa/gh-action-pypi-publish@release/v1
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build, test-matrix]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download original artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-original
+          path: dist
+      - name: Publish original artifacts to PyPI (production)
+        uses: pypa/gh-action-pypi-publish@release/v1
 
-  # Configure repository variable ANACONDA_OWNER and environment conda-test's
-  # ANACONDA_API_TOKEN secret. Without an owner, this job remains disabled.
-  publish-conda-test:
-    name: Build and publish native conda test package / ${{ matrix.os }}
+  # Configure repository variable ANACONDA_OWNER and repository secret
+  # ANACONDA_API_TOKEN. Keep that secret out of the conda-test and conda
+  # environments so token rotation requires updating only the repository secret.
+  # Without an owner, this job remains disabled.
+  publish-conda:
+    name: Build and publish native conda package / ${{ matrix.os }}
     needs: [build, test-matrix]
     if: >-
       github.event_name == 'push' &&
-      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+       startsWith(github.ref, 'refs/tags/v')) &&
       vars.ANACONDA_OWNER != ''
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
-    environment: conda-test
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'conda' || 'conda-test' }}
     permissions:
       contents: read
     strategy:
@@ -416,20 +416,21 @@ jobs:
       - name: Retain tested native conda package
         uses: actions/upload-artifact@v4
         with:
-          name: conda-test-${{ matrix.os }}
+          name: conda-package-${{ matrix.os }}
           path: |
             conda-dist/**/*.conda
             conda-dist/**/*.tar.bz2
           if-no-files-found: error
-      - name: Upload native package to Anaconda.org test label
+      - name: Upload native package to Anaconda.org
         env:
           ANACONDA_CLIENT_FORCE_STANDALONE: '1'
           BINSTAR_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
           ANACONDA_OWNER: ${{ vars.ANACONDA_OWNER }}
+          ANACONDA_LABEL: ${{ startsWith(github.ref, 'refs/tags/v') && 'main' || 'test' }}
         run: |
           set -euo pipefail
           if [ -z "$BINSTAR_API_TOKEN" ]; then
-            echo 'Set the ANACONDA_API_TOKEN secret in the conda-test environment.'
+            echo 'Set the ANACONDA_API_TOKEN repository secret.'
             exit 1
           fi
           shopt -s nullglob
@@ -438,4 +439,4 @@ jobs:
             echo 'Expected exactly one tested native conda package.'
             exit 1
           fi
-          anaconda upload --user "$ANACONDA_OWNER" --label test --skip-existing "${packages[0]}"
+          anaconda upload --user "$ANACONDA_OWNER" --label "$ANACONDA_LABEL" --skip-existing "${packages[0]}"
