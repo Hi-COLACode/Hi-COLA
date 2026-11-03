@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1] / 'HiCOLA'
 
 def scan_settings():
     return ConfigObj(dict(model_name='test', cosmo_name='test',
+        output_directory='output', processor_number='1', pink_switch='True',
         read_scan_parameters_from_file='False', suppression_flag='False',
         max_redshift='3', Npoints='30', GR_flag='True', threshold='0',
         early_DE_threshold='0.1', yellow_switch='True', blue_switch='True',
