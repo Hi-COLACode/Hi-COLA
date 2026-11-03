@@ -4,8 +4,8 @@
 # installed smoke test against both artifact variants on 3 OS / 4 Python
 # versions. The compatible dependencies support the smoke check.
 #
-# Publishing is test-pypi only, gated to the default branch
-# on push, using Trusted Publishing (no password secrets).
+# Default-branch pushes publish Python artifacts to TestPyPI and native conda
+# packages to the configured Anaconda.org account's test label.
 # Production PyPI publication is present but FULLY COMMENTED OUT and must
 # stay disabled until production publishing is explicitly configured.
 
@@ -328,12 +328,114 @@ jobs:
   #     contents: read
   #     id-token: write
   #   steps:
-  #     # No checkout: only the original build artifacts are uploaded.
   #     - name: Download original artifacts
   #       uses: actions/download-artifact@v4
   #       with:
   #         name: artifacts-original
   #         path: dist
-  #
   #     - name: Publish original artifacts to PyPI (production)
   #       uses: pypa/gh-action-pypi-publish@release/v1
+
+  # Configure repository variable ANACONDA_OWNER and environment conda-test's
+  # ANACONDA_API_TOKEN secret. Without an owner, this job remains disabled.
+  publish-conda-test:
+    name: Build and publish native conda test package / ${{ matrix.os }}
+    needs: [build, test-matrix]
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      vars.ANACONDA_OWNER != ''
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    environment: conda-test
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      MPLBACKEND: Agg
+      CMAKE_GENERATOR: Ninja
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download tested Python distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-original
+          path: dist
+      - name: Set up conda build environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: conda-build
+          python-version: '3.11'
+          channels: conda-forge
+          channel-priority: strict
+      - name: Install conda build tools
+        run: |
+          conda install --override-channels -c conda-forge -y conda-build anaconda-client
+      - name: Use the tested source archive and version
+        run: |
+          python - <<'PY'
+          from email.parser import Parser
+          import hashlib
+          import os
+          from pathlib import Path
+          import zipfile
+          from packaging.version import Version
+
+          wheels = list(Path('dist').glob('*.whl'))
+          archives = list(Path('dist').glob('*.tar.gz'))
+          if len(wheels) != 1 or len(archives) != 1:
+              raise RuntimeError('Expected exactly one tested wheel and source archive')
+          with zipfile.ZipFile(wheels[0]) as wheel:
+              metadata = [name for name in wheel.namelist() if name.endswith('.dist-info/METADATA')]
+              if len(metadata) != 1:
+                  raise RuntimeError('Expected exactly one distribution metadata file')
+              version = str(Version(Parser().parsestr(wheel.read(metadata[0]).decode())['Version']))
+          archive = archives[0].resolve()
+          settings = {
+              'HICOLA_VERSION': version,
+              'HICOLA_SDIST_URL': archive.as_uri(),
+              'HICOLA_SDIST_SHA256': hashlib.sha256(archive.read_bytes()).hexdigest(),
+          }
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
+              for key, value in settings.items():
+                  stream.write(f'{key}={value}\n')
+          PY
+      - name: Build native conda package and run installed simulation
+        run: |
+          conda build .github/conda --override-channels -c conda-forge --no-anaconda-upload --output-folder conda-dist
+      - name: Retain tested native conda package
+        uses: actions/upload-artifact@v4
+        with:
+          name: conda-test-${{ matrix.os }}
+          path: |
+            conda-dist/**/*.conda
+            conda-dist/**/*.tar.bz2
+          if-no-files-found: error
+      - name: Upload native package to Anaconda.org test label
+        env:
+          ANACONDA_CLIENT_FORCE_STANDALONE: '1'
+          BINSTAR_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+          ANACONDA_OWNER: ${{ vars.ANACONDA_OWNER }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BINSTAR_API_TOKEN" ]; then
+            echo 'Set the ANACONDA_API_TOKEN secret in the conda-test environment.'
+            exit 1
+          fi
+          shopt -s nullglob
+          packages=(conda-dist/*/*.conda conda-dist/*/*.tar.bz2)
+          if [ "${#packages[@]}" -ne 1 ]; then
+            echo 'Expected exactly one tested native conda package.'
+            exit 1
+          fi
+          anaconda upload --user "$ANACONDA_OWNER" --label test --skip-existing "${packages[0]}"

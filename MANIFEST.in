@@ -1,0 +1,3 @@
+include CMakeLists.txt
+recursive-include HiCOLA/FML *.h *.cpp
+recursive-include HiCOLA/Parameter_files *.ini *.lua *.txt *.dat

@@ -6,7 +6,11 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <thread>
+#if defined(_WIN32)
+#include <direct.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "Global.h"
 #include "SystemMemory.h"
@@ -207,7 +211,11 @@ namespace FML {
     bool create_folder(std::string foldername) {
         bool ok = true;
         if (FML::ThisTask == 0) {
+#if defined(_WIN32)
+            int status = _mkdir(foldername.c_str());
+#else
             int status = mkdir(foldername.c_str(), 0777);
+#endif
             ok = not((status < 0) && (errno != EEXIST));
             if (not ok) {
                 throw std::runtime_error("Failed to create snapshot folder [" + foldername + "]");

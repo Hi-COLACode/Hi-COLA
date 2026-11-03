@@ -1,0 +1,59 @@
+{% set version = environ['HICOLA_VERSION'] %}
+
+package:
+  name: hi-cola
+  version: {{ version }}
+
+source:
+  url: {{ environ['HICOLA_SDIST_URL'] }}
+  sha256: {{ environ['HICOLA_SDIST_SHA256'] }}
+
+build:
+  number: 0
+  script_env:
+    - HICOLA_BUILD_NATIVE=1
+    - PKG_VERSION={{ version }}
+    - CMAKE_GENERATOR=Ninja
+    - CMAKE_BUILD_PARALLEL_LEVEL=2
+  script: "{{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv"
+
+requirements:
+  build:
+    - {{ compiler('cxx') }}
+    - cmake >=3.18
+    - ninja
+  host:
+    - python >=3.9,<3.13
+    - pip
+    - setuptools >=64
+    - wheel
+    - scikit-build >=0.18,<1
+    - fftw
+    - gsl
+    - lua
+  run:
+    - python >=3.9,<3.13
+    - numpy
+    - scipy
+    - sympy
+    - matplotlib-base
+    - configobj
+    - pandas
+    - fftw
+    - gsl
+    - lua
+
+test:
+  imports:
+    - HiCOLA
+    - HiCOLA.backend
+    - HiCOLA.Frontend.expression_builder
+  requires:
+    - pip
+  commands:
+    - python -m pip check
+
+about:
+  home: https://github.com/Hi-COLACode/Hi-COLA
+  license_file: LICENSE
+  summary: Hi-COLA frontend with the compiled COLASolver simulation backend
