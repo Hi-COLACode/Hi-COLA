@@ -6,8 +6,7 @@
 #
 # Default-branch pushes publish Python artifacts to TestPyPI and native conda
 # packages to the configured Anaconda.org account's test label.
-# Version-tag pushes publish verified Python artifacts to PyPI and native conda
-# packages to the Anaconda.org account's main label.
+# Version-tag pushes publish verified Python artifacts to PyPI.
 
 name: Build and verify Python distributions
 
@@ -334,20 +333,19 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
   # Configure repository variable ANACONDA_OWNER and repository secret
-  # ANACONDA_API_TOKEN. Keep that secret out of the conda-test and conda
-  # environments so token rotation requires updating only the repository secret.
+  # ANACONDA_API_TOKEN. Keep that secret out of the conda-test environment
+  # so token rotation requires updating only the repository secret.
   # Without an owner, this job remains disabled.
   publish-conda:
     name: Build and publish native conda package / ${{ matrix.os }}
     needs: [build, test-matrix]
     if: >-
       github.event_name == 'push' &&
-      (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
-       startsWith(github.ref, 'refs/tags/v')) &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
       vars.ANACONDA_OWNER != ''
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
-    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'conda' || 'conda-test' }}
+    environment: conda-test
     permissions:
       contents: read
     strategy:
@@ -426,7 +424,7 @@ jobs:
           ANACONDA_CLIENT_FORCE_STANDALONE: '1'
           BINSTAR_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
           ANACONDA_OWNER: ${{ vars.ANACONDA_OWNER }}
-          ANACONDA_LABEL: ${{ startsWith(github.ref, 'refs/tags/v') && 'main' || 'test' }}
+          ANACONDA_LABEL: test
         run: |
           set -euo pipefail
           if [ -z "$BINSTAR_API_TOKEN" ]; then
