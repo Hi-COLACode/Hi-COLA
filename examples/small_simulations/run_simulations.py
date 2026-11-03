@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run small GR, Horndeski, K-mouflage and lightcone simulations."""
+"""Run small GR, cubic Galileon, K-mouflage and lightcone simulations."""
 import argparse
 import json
 import os
@@ -15,7 +15,7 @@ import numpy as np
 from configobj import ConfigObj
 
 HERE = Path(__file__).resolve().parent
-CASES = ('gr', 'horndeski', 'kmouflage', 'lightcone')
+CASES = ('gr', 'cubic_galileon', 'kmouflage', 'lightcone')
 
 
 def command(argv, cwd, log, timeout=900):
@@ -78,7 +78,6 @@ def frontend(source, work, model):
     theory.filename = str(out/'model.ini')
     theory.write()
     config = ConfigObj(str(HERE/'numerical.ini'))
-    config.update(dict(Npoints='400',max_redshift='9999',suppression_flag='False',forwards_flag='False'))
     config.filename = str(out/'numerical.ini')
     config.write()
     module = 'generate_simulation_input'
@@ -96,38 +95,17 @@ def frontend(source, work, model):
 
 
 def lua(source, folder, case, tables):
-    """Combine shared settings with the parameters for this simulation."""
-    text = (HERE/'backend_minimal.lua').read_text()
-    # Append model-specific settings and paths after the shared fixture.
-    # The particle count and meshes keep these illustrative runs inexpensive.
-    values = dict(all_parameters_must_be_in_file=False,simulation_name=case,
-        simulation_boxsize=80., particle_Npart_1D=16, particle_allocation_factor=4.,
-        ic_nmesh=16, force_nmesh=32, pofk_nmesh=32, output_particles=True,
-        output_folder=str(folder/'output'),output_fileformat='GADGET',
-        ic_random_seed=1234,ic_fix_amplitude=True,ic_initial_redshift=49.,
-        force_linear_massive_neutrinos=False,cosmology_model='LCDM',gravity_model='GR',
-        cosmology_h=.7307,cosmology_Omegab=.02196/.7307**2,
-        cosmology_OmegaCDM=.1274/.7307**2,cosmology_OmegaMNu=0.,
+    """Load a Lua workflow and supply the input/output paths for this run."""
+    if case not in CASES:
+        raise ValueError(f'Unknown simulation case: {case}')
+    values = dict(
         ic_input_filename=str(source/'HiCOLA/Parameter_files/Backend_parameter_files/LCDM_1306dot3219_matterpower_z0.000.dat'),
-        lightcone=case=='lightcone',plc_pos_observer=[.5,.5,.5],
-        plc_z_init=.25,plc_z_finish=0.,plc_use_replicas=case=='lightcone',plc_boundary_mpch=0.,
-        plc_output_asciifile=True,plc_output_gadgetfile=False,plc_output_in_batches=False,
-        plc_make_onion_density_maps=False,fof=False,pofk=True,
-        output_redshifts=[0.],timestep_nsteps=[5])
-    if case in ('horndeski','kmouflage'):
-        values.update(cosmology_model='HiCOLA',gravity_model='HiCOLA' if case=='horndeski' else 'kmouflage',
-            HiCOLA_expansion_filename=str(tables['expansion']),HiCOLA_preforce_filename=str(tables['force']),
-            gravity_model_screening=True,gravity_model_HiCOLA_smoothing_filter='gaussian',
-            gravity_model_HiCOLA_smoothing_scale_over_boxsize=3./values['simulation_boxsize'],
-            gravity_model_screening_enforce_largescale_linear=True,gravity_model_screening_linear_scale_hmpc=.1)
-    def literal(value):
-        if isinstance(value,bool):
-            return str(value).lower()
-        if isinstance(value,list):
-            return '{'+','.join(map(literal,value))+'}'
-        return json.dumps(value)
-    text += '\n-- Simulation-specific settings.\n'
-    text += '\n'.join(f'{key} = {literal(value)}' for key,value in values.items())+'\n'
+        output_folder=str(folder/'output'))
+    if tables is not None:
+        values.update(HiCOLA_expansion_filename=str(tables['expansion']),
+                      HiCOLA_preforce_filename=str(tables['force']))
+    text = f'dofile({json.dumps(str(HERE/f"{case}.lua"))})\n'
+    text += '\n'.join(f'{key} = {json.dumps(value)}' for key, value in values.items())+'\n'
     path = folder/'run.lua'
     path.write_text(text)
     return path
@@ -154,7 +132,7 @@ def main():
     backend, values = make_args(source, args)
     command(values, source, work/'build.log', timeout=1200)
     tables = {model: frontend(source, work, model)
-              for model in ('horndeski', 'kmouflage') if model in args.cases}
+              for model in ('cubic_galileon', 'kmouflage') if model in args.cases}
     for case in args.cases:
         folder = work/case
         folder.mkdir()

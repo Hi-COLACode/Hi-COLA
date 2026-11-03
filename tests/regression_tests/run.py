@@ -14,7 +14,7 @@ from compare import close, force, numeric, particles, velocity_statistics, TOLER
 from baseline import load_baseline
 
 HERE = Path(__file__).resolve().parent
-CASES = ('gr', 'horndeski', 'kmouflage')
+CASES = ('gr', 'cubic_galileon', 'kmouflage')
 EXAMPLES = HERE.parents[1]/'examples'/'small_simulations'
 sys.path.insert(0, str(EXAMPLES))
 from run_simulations import command, make_args, frontend, lua
@@ -51,7 +51,7 @@ def build(source, args, baseline=False):
 
 
 def run_cases(source, backend, work, args):
-    tables = {model:frontend(source,work,model) for model in ('horndeski','kmouflage') if model in args.cases}
+    tables = {model:frontend(source,work,model) for model in ('cubic_galileon','kmouflage') if model in args.cases}
     for ranks in args.ranks:
         for case in args.cases:
             folder = work/f'{case}-np{ranks}'
@@ -62,7 +62,7 @@ def run_cases(source, backend, work, args):
             log = (folder/'run.log').read_text()
             if 'Doing output 0 at redshift z = 0' not in log:
                 raise ValueError(f'{case}: did not output the final epoch')
-            for screened in (False,True) if case in ('horndeski','kmouflage') else (False,):
+            for screened in (False,True) if case in ('cubic_galileon','kmouflage') else (False,):
                 probe_config = folder/f'force-{screened}.lua'
                 text = config.read_text()+f'\ngravity_model_screening = {str(screened).lower()}\n'
                 # Stress the gradient screening with a manufactured, finite coefficient.
@@ -81,7 +81,7 @@ def compare_runs(baseline, candidate, args, flavour='all'):
     if flavour not in ('summary', 'particles', 'all'):
         raise ValueError(f'Unknown comparison flavour: {flavour}')
     if any(case not in CASES for case in args.cases):
-        raise ValueError('Unsupported regression case; use GR, Horndeski or K-mouflage')
+        raise ValueError('Unsupported regression case; use GR, cubic Galileon or K-mouflage')
     report = dict(comparisons={}, failures={})
     summary = flavour in ('summary', 'all')
     detailed = flavour in ('particles', 'all')
@@ -99,10 +99,10 @@ def compare_runs(baseline, candidate, args, flavour='all'):
         return check(key, lambda: close(actual, reference, kind))
 
     if summary:
-        for model in ('horndeski', 'kmouflage'):
+        for model in ('cubic_galileon', 'kmouflage'):
             if model not in args.cases:
                 continue
-            for name in (('expansion', 'force', 'full') if model == 'horndeski' else ('expansion', 'force')):
+            for name in (('expansion', 'force', 'full') if model == 'cubic_galileon' else ('expansion', 'force')):
                 def frontend_table(model=model, name=name):
                     ref = next((baseline/'frontend'/model).glob(f'{model}_*_{name}.txt'))
                     return close(numeric(candidate/'frontend'/model/ref.name), numeric(ref), 'tables')
@@ -136,7 +136,7 @@ def compare_runs(baseline, candidate, args, flavour='all'):
             compare(f'{key}/positions', got_p, p, 'positions')
             compare(f'{key}/velocities', got_v, v, 'velocities')
 
-        for screened in (False, True) if case in ('horndeski', 'kmouflage') else (False,):
+        for screened in (False, True) if case in ('cubic_galileon', 'kmouflage') else (False,):
             a = sorted((baseline/key).glob(f'force-{screened}.*.txt'))
             b = sorted((candidate/key).glob(f'force-{screened}.*.txt'))
             if len(a) != ranks or len(b) != ranks:
