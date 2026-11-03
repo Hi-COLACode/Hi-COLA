@@ -1,0 +1,317 @@
+# Experimental (test-only) release-artifact workflow.
+# Builds a pure-Python wheel + sdist, rebuilds the same-named wheel from the
+# sdist (with build isolation), validates both wheels, and runs an independent
+# installed smoke test against both artifact variants on 3 OS / 4 Python
+# versions. The compatible dependencies support the smoke check.
+#
+# Publishing is test-pypi only, gated to the default branch
+# on push, using Trusted Publishing (no password secrets).
+# Production PyPI publication is present but FULLY COMMENTED OUT and must
+# stay disabled until production publishing is explicitly configured.
+
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# Read-only at the top level: only the publishing jobs grant scoped
+# id-token write permissions, and they are conditional. Pull requests and
+# tag pushes have no active publication job.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build wheel + sdist (py3.11, ubuntu)
+    if: >-
+      github.event_name != 'push' ||
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+      startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip build twine
+
+      - name: Set development version for TestPyPI
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          BUILD_RUN_NUMBER: ${{ github.run_number }}
+        # Setuptools preserves this numeric suffix in the sdist so rebuilt
+        # wheels carry the same version. Workflow reruns reuse the suffix.
+        run: |
+          python - <<'PY'
+          import configparser
+          import os
+          from pathlib import Path
+
+          run_number = os.environ['BUILD_RUN_NUMBER']
+          if not (run_number.isascii() and run_number.isdecimal() and int(run_number) > 0):
+              raise ValueError('BUILD_RUN_NUMBER must be a positive integer')
+          config_path = Path('setup.cfg')
+          config = configparser.RawConfigParser()
+          config.read(config_path)
+          if not config.has_section('egg_info'):
+              config.add_section('egg_info')
+          suffix = f'.dev{int(run_number)}'
+          config.set('egg_info', 'tag_build', suffix)
+          config.set('egg_info', 'tag_date', '0')
+          with config_path.open('w', encoding='utf-8') as stream:
+              config.write(stream)
+          print(f'Development version suffix: {suffix}')
+          PY
+
+      - name: Build wheel and sdist
+        run: |
+          python -m build
+
+      - name: Check artifact metadata
+        run: |
+          twine check dist/*.whl dist/*.tar.gz
+
+      - name: Rebuild wheel from sdist in a temporary source directory
+        # Uses build isolation so the build dependencies declared in
+        # pyproject.toml are installed by pip wheel. The rebuilt wheel keeps
+        # the same filename as the original and is stored in a separate
+        # directory so the original wheel in dist/ is never overwritten.
+        run: |
+          set -euo pipefail
+          TMP="$(mktemp -d)"
+          SDIST="$(ls dist/*.tar.gz)"
+          tar -xzf "$SDIST" -C "$TMP"
+          SRC="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d)"
+          mkdir -p dist-sdist
+          python -m pip wheel --no-deps --no-cache-dir -w dist-sdist "$SRC"
+          echo "rebuilt sdist-derived wheel: $(ls dist-sdist/*.whl)"
+
+      - name: Validate both wheels are pure python and compiled-binary free
+        # Single validation pass, after the rebuild, over the original wheel
+        # (dist/) and the sdist-rebuilt wheel (dist-sdist/): the WHEEL
+        # metadata must be Root-Is-Purelib true with Tag py3-none-any, the
+        # filename must use the -py3-none-any.whl delimiter, and no
+        # compiled/native files (including versioned .so.N) may appear.
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob, pathlib, zipfile
+
+          NATIVE_SUFFIXES = (".so", ".pyd", ".dll", ".dylib", ".exe", ".a", ".lib", ".o")
+
+          def check(name: str, whl: pathlib.Path) -> None:
+              print(f"[check] {name}: {whl.name}")
+              # Filename must use the -py3-none-any.whl delimiter, e.g.
+              # Hi_COLA-1.0.0-py3-none-any.whl.
+              assert name.endswith("-py3-none-any.whl"), \
+                  f"unexpected wheel filename: {name}"
+              zf = zipfile.ZipFile(whl)
+              names = zf.namelist()
+              wheel_meta = [n for n in names if n.endswith("WHEEL")]
+              assert len(wheel_meta) == 1, "missing WHEEL metadata"
+              meta = {
+                  line.split(":", 1)[0].strip(): line.split(":", 1)[1].strip()
+                  for line in zf.read(wheel_meta[0]).decode("utf-8").splitlines()
+                  if ":" in line
+              }
+              assert meta.get("Root-Is-Purelib") == "true", \
+                  f"wheel is not purelib: {meta.get('Root-Is-Purelib')}"
+              assert meta.get("Tag") == "py3-none-any", \
+                  f"wheel tag is not py3-none-any: {meta.get('Tag')}"
+              for n in names:
+                  lc = n.lower()
+                  for suffix in NATIVE_SUFFIXES:
+                      assert not lc.endswith(suffix), \
+                          f"compiled/native artifact found in {name}: {n}"
+                  # Versioned shared objects, e.g. libfoo.so.1 or libfoo.so.1.2
+                  # (a plain ".so" file is already rejected above).
+                  if ".so." in lc:
+                      raise AssertionError(
+                          f"versioned shared object found in {name}: {n}")
+              print(f"[check] {name}: OK ({len(names)} files)")
+
+          original = sorted(glob.glob("dist/*.whl"))
+          rebuilt = sorted(glob.glob("dist-sdist/*.whl"))
+          assert len(original) == 1, \
+              f"expected exactly one original wheel, got: {original}"
+          assert len(rebuilt) == 1, \
+              f"expected exactly one sdist-rebuilt wheel, got: {rebuilt}"
+          # The rebuilt wheel must have the SAME filename as the original.
+          assert pathlib.Path(original[0]).name == pathlib.Path(rebuilt[0]).name, \
+              f"filenames differ: {original[0]} vs {rebuilt[0]}"
+          check(pathlib.Path(original[0]).name, pathlib.Path(original[0]))
+          check(pathlib.Path(rebuilt[0]).name, pathlib.Path(rebuilt[0]))
+          print("wheel validation OK: both wheels are pure python, "
+                "same filename, no compiled binaries")
+          PY
+
+      - name: Upload original artifacts (original wheel + sdist)
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-original
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+
+      - name: Upload sdist-rebuilt wheel artifact
+        # Contains exactly one wheel: the wheel rebuilt from the sdist with
+        # the same filename as the original.
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-sdist
+          path: |
+            dist-sdist/*.whl
+          if-no-files-found: error
+
+  test-matrix:
+    name: Smoke ${{ matrix.artifact }} / ${{ matrix.os }} / py${{ matrix.python-version }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        artifact: [original, sdist]
+    steps:
+      # No checkout: artifacts only, so the installed package cannot be
+      # shadowed by a source tree.
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download artifact (${{ matrix.artifact }})
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-${{ matrix.artifact }}
+          path: ci-artifacts
+
+      - name: Install the wheel and compatible runtime dependencies
+        # The downloaded artifact contains exactly one wheel; install it and
+        # the py3.9-compatible runtime bounds that support the smoke check.
+        # A bash array is used instead of `ls | wc -l` because wc output has
+        # leading whitespace on some runners (e.g. macOS), which breaks the
+        # string comparison. bash is available on all runners via defaults.
+        run: |
+          set -euo pipefail
+          wheels=(ci-artifacts/*.whl)
+          if [ "${#wheels[@]}" -ne 1 ] || [ ! -f "${wheels[0]}" ]; then
+            echo "expected exactly one wheel in ci-artifacts/, got: ${wheels[*]:-<none>}"
+            exit 1
+          fi
+          WHL="${wheels[0]}"
+          echo "installing wheel: $(basename "$WHL")"
+          python -m pip install --quiet --no-cache-dir \
+            "$WHL" \
+            "numpy>=1.23.5,<2" \
+            "scipy>=1.9.3,<2" \
+            "sympy>=1.12,<2" \
+            "matplotlib>=3.7,<4" \
+            "configobj>=5,<6"
+
+      - name: Run installed-package smoke test
+        working-directory: ${{ runner.temp }}
+        env:
+          PYTHONPATH: ""
+          MPLBACKEND: Agg
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, pathlib, sys
+          assert os.environ.get("MPLBACKEND") == "Agg"
+          from HiCOLA.Frontend import expression_builder as eb
+          # Imported module must resolve beneath the active sys.prefix,
+          # i.e. it is the installed package, not a stray source copy.
+          prefix = pathlib.Path(sys.prefix).resolve()
+          pathlib.Path(eb.__file__).resolve().relative_to(prefix)
+          # Frontend symbolic calculation exercise:
+          # d/dX (X^3 * phi^2) == 3 X^2 phi^2
+          import sympy as sym
+          expr = eb.K_func(eb.X**3 * eb.phi**2, "X")
+          assert sym.expand(expr - 3*eb.X**2*eb.phi**2) == 0, \
+              "unexpected derivative: " + str(expr)
+          print("smoke OK:", eb.__file__)
+          PY
+          echo "smoke passed: ${{ matrix.artifact }} / ${{ matrix.os }} / py${{ matrix.python-version }}"
+
+  # Test PyPI (test-only) publication.
+  # - Runs only on push to the repository's current default branch, never on
+  #   pull requests, tags, or manual dispatch.
+  # - Requires BOTH build and test-matrix to succeed.
+  # - Uses Trusted Publishing (OIDC id-token; no password secrets).
+  # - Uploads ONLY the original artifacts (original wheel + sdist), not the
+  #   sdist-rebuilt wheel.
+  # - Reruns reuse the same development version and skip existing uploads.
+  publish-testpypi:
+    name: Publish to Test PyPI
+    needs: [build, test-matrix]
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: testpypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # No checkout: only the original build artifacts are uploaded.
+      - name: Download original artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-original
+          path: dist
+
+      - name: Publish original artifacts to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  # PRODUCTION PYPI PUBLICATION — INTENTIONALLY DISABLED.
+  # Enable this job ONLY when production publishing (Trusted Publishing on
+  # pypi.org, version policy, and the pypi GitHub environment) is fully
+  # configured. Until then this job MUST remain entirely commented out so
+  # that no production publication can ever be triggered.
+  #
+  # publish-pypi:
+  #   name: Publish to PyPI
+  #   needs: [build, test-matrix]
+  #   if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   environment:
+  #     name: pypi
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   steps:
+  #     # No checkout: only the original build artifacts are uploaded.
+  #     - name: Download original artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: artifacts-original
+  #         path: dist
+  #
+  #     - name: Publish original artifacts to PyPI (production)
+  #       uses: pypa/gh-action-pypi-publish@release/v1
