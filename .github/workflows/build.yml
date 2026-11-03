@@ -183,7 +183,7 @@ jobs:
           if-no-files-found: error
 
   test-matrix:
-    name: Verify ${{ matrix.artifact == 'original' && 'built wheel' || 'wheel rebuilt from source archive' }} / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: Verify wheel and source archive / ${{ matrix.os }} / Python ${{ matrix.python-version }}
     needs: build
     # Python 3.9 requires the Ubuntu 24.04 setup-python distribution.
     runs-on: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9' && 'ubuntu-24.04' || matrix.os }}
@@ -193,7 +193,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-        artifact: [original, sdist]
     steps:
       # No checkout: artifacts only, so the installed package cannot be
       # shadowed by a source tree.
@@ -202,43 +201,45 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Download ${{ matrix.artifact == 'original' && 'built wheel' || 'wheel rebuilt from source archive' }}
+      - name: Download built wheel
         uses: actions/download-artifact@v4
         with:
-          name: artifacts-${{ matrix.artifact }}
-          path: ci-artifacts
+          name: artifacts-original
+          path: ci-artifacts/original
 
-      - name: Install the wheel and compatible runtime dependencies
-        # The downloaded artifact contains exactly one wheel; install it and
-        # the py3.9-compatible runtime bounds that support the smoke check.
-        # A bash array is used instead of `ls | wc -l` because wc output has
-        # leading whitespace on some runners (e.g. macOS), which breaks the
-        # string comparison. bash is available on all runners via defaults.
+      - name: Download wheel rebuilt from source archive
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-sdist
+          path: ci-artifacts/sdist
+
+      - name: Install compatible runtime dependencies
         run: |
-          set -euo pipefail
-          wheels=(ci-artifacts/*.whl)
-          if [ "${#wheels[@]}" -ne 1 ] || [ ! -f "${wheels[0]}" ]; then
-            echo "expected exactly one wheel in ci-artifacts/, got: ${wheels[*]:-<none>}"
-            exit 1
-          fi
-          WHL="${wheels[0]}"
-          echo "installing wheel: $(basename "$WHL")"
           python -m pip install --quiet --no-cache-dir \
-            "$WHL" \
             "numpy>=1.23.5,<2" \
             "scipy>=1.9.3,<2" \
             "sympy>=1.12,<2" \
             "matplotlib>=3.7,<4" \
             "configobj>=5,<6"
 
-      - name: Verify installed frontend calculation
+      - name: Verify both wheels with the installed frontend calculation
         working-directory: ${{ runner.temp }}
         env:
           PYTHONPATH: ""
           MPLBACKEND: Agg
+          ARTIFACT_DIRECTORY: ${{ github.workspace }}/ci-artifacts
         run: |
           set -euo pipefail
           python - <<'PY'
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import textwrap
+
+          # Each calculation runs in a fresh interpreter to use the wheel
+          # just installed, rather than modules cached from the first check.
+          calculation = textwrap.dedent('''\
           import os, pathlib, sys
           assert os.environ.get("MPLBACKEND") == "Agg"
           from HiCOLA.Frontend import expression_builder as eb
@@ -253,8 +254,28 @@ jobs:
           assert sym.expand(expr - 3*eb.X**2*eb.phi**2) == 0, \
               "unexpected derivative: " + str(expr)
           print("smoke OK:", eb.__file__)
+          ''')
+
+          artifact_directory = Path(os.environ['ARTIFACT_DIRECTORY']).resolve()
+          for variant, description in (
+              ('original', 'built wheel'),
+              ('sdist', 'wheel rebuilt from source archive'),
+          ):
+              wheels = list((artifact_directory / variant).glob('*.whl'))
+              if len(wheels) != 1:
+                  raise RuntimeError(f'Expected one {description}, found {wheels}')
+              print(f'::group::Verify {description}', flush=True)
+              try:
+                  # Replace the installed distribution even when both wheels
+                  # have the same version and filename.
+                  subprocess.run([
+                      sys.executable, '-m', 'pip', 'install', '--no-deps',
+                      '--force-reinstall', str(wheels[0]),
+                  ], check=True)
+                  subprocess.run([sys.executable, '-c', calculation], check=True)
+              finally:
+                  print('::endgroup::', flush=True)
           PY
-          echo "smoke passed: ${{ matrix.artifact }} / ${{ matrix.os }} / py${{ matrix.python-version }}"
 
   # Test PyPI (test-only) publication.
   # - Runs only on push to the repository's current default branch, never on
