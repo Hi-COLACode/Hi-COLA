@@ -185,7 +185,8 @@ jobs:
   test-matrix:
     name: Verify ${{ matrix.artifact == 'original' && 'built wheel' || 'wheel rebuilt from source archive' }} / ${{ matrix.os }} / Python ${{ matrix.python-version }}
     needs: build
-    runs-on: ${{ matrix.os }}
+    # Python 3.9 requires the Ubuntu 24.04 setup-python distribution.
+    runs-on: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9' && 'ubuntu-24.04' || matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
