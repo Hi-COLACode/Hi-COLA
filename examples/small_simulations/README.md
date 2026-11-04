@@ -37,7 +37,7 @@ source checkout.
 
 An existing installation can run the same Python command with its dependency
 prefix and Lua flags. It needs a C++ compiler, make, MPI, MPI-enabled FFTW, GSL,
-Lua and the Python packages in the root `requirements-test.txt`.
+Lua and the Python dependencies declared in `pyproject.toml` (`python -m pip install -e .`).
 
 `backend_minimal.lua` contains the shared simulation settings, including box size,
 particle count, meshes and timesteps. `gr.lua`, `cubic_galileon.lua`,

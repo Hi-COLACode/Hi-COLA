@@ -1,4 +1,6 @@
-# Source and outputs are mounted when running the container.
+# Package sources and metadata are required to install Python dependencies.
 **
 !Dockerfile
-!requirements-test.txt
+!pyproject.toml
+!HiCOLA/
+!HiCOLA/**

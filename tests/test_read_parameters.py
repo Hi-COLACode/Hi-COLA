@@ -22,6 +22,21 @@ def scan_settings():
 
 
 class ParameterTests(unittest.TestCase):
+    def test_forwards_flag_boolean(self):
+        model = ROOT/'Parameter_files/Frontend_parameter_files/examples/ESS/ESS-A.ini'
+        numerical = ROOT/'Parameter_files/Frontend_parameter_files/numerical_parameters.ini'
+        with tempfile.TemporaryDirectory() as directory:
+            for value, expected in [('True', True), ('False', False), (None, False)]:
+                config = ConfigObj(str(numerical))
+                config.pop('forwards_flag', None)
+                if value is not None:
+                    config['forwards_flag'] = value
+                config.filename = str(Path(directory)/'numerical.ini')
+                config.write()
+                with self.subTest(value=value):
+                    result = rp.read_in_parameters(str(model), config.filename)
+                    self.assertIs(result['forwards_flag'], expected)
+
     def test_scan_settings_types(self):
         with tempfile.TemporaryDirectory() as directory:
             config = scan_settings()
