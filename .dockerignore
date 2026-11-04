@@ -1,0 +1,6 @@
+# Package sources and metadata are required to install Python dependencies.
+**
+!Dockerfile
+!pyproject.toml
+!HiCOLA/
+!HiCOLA/**

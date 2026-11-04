@@ -1,3 +1,31 @@
 [build-system]
 requires = ["setuptools>=64", "wheel", "scikit-build>=0.18,<1"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "hicola-frontend"
+dynamic = ["version"]
+requires-python = ">=3.9,<3.13"
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "sympy>=1.12",
+    "matplotlib>=3.8",
+    "configobj>=5.0",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+tests = [
+    "coverage>=7.6",
+]
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["HiCOLA", "HiCOLA.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+HiCOLA = ["Parameter_files/**/*.ini", "Parameter_files/**/*.lua", "Parameter_files/**/*.txt", "Parameter_files/**/*.dat"]

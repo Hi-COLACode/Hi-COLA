@@ -1,0 +1,138 @@
+name: Regression tests
+
+on:
+  push:
+    branches: [Hi-COLA_public, regression_tests]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulations:
+    name: Generate regression simulations
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch pinned numerical baseline
+        run: python tests/regression_tests/baseline.py --repository .
+      - name: Build runtime environment
+        run: docker build -t hicola-runtime .
+      - name: Check regression comparison logic
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/repository:ro" -w /repository \
+            hicola-runtime python -m unittest discover -s tests/regression_tests -p 'test_*.py' -v
+      - name: Run baseline and candidate simulations
+        run: |
+          mkdir -p "$RUNNER_TEMP/hicola-regression"
+          docker run --rm \
+            -e OMPI_ALLOW_RUN_AS_ROOT=1 -e OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
+            -v "$GITHUB_WORKSPACE:/repository:ro" \
+            -v "$RUNNER_TEMP/hicola-regression:/artifacts" \
+            hicola-runtime sh -ec '
+              # The local clone transport checks ownership in git-upload-pack too.
+              git config --global --add safe.directory /repository/.git
+              exec python /repository/tests/regression_tests/run.py "$@"
+            ' sh \
+            --repository /repository --candidate-ref "$GITHUB_SHA" --simulate-only \
+            --prefix /usr --make-arg LUA_INCLUDE=/usr/include/lua5.4 \
+            --make-arg 'LUA_LINK=-llua5.4 -ldl' \
+            --work /artifacts/run
+      - name: Upload shared simulation outputs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regression-results
+          path: |
+            ${{ runner.temp }}/hicola-regression/run/report.json
+            ${{ runner.temp }}/hicola-regression/run/*.log
+            ${{ runner.temp }}/hicola-regression/run/baseline/*.log
+            ${{ runner.temp }}/hicola-regression/run/baseline/*.json
+            ${{ runner.temp }}/hicola-regression/run/baseline/frontend/
+            ${{ runner.temp }}/hicola-regression/run/baseline/*-np*/
+            ${{ runner.temp }}/hicola-regression/run/candidate/*.log
+            ${{ runner.temp }}/hicola-regression/run/candidate/*.json
+            ${{ runner.temp }}/hicola-regression/run/candidate/frontend/
+            ${{ runner.temp }}/hicola-regression/run/candidate/*-np*/
+          retention-days: 14
+          if-no-files-found: error
+
+  summary:
+    name: Regression summary statistics
+    needs: simulations
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require completed simulations
+        if: ${{ needs.simulations.result != 'success' }}
+        run: |
+          echo "Simulation generation failed or was cancelled."
+          exit 1
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install comparison dependencies
+        run: python -m pip install -e '.[tests]'
+      - uses: actions/download-artifact@v8
+        with:
+          name: regression-results
+          path: ${{ runner.temp }}/hicola-regression/run
+      - name: Compare summary outputs
+        run: >-
+          python tests/regression_tests/run.py
+          --compare-only --flavour summary
+          --work "$RUNNER_TEMP/hicola-regression/run"
+      - name: Upload summary comparison report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regression-summary-report
+          path: ${{ runner.temp }}/hicola-regression/run/summary-report.json
+          retention-days: 14
+          if-no-files-found: error
+
+  particles:
+    name: Regression particle reproducibility
+    needs: simulations
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install comparison dependencies
+        run: python -m pip install -e '.[tests]'
+      - uses: actions/download-artifact@v8
+        with:
+          name: regression-results
+          path: ${{ runner.temp }}/hicola-regression/run
+      - name: Compare particles outputs
+        run: >-
+          python tests/regression_tests/run.py
+          --compare-only --flavour particles
+          --work "$RUNNER_TEMP/hicola-regression/run"
+      - name: Upload particles comparison report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regression-particles-report
+          path: ${{ runner.temp }}/hicola-regression/run/particles-report.json
+          retention-days: 14
+          if-no-files-found: error

@@ -1,9 +1,18 @@
 # Release and publishing setup
 
+The pip distribution is `hicola-frontend` (Python import: `HiCOLA`). Its wheel
+contains the frontend; its source archive also contains the C++ backend sources.
+The native conda package is named `hi-cola`.
+
 The build workflow publishes default-branch development versions to TestPyPI.
 Release tags use `vMAJOR.MINOR.PATCH`, starting at `v0.0.0`; package managers
 normalize the version to `0.0.0`, with `.devN` appended for development builds.
 Version-tag pushes publish verified Python artifacts to PyPI using Trusted Publishing.
+
+Register Trusted Publishers separately on PyPI and TestPyPI for project
+`hicola-frontend`, GitHub owner `Hi-COLACode`, repository `Hi-COLA`, and workflow
+`build.yml`. Use the `pypi` environment on PyPI and `testpypi` on TestPyPI.
+A publisher registered for `Hi_COLA` does not cover this project name.
 
 Native conda builds use the `.github/conda` recipe. In the GitHub repository,
 set the `ANACONDA_OWNER` repository Actions variable and create the `conda-test`
@@ -26,7 +35,8 @@ conda install -c YOUR_ACCOUNT/label/test -c conda-forge hi-cola
 
 After this workflow is merged and a tagged release has published to PyPI:
 
-1. Confirm the release's source archive (`.tar.gz`) is available on PyPI and
+1. Confirm the release's source archive (`.tar.gz`) is available on the
+   `hicola-frontend` PyPI project and
    contains `CMakeLists.txt`, the FML C++ sources and parameter files. The pure
    Python wheel is not the source for the native conda package.
 2. Fork [conda-forge/staged-recipes](https://github.com/conda-forge/staged-recipes)

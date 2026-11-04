@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1] / 'HiCOLA'
 
 def scan_settings():
     return ConfigObj(dict(model_name='test', cosmo_name='test',
+        output_directory='output', processor_number='1', pink_switch='True',
         read_scan_parameters_from_file='False', suppression_flag='False',
         max_redshift='3', Npoints='30', GR_flag='True', threshold='0',
         early_DE_threshold='0.1', yellow_switch='True', blue_switch='True',
@@ -21,6 +22,21 @@ def scan_settings():
 
 
 class ParameterTests(unittest.TestCase):
+    def test_forwards_flag_boolean(self):
+        model = ROOT/'Parameter_files/Frontend_parameter_files/examples/ESS/ESS-A.ini'
+        numerical = ROOT/'Parameter_files/Frontend_parameter_files/numerical_parameters.ini'
+        with tempfile.TemporaryDirectory() as directory:
+            for value, expected in [('True', True), ('False', False), (None, False)]:
+                config = ConfigObj(str(numerical))
+                config.pop('forwards_flag', None)
+                if value is not None:
+                    config['forwards_flag'] = value
+                config.filename = str(Path(directory)/'numerical.ini')
+                config.write()
+                with self.subTest(value=value):
+                    result = rp.read_in_parameters(str(model), config.filename)
+                    self.assertIs(result['forwards_flag'], expected)
+
     def test_scan_settings_types(self):
         with tempfile.TemporaryDirectory() as directory:
             config = scan_settings()
