@@ -17,7 +17,6 @@ namespace FML {
 
     extern int ThisTask;
     extern int NTasks;
-    extern std::pair<double, double> get_system_memory_use();
 
     //=======================================================
     // Do not log allocations smaller than a minimum size
@@ -172,42 +171,10 @@ namespace FML {
                 return;
             }
 
-            // Fetch system memory usage
-            auto sysmem = get_system_memory_use();
-            double min_sys_vmemory = sysmem.first;
-            double max_sys_vmemory = sysmem.first;
-            double mean_sys_vmemory = sysmem.first;
-            double min_sys_rssmemory = sysmem.second;
-            double max_sys_rssmemory = sysmem.second;
-            double mean_sys_rssmemory = sysmem.second;
-
-#ifdef USE_MPI
-            MPI_Allreduce(MPI_IN_PLACE, &min_sys_vmemory, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-            MPI_Allreduce(MPI_IN_PLACE, &max_sys_vmemory, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-            MPI_Allreduce(MPI_IN_PLACE, &mean_sys_vmemory, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-            MPI_Allreduce(MPI_IN_PLACE, &min_sys_rssmemory, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-            MPI_Allreduce(MPI_IN_PLACE, &max_sys_rssmemory, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-            MPI_Allreduce(MPI_IN_PLACE, &mean_sys_rssmemory, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-#endif
-            mean_sys_vmemory /= NTasks;
-            mean_sys_rssmemory /= NTasks;
             if (ThisTask == 0) {
                 std::cout << "\n#=====================================================\n";
                 std::cout << "#                   MemoryLogging\n";
                 std::cout << "#=====================================================\n\n";
-                std::cout << "Info about resident set size:\n";
-                std::cout << "[Current resident set size]:\n";
-                std::cout << "Min over tasks:  " << std::setw(15) << min_sys_vmemory / 1.0e6 << " MB\n";
-                std::cout << "Mean over tasks: " << std::setw(15) << mean_sys_vmemory / 1.0e6 << " MB\n";
-                std::cout << "Max over tasks:  " << std::setw(15) << max_sys_vmemory / 1.0e6 << " MB\n";
-                std::cout << "[Peak resident set size]:\n";
-                std::cout << "Min over tasks:  " << std::setw(15) << min_sys_rssmemory / 1.0e6 << " MB\n";
-                std::cout << "Mean over tasks: " << std::setw(15) << mean_sys_rssmemory / 1.0e6 << " MB\n";
-                std::cout << "Max over tasks:  " << std::setw(15) << max_sys_rssmemory / 1.0e6 << " MB\n";
-            }
-
-            if (ThisTask == 0) {
-                std::cout << "\n";
                 std::cout << "For info below we are only tracking allocation of standard\n";
                 std::cout << "container (Vector) and only allocations larger than " << min_bytes_to_log << " bytes\n\n";
             }

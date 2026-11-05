@@ -7,7 +7,9 @@
 #include <FML/ODESolver/ODESolver.h>
 #include <FML/ParameterMap/ParameterMap.h>
 #include <FML/Spline/Spline.h>
+#if __has_include(<FML/Emulator/EuclidEmulator2.h>)
 #include <FML/Emulator/EuclidEmulator2.h>
+#endif
 
 #include "Cosmology.h"
 
@@ -40,6 +42,7 @@ class CosmologyLCDM final : public Cosmology {
     // The fiducial option is to use the EuclidEmulator2
     //========================================================================
     Spline get_nonlinear_matter_power_spectrum_boost(double redshift) const override {
+#if __has_include(<FML/Emulator/EuclidEmulator2.h>)
         Spline ee2_boost_of_k{"P/Plinear from EuclidEmulator2 uninitialized"};
         try {
             FML::EMULATOR::EUCLIDEMULATOR2::Cosmology ee2cosmo(Omegab, OmegaM, Mnu_eV, ns, h, -1.0, 0.0, As);
@@ -52,6 +55,10 @@ class CosmologyLCDM final : public Cosmology {
             ee2_boost_of_k = Spline();
         }
         return ee2_boost_of_k;
+#else
+        // Reference emulator predictions are optional; simulations use the force solver.
+        return Cosmology::get_nonlinear_matter_power_spectrum_boost(redshift);
+#endif
     }
 
   protected:
