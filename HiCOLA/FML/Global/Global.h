@@ -98,12 +98,6 @@ namespace FML {
     //================================================
     void init_fml();
 
-    // Get the current and peak value of the resident set size (in bytes)
-    std::pair<double, double> get_system_memory_use();
-    // Print the min/max of the current and peak value of the resident set size 
-    // over tasks
-    void print_system_memory_use(); 
-
     /// Gather a single value from all tasks. Value from task ThisTask is stored in values[ThisTask]
     template <class T>
     std::vector<T> GatherFromTasks(T * value) {

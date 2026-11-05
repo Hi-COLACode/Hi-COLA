@@ -52,9 +52,7 @@ After this workflow is merged and a tagged release has published to PyPI:
      native dependencies and installed simulation test. Do not use `noarch`.
    - Complete `about` with project links, and keep its `license` and
      `license_file` entries. Add the license file of any third-party code
-     compiled into the solver. `HiCOLA/FML/Global/SystemMemory.h` is CC BY 3.0
-     and compiled into the solver, so its compatibility with the GPL must be
-     resolved, or the file replaced, before distributing the native package.
+     compiled into the solver.
    - Add `extra: recipe-maintainers:` with the maintainers' GitHub usernames.
 4. Follow the current [submission checklist](https://conda-forge.org/docs/maintainer/adding_pkgs/),
    test the recipe locally where practical, then open a pull request yourself

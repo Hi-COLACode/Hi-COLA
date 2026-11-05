@@ -21,7 +21,6 @@ int main() {
 #ifdef MEMORY_LOGGING
     // Print the FML memory log
     FML::MemoryLog::get()->print();
-    FML::print_system_memory_use();
    
     // Allocate some memory with standard container
     Vector<double> a(1000000);
@@ -34,7 +33,6 @@ int main() {
 
     // Print the FML memory log
     FML::MemoryLog::get()->print();
-    FML::print_system_memory_use();
 
     // Clear the memory and print again
     a.clear();
@@ -44,7 +42,6 @@ int main() {
 
     // Print the FML memory log 
     FML::MemoryLog::get()->print();
-    FML::print_system_memory_use();
 #endif
 
     // If we don't want automatic initialization/finalization of FML/MPI/FFTW (NO_AUTO_FML_SETUP) then we can do it like this

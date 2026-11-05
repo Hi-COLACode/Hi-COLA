@@ -50,7 +50,7 @@ Also see [our paper introducing Hi-COLA](https://iopscience.iop.org/article/10.1
 
 ### Licence
 
-Hi-COLA is licensed under the [GNU General Public License, version 3](LICENSE). Bundled third-party code under `HiCOLA/FML` keeps its own licence and notices, including `KDTree` (BSD 3-Clause), `Plotting` (MIT) and `Global/SystemMemory.h` (CC BY 3.0).
+Hi-COLA is licensed under the [GNU General Public License, version 3](LICENSE). Bundled third-party code under `HiCOLA/FML` keeps its own licence and notices, including `KDTree` (BSD 3-Clause) and `Plotting` (MIT).
 
 Hi-COLA is set up to natively operate with Vainshtein screening. However, with a few specific settings, K-mouflage models can also be simulated -- see our [paper on K-mouflage in Hi-COLA](https://iopscience.iop.org/article/10.1088/1475-7516/2024/11/052) ([pre-print here](https://arxiv.org/abs/2407.00855)). 
 
