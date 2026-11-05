@@ -15,6 +15,8 @@ from HiCOLA.Frontend import expression_builder as eb
 from HiCOLA.Utilities.Other import support
 
 assert USING_CPP, "The native conda package must include COLASolver"
+parameter_files = Path(backend.__file__).parent / "Parameter_files"
+assert any(parameter_files.rglob("*.ini")), "The package must include parameter files"
 Path(eb.__file__).resolve().relative_to(Path(sys.prefix).resolve())
 assert sym.expand(eb.K_func(eb.X**3 * eb.phi**2, "X") - 3 * eb.X**2 * eb.phi**2) == 0
 

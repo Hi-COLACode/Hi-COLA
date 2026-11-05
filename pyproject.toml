@@ -1,9 +1,11 @@
 [build-system]
-requires = ["setuptools>=64", "wheel", "scikit-build>=0.18,<1"]
+requires = ["setuptools>=77", "wheel", "scikit-build>=0.18,<1"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "hicola-frontend"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 dynamic = ["version"]
 requires-python = ">=3.9,<3.13"
 dependencies = [
@@ -28,4 +30,5 @@ include = ["HiCOLA", "HiCOLA.*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-HiCOLA = ["Parameter_files/**/*.ini", "Parameter_files/**/*.lua", "Parameter_files/**/*.txt", "Parameter_files/**/*.dat"]
+# bin/* matches the solver only in native builds, which install it there.
+HiCOLA = ["bin/*", "Parameter_files/**/*.ini", "Parameter_files/**/*.lua", "Parameter_files/**/*.txt", "Parameter_files/**/*.dat"]

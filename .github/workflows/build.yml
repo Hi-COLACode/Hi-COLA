@@ -93,6 +93,8 @@ jobs:
         # pyproject.toml are installed by pip wheel. The rebuilt wheel keeps
         # the same filename as the original and is stored in a separate
         # directory so the original wheel in dist/ is never overwritten.
+        # Version variables are cleared to match a user's install, so the
+        # filename check below confirms the sdist supplies its own version.
         run: |
           set -euo pipefail
           TMP="$(mktemp -d)"
@@ -100,7 +102,8 @@ jobs:
           tar -xzf "$SDIST" -C "$TMP"
           SRC="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d)"
           mkdir -p dist-sdist
-          python -m pip wheel --no-deps --no-cache-dir -w dist-sdist "$SRC"
+          env -u GITHUB_REF_TYPE -u GITHUB_REF_NAME -u PKG_VERSION \
+            python -m pip wheel --no-deps --no-cache-dir -w dist-sdist "$SRC"
           echo "rebuilt sdist-derived wheel: $(ls dist-sdist/*.whl)"
 
       - name: Validate both wheels are pure python and compiled-binary free
