@@ -101,6 +101,19 @@ jobs:
           path: ${{ runner.temp }}/hicola-regression/run/summary-report.json
           retention-days: 14
           if-no-files-found: error
+      - name: Upload summary plots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regression-summary-plots
+          path: |
+            ${{ runner.temp }}/hicola-regression/run/summary-plots/
+            ${{ runner.temp }}/hicola-regression/run/baseline/*-np*/plots/*.png
+            ${{ runner.temp }}/hicola-regression/run/candidate/*-np*/plots/*.png
+            ${{ runner.temp }}/hicola-regression/run/baseline/frontend/*/plots/*.png
+            ${{ runner.temp }}/hicola-regression/run/candidate/frontend/*/plots/*.png
+          retention-days: 14
+          if-no-files-found: warn
 
   particles:
     name: Regression particle reproducibility
