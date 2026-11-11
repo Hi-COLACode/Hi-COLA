@@ -15,6 +15,12 @@ dependencies = [
     "pandas>=2.0",
 ]
 
+[project.scripts]
+hicola_plot_pofk = "HiCOLA.Plotting.pofk:main"
+hicola_plot_background = "HiCOLA.Plotting.background:main"
+hicola_plot_growth = "HiCOLA.Plotting.growth:main"
+hicola_plot_frontend = "HiCOLA.Plotting.frontend:main"
+
 [project.optional-dependencies]
 tests = [
     "coverage>=7.6",
