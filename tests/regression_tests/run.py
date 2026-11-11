@@ -12,12 +12,13 @@ import sys
 import numpy as np
 from compare import close, force, numeric, particles, velocity_statistics, TOLERANCES
 from baseline import load_baseline
+from collect import summarise
 
 HERE = Path(__file__).resolve().parent
 CASES = ('gr', 'cubic_galileon', 'kmouflage')
 EXAMPLES = HERE.parents[1]/'examples'/'small_simulations'
 sys.path.insert(0, str(EXAMPLES))
-from run_simulations import command, make_args, frontend, lua
+from run_simulations import command, make_args, frontend, lua, plot_case, plot_frontend
 
 
 def git(repo, *args):
@@ -50,8 +51,18 @@ def build(source, args, baseline=False):
     return backend
 
 
+def plot(action):
+    """Draw a run's hicola_plot_* figures; a plotting failure never fails the simulations."""
+    try:
+        action()
+    except Exception as error:
+        print(f'Plotting failed: {type(error).__name__}: {error}', flush=True)
+
+
 def run_cases(source, backend, work, args):
     tables = {model:frontend(source,work,model) for model in ('cubic_galileon','kmouflage') if model in args.cases}
+    for paths in tables.values():
+        plot(lambda: plot_frontend(source,paths))
     for ranks in args.ranks:
         for case in args.cases:
             folder = work/f'{case}-np{ranks}'
@@ -74,6 +85,8 @@ def run_cases(source, backend, work, args):
                     text += f'HiCOLA_preforce_filename = {json.dumps(str(path))}\n'
                 probe_config.write_text(text)
                 command(launch+[backend/'force_probe',probe_config,folder/f'force-{screened}'],source,folder/f'force-{screened}.log')
+            modified = case in ('cubic_galileon','kmouflage') and 'gr' in args.cases
+            plot(lambda: plot_case(source,folder,work/f'gr-np{ranks}' if modified else None))
 
 
 def compare_runs(baseline, candidate, args, flavour='all'):
@@ -152,6 +165,25 @@ def compare_runs(baseline, candidate, args, flavour='all'):
     return report
 
 
+def write_plots(work, manifest, worst=10):
+    """Draw the overview and velocity figures into ``work/summary-plots``; never changes the result."""
+    try:
+        summary = summarise(work, manifest['cases'], manifest['ranks'], work/'summary-plots')
+    except Exception as error:
+        print(f'Could not summarise outputs: {type(error).__name__}: {error}')
+        return
+    for key, message in summary['errors'].items():
+        print(f'Not measured: {key}: {message}')
+    if os.environ.get('GITHUB_STEP_SUMMARY'):
+        closest = sorted(summary['checks'].items(), key=lambda item: -item[1])[:worst]
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:
+            stream.write('### Summary plots\n\nThe `regression-summary-plots` artifact holds both revisions\' '
+                         'hicola_plot_* figures and `overview.png`.\n\n'
+                         '| Checks closest to tolerance | max \\|Δ\\| / tolerance |\n|---|---|\n')
+            stream.writelines(f'| {name} | {value:.3g} |\n' for name, value in closest)
+            stream.writelines(f'\nNot measured: `{key}`: {message}\n' for key, message in summary['errors'].items())
+
+
 def compare_existing(work, flavour):
     """Inspect saved simulations without compiling or executing either revision."""
     manifest = json.loads((work/'report.json').read_text())
@@ -163,6 +195,8 @@ def compare_existing(work, flavour):
     report['status'] = 'failed' if report['failures'] else 'passed'
     path = work/f'{flavour}-report.json'
     path.write_text(json.dumps(report, indent=2)+'\n')
+    if flavour in ('summary', 'all'):
+        write_plots(work, manifest)
     print(f"{report['status'].upper()}: {flavour}: {len(report['comparisons'])} passed, "
           f"{len(report['failures'])} failed; report {path}")
     for key, message in report['failures'].items():

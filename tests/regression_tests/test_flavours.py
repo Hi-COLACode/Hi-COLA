@@ -111,6 +111,10 @@ class FlavourTests(unittest.TestCase):
                 self.assertEqual(result.returncode, code, result.stdout+result.stderr)
                 report = json.loads((self.root/f'{flavour}-report.json').read_text())
                 self.assertEqual(report['status'], 'passed' if code == 0 else 'failed')
+                if flavour == 'summary':
+                    figures = self.root/'summary-plots'
+                    self.assertTrue((figures/'overview.png').is_file())
+                    self.assertTrue((figures/'gr-np1'/'velocity_statistics.png').is_file())
                 if code:
                     self.assertIn('::warning title=Particles regression differences::', result.stdout)
         self.assertEqual(json.loads((self.root/'report.json').read_text()), manifest)
