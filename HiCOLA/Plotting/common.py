@@ -7,8 +7,9 @@ import re
 
 import numpy as np
 
-# Categorical colours, assigned in this order.
-COLORS = ('#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948')
+# Categorical colours, assigned in this order; the first two also mark run and reference.
+COLORS = ('tab:blue', 'tab:orange', 'tab:green', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan')
+RUN_COLOR, REFERENCE_COLOR = COLORS[:2]
 INK = '#52514e'
 # Inner (narrower) band is darker, as in the Hi-COLA papers' grey accuracy bands.
 BAND_COLORS = ('#c9c8c3', '#e6e5e1')
@@ -118,9 +119,47 @@ def ratio_axis(axis, bands, label):
     """Prepare a ratio panel: a line at 1 and up to two fractional bands around it."""
     # Widest band first, so the narrower, darker band is drawn on top of it.
     for band, color in zip(reversed(bands), reversed(BAND_COLORS[:len(bands)])):
-        axis.axhspan(1-band, 1+band, color=color, lw=0, zorder=0, label=f'±{100*band:g}%')
+        axis.axhspan(1-band, 1+band, color=color, lw=0, zorder=0)
     axis.axhline(1, color=INK, lw=1, zorder=1)
     axis.set_ylabel(label)
+
+
+def overlay(axis, method, x, y, reference_x, reference_y):
+    """Draw this run (solid) and the reference run (dashed) on one axis."""
+    getattr(axis, method)(x, y, color=RUN_COLOR)
+    getattr(axis, method)(reference_x, reference_y, color=REFERENCE_COLOR, ls='--')
+
+
+def comparison_legend(figure, args):
+    """One figure-level legend naming the two runs and the ratio bands."""
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    handles = [Line2D([], [], color=RUN_COLOR, label=args.label),
+               Line2D([], [], color=REFERENCE_COLOR, ls='--', label=args.reference_label)]
+    handles += [Patch(color=color, label=f'±{100*band:g}%') for band, color in zip(args.bands, BAND_COLORS)]
+    figure.legend(handles=handles, loc='outside lower center', ncol=len(handles))
+
+
+def grid(plt, count, rows_per_cell, height_ratios, cell_size, max_columns=3):
+    """Small multiples: ``count`` cells of ``rows_per_cell`` stacked panels, sharing x.
+
+    Returns the figure and a list of per-cell lists of axes; unused cells are hidden.
+    """
+    columns = min(max_columns, count)
+    rows = -(-count//columns)
+    figure, axes = plt.subplots(rows*rows_per_cell, columns, squeeze=False, sharex=True,
+                                figsize=(cell_size[0]*columns, cell_size[1]*rows),
+                                height_ratios=list(height_ratios)*rows)
+    cells = []
+    for index in range(rows*columns):
+        row, column = divmod(index, columns)
+        cell = [axes[row*rows_per_cell+offset, column] for offset in range(rows_per_cell)]
+        if index < count:
+            cells.append(cell)
+        else:
+            for axis in cell:
+                axis.set_visible(False)
+    return figure, cells
 
 
 def interpolate_on(x, reference_x, reference_y):

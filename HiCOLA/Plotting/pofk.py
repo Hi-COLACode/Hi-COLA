@@ -1,7 +1,8 @@
 """hicola_plot_pofk: the matter power spectrum of one run at every output redshift.
 
-With --reference, a lower panel shows the boost P(k)/P_ref(k) at each redshift the
-two runs share, with up to two fractional bands around 1.
+With --reference, each redshift the two runs share gets its own panel, overlaying
+this run (solid) and the reference run (dashed), with the boost P(k)/P_ref(k) below
+and up to two fractional bands around 1.
 """
 import logging
 import re
@@ -10,6 +11,8 @@ import sys
 from HiCOLA.Plotting import common
 
 REDSHIFT = re.compile(r'_z(\d+\.\d+)\.txt$')
+K_LABEL = 'k  [h/Mpc]'
+P_LABEL = 'P(k)  [(Mpc/h)$^3$]'
 
 
 def spectra(folder, redshifts=None):
@@ -22,6 +25,39 @@ def spectra(folder, redshifts=None):
     return dict(sorted(found.items(), key=lambda item: -float(item[0])))
 
 
+def columns(path):
+    table = list(common.read_table(path).values())
+    return table[0], table[1]
+
+
+def single(plt, runs, args):
+    """All redshifts of one run on one axis, darker for later outputs."""
+    figure, axis = plt.subplots(figsize=(7, 5))
+    for (z, path), color in zip(runs.items(), common.sequential(len(runs))):
+        axis.loglog(*columns(path), color=color, label=f'z = {z}')
+    axis.set(xlabel=K_LABEL, ylabel=P_LABEL, title=f'{args.label}: matter power spectrum')
+    axis.legend(title='Output', loc='upper left', bbox_to_anchor=(1.01, 1))
+    return figure
+
+
+def compared(plt, runs, references, shared, args):
+    """One panel pair per shared redshift: both spectra above, their ratio below."""
+    figure, cells = common.grid(plt, len(shared), 2, (2, 1), (4.6, 5))
+    for index, (z, (top, bottom)) in enumerate(zip(shared, cells)):
+        k, power = columns(runs[z])
+        reference_k, reference_power = columns(references[z])
+        common.overlay(top, 'loglog', k, power, reference_k, reference_power)
+        bottom.semilogx(k, power/common.interpolate_on(k, reference_k, reference_power), color=common.RUN_COLOR)
+        common.ratio_axis(bottom, args.bands, f'P / P$_{{\\rm {args.reference_label}}}$' if index % 3 == 0 else '')
+        top.set_title(f'z = {z}')
+        if index % 3 == 0:
+            top.set_ylabel(P_LABEL)
+        bottom.set_xlabel(K_LABEL)
+    common.comparison_legend(figure, args)
+    figure.suptitle(f'{args.label} and {args.reference_label}: matter power spectrum')
+    return figure
+
+
 def main(argv=None):
     tool = common.parser(__doc__.splitlines()[0], 'Simulation output folder containing pofk*_z*.txt files')
     tool.add_argument('--redshifts', type=float, nargs='+', metavar='Z',
@@ -30,35 +66,17 @@ def main(argv=None):
     runs = spectra(args.input, args.redshifts)
     if not runs:
         tool.error(f'No pofk*_z*.txt files in {args.input}')
-    references = spectra(args.reference, args.redshifts) if args.reference else {}
-    shared = [z for z in runs if z in references]
-    if args.reference and not shared:
-        tool.error(f'{args.reference} has no power spectra at the redshifts of {args.input}')
-    for z in sorted(set(runs) - set(shared)) if args.reference else ():
-        logging.warning('No reference power spectrum at z = %s; plotting it without a ratio', z)
-
     with common.style() as plt:
         if args.reference:
-            figure, (top, bottom) = plt.subplots(2, 1, figsize=(7, 7), sharex=True, height_ratios=(2, 1))
+            references = spectra(args.reference, args.redshifts)
+            shared = [z for z in runs if z in references]
+            if not shared:
+                tool.error(f'{args.reference} has no power spectra at the redshifts of {args.input}')
+            for z in sorted(set(runs)-set(shared)):
+                logging.warning('No reference power spectrum at z = %s; it is not plotted', z)
+            figure = compared(plt, runs, references, shared, args)
         else:
-            figure, top = plt.subplots(figsize=(7, 5))
-        for (z, path), color in zip(runs.items(), common.sequential(len(runs))):
-            table = list(common.read_table(path).values())
-            k, power = table[0], table[1]
-            top.loglog(k, power, color=color, label=f'z = {z}')
-            if z in shared:
-                reference = list(common.read_table(references[z]).values())
-                bottom.semilogx(k, power/common.interpolate_on(k, reference[0], reference[1]), color=color)
-        top.set_ylabel('P(k)  [(Mpc/h)$^3$]')
-        top.set_title(f'{args.label}: matter power spectrum')
-        top.legend(title='Output', loc='upper left', bbox_to_anchor=(1.01, 1))
-        if args.reference:
-            common.ratio_axis(bottom, args.bands, f'P / P$_{{\\rm {args.reference_label}}}$')
-            if args.bands:
-                bottom.legend(loc='upper left', bbox_to_anchor=(1.01, 1))
-            bottom.set_xlabel('k  [h/Mpc]')
-        else:
-            top.set_xlabel('k  [h/Mpc]')
+            figure = single(plt, runs, args)
         common.save(figure, args, 'pofk')
         plt.close(figure)
     return 0

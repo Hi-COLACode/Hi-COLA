@@ -40,9 +40,11 @@ After each simulation the script draws its plots into `<case>/plots/` with the
 | `hicola_plot_growth` | `gravitymodel_*_k*.txt` | D1(a, k) and G_eff/G against a for each k |
 | `hicola_plot_frontend` | frontend `*_expansion.txt`, `*_force.txt` | E, E'/E, screening coefficient, coupling and G_G4/G_N against a |
 
-Modified-gravity cases are plotted with `--reference` set to the GR run, which adds
-ratio panels (the boost P/P_GR, H/H_GR, D1/D1_GR) with ±1% and ±2.5% bands. Each tool
-also runs on its own, for example:
+Modified-gravity cases are plotted with `--reference` set to the GR run. With a
+reference, each panel overlays the run (solid blue) and the reference (dashed orange),
+P(k) and growth get one panel per redshift or k, and ratio panels (the boost P/P_GR,
+H/H_GR, D1/D1_GR) show ±1% and ±2.5% bands. `--redshifts` and `--wavenumbers` select
+which redshifts or k values to plot. Each tool also runs on its own, for example:
 
 ```sh
 hicola_plot_pofk example-output/cubic_galileon/output \

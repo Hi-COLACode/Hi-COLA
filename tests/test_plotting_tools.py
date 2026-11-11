@@ -96,6 +96,13 @@ class PlottingToolTests(unittest.TestCase):
         self.assertEqual(list(pofk.spectra(self.root/'gr'/'output', [0.])), ['0.000'])
         self.assertEqual(list(pofk.spectra(self.root/'gr'/'output')), ['1.000', '0.000'])
 
+    def test_selected_wavenumbers_and_unmatched_reference(self):
+        run(growth, self.root/'cubic'/'output', '--reference', self.root/'gr'/'output',
+            '--wavenumbers', '0.1', '--out', self.root/'one-k')
+        self.assert_png(self.root/'one-k'/'growth.png')
+        with self.assertRaises(SystemExit):
+            run(growth, self.root/'cubic'/'output', '--wavenumbers', '5')
+
     def test_header_names_keep_units(self):
         table = read_table(self.root/'gr'/'output'/'pofk_gr_cb_z0.000.txt')
         self.assertEqual(list(table), ['k (h/Mpc)', 'Pcb(k) (Mpc/h)^3',
