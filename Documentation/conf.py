@@ -38,14 +38,15 @@ html_theme_options = {
     "use_source_button": True,
     "home_page_in_toc": True,
 }
-# Left sidebar: logo, version selector, search, then the page list.
+# Left sidebar: logo, version selector, then the page list.
 html_sidebars = {
-    "**": ["navbar-logo", "release-switcher", "search-button-field", "sbt-sidebar-nav"],
+    "**": ["navbar-logo", "release-switcher", "sbt-sidebar-nav"],
 }
 # The repository logos are copied into _static alongside the theme assets.
 html_static_path = ["_static", "../logos"]
 html_favicon = "../logos/Hi-COLA-light.png"
 html_js_files = ["release-switcher.js"]
+html_css_files = ["hicola.css"]
 myst_url_schemes = {
     "http": None, "https": None, "mailto": None,
     "repo": {"url": f"https://github.com/{repository}/blob/{source_ref}/{{{{path}}}}"},

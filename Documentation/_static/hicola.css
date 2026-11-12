@@ -1,0 +1,10 @@
+/* Keep the logo at sidebar scale; the source images are 1583 px wide. */
+.navbar-brand img.logo__image {
+  max-height: 6rem;
+  width: auto;
+}
+/* The version selector spans the sidebar width. */
+#release-switcher {
+  width: 100%;
+  margin: 0.5rem 0;
+}
