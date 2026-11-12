@@ -21,22 +21,31 @@ autodoc_typehints = "description"
 napoleon_numpy_docstring = True
 myst_heading_anchors = 3
 myst_enable_extensions = ["dollarmath", "colon_fence"]
-html_theme = "pydata_sphinx_theme"
+html_theme = "sphinx_book_theme"
 templates_path = ["_templates"]
+repository = os.environ.get("GITHUB_REPOSITORY", "Hi-COLACode/Hi-COLA")
+source_ref = os.environ.get("DOCS_SOURCE_REF", "Hi-COLA_public")
 html_theme_options = {
-    "navbar_start": ["navbar-logo", "release-switcher"],
     "logo": {
         "image_light": "_static/Hi-COLA-light.png",
         "image_dark": "_static/Hi-COLA-dark.png",
         "text": "Hi-COLA",
     },
+    "repository_url": f"https://github.com/{repository}",
+    "repository_branch": source_ref,
+    "path_to_docs": "Documentation",
+    "use_repository_button": True,
+    "use_source_button": True,
+    "home_page_in_toc": True,
+}
+# Left sidebar: logo, version selector, search, then the page list.
+html_sidebars = {
+    "**": ["navbar-logo", "release-switcher", "search-button-field", "sbt-sidebar-nav"],
 }
 # The repository logos are copied into _static alongside the theme assets.
 html_static_path = ["_static", "../logos"]
 html_favicon = "../logos/Hi-COLA-light.png"
 html_js_files = ["release-switcher.js"]
-repository = os.environ.get("GITHUB_REPOSITORY", "Hi-COLACode/Hi-COLA")
-source_ref = os.environ.get("DOCS_SOURCE_REF", "Hi-COLA_public")
 myst_url_schemes = {
     "http": None, "https": None, "mailto": None,
     "repo": {"url": f"https://github.com/{repository}/blob/{source_ref}/{{{{path}}}}"},
