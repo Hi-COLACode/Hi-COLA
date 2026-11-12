@@ -341,7 +341,7 @@ jobs:
   # so token rotation requires updating only the repository secret.
   # Without an owner, this job remains disabled.
   publish-conda:
-    name: Build and publish native conda package / ${{ matrix.os }}
+    name: Build and publish native conda package
     needs: [build, test-matrix]
     if: >-
       github.event_name == 'push' &&
