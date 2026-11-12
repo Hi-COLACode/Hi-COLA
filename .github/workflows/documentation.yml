@@ -9,6 +9,7 @@ on:
       - 'HiCOLA/Plotting/**'
       - 'HiCOLA/__init__.py'
       - 'HiCOLA/backend.py'
+      - 'examples/**'
       - 'README.md'
       - 'logos/**'
       - 'requirements*'
@@ -23,6 +24,7 @@ on:
       - 'HiCOLA/Plotting/**'
       - 'HiCOLA/__init__.py'
       - 'HiCOLA/backend.py'
+      - 'examples/**'
       - 'README.md'
       - 'logos/**'
       - 'requirements*'
@@ -44,7 +46,7 @@ jobs:
   build:
     if: github.event_name == 'pull_request' || github.event_name == 'release' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 40
     env:
       MPLBACKEND: Agg
       DOCS_SOURCE_REF: ${{ github.event.repository.default_branch }}
@@ -58,9 +60,28 @@ jobs:
           python-version: '3.12.14'
           cache: pip
           cache-dependency-path: requirements-docs.lock
+      - name: Install documentation dependencies
+        run: python -m pip install -r requirements-docs.lock
+      # The example simulations provide the figures shown in the plotting pages.
+      - name: Run the example simulations for documentation figures
+        if: hashFiles('examples/small_simulations/run_simulations.py') != ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libfftw3-dev libfftw3-mpi-dev libgsl-dev liblua5.4-dev openmpi-bin libopenmpi-dev
+          python -m pip install --no-deps -e .
+          python examples/small_simulations/run_simulations.py \
+            --work "$RUNNER_TEMP/examples" --prefix /usr --cases gr cubic_galileon \
+            --make-arg LUA_INCLUDE=/usr/include/lua5.4 --make-arg 'LUA_LINK=-llua5.4 -ldl'
+          printf 'DOCS_SIMULATION_WORK=%s/examples\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: documentation-example-logs
+          path: ${{ runner.temp }}/examples
+          if-no-files-found: ignore
       - name: Build current documentation
         run: |
-          python -m pip install -r requirements-docs.lock
           DOCS_SOURCE_REF="$(git rev-parse HEAD)" python -m sphinx -W --keep-going -b html Documentation Documentation/_build/html
           git rev-parse HEAD > Documentation/_build/html/source-commit.txt
       - uses: actions/upload-artifact@v4

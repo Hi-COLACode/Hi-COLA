@@ -16,7 +16,11 @@ The `HiCOLA` gravity model reads the expansion table and the four-column force t
 
 The K-mouflage and DGP generators write three-column force tables (`a`, screening quantity, coupling). The backend's `kmouflage` gravity model reads three columns; the `HiCOLA` model requires four.
 
-The [`hicola_plot_frontend`](plotting.md) command plots these tables.
+The [`hicola_plot_frontend`](plotting.md) command plots these tables:
+
+```{include} _generated/frontend.md
+```
+
 
 Filenames include `model_name` and `cosmo_name`. If either target exists, both names are passed through the renaming helper; inspect the printed names and update the Lua input paths. A fresh output directory per run avoids ambiguous pairs and the helper's suffix limitations.
 

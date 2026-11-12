@@ -16,7 +16,20 @@ MPLBACKEND=Agg python -m sphinx -W --keep-going -b html Documentation Documentat
 lychee --offline --include-fragments --no-ignore --exclude-path '(^|/)_static/' -- 'Documentation/_build/html/**/*.html'
 ```
 
-Generated API stubs and build output are ignored by Git. The dropdown reads the shared `versions.json` file on the published site; a standalone local HTML build does not include that manifest.
+Generated API stubs, figures, and build output are ignored by Git.
+
+## Generated figures
+
+`Documentation/figures.py` runs while Sphinx starts. Every build runs the Horndeski frontend on the bundled cubic Galileon example and plots the tables with `hicola_plot_frontend`. The power-spectrum, background, and growth figures come from the [small example simulations](examples.md): the Documentation workflow installs FFTW, GSL, Lua, and Open MPI, runs the GR and cubic Galileon cases, and passes their `--work` directory to Sphinx as `DOCS_SIMULATION_WORK`. A simulation failure fails the documentation build, and the workflow uploads the run's logs as `documentation-example-logs`.
+
+To include simulation figures locally, run the examples first and point the build at them:
+
+```sh
+python examples/small_simulations/run_simulations.py --work /tmp/hicola-examples --cases gr cubic_galileon
+DOCS_SIMULATION_WORK=/tmp/hicola-examples MPLBACKEND=Agg python -m sphinx -W --keep-going -b html Documentation Documentation/_build/html
+```
+
+Without `DOCS_SIMULATION_WORK`, those figures are replaced by a note. The Links workflow builds without simulations. The dropdown reads the shared `versions.json` file on the published site; a standalone local HTML build does not include that manifest.
 
 ## Publication and GitHub Pages
 

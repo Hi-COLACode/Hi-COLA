@@ -35,6 +35,11 @@ The runner builds COLASolver, generates the frontend tables, runs each simulatio
 
 Outside Docker, the same command works with a C++ compiler, make, MPI, MPI-enabled FFTW, GSL, Lua, and the Python package installed from the checkout (`python -m pip install -e .`). Pass the dependency prefix with `--prefix` and Lua flags with `--make-arg`.
 
+```{include} _generated/pofk.md
+```
+
+See [plotting tools](plotting.md) for the other figures.
+
 ## Input files
 
 `backend_minimal.lua` holds the shared simulation settings: box size, particle count, meshes, and timesteps. `gr.lua`, `cubic_galileon.lua`, `kmouflage.lua`, and `lightcone.lua` load it with `dofile` and select their model and output settings. The runner's generated Lua wrapper supplies only file paths.

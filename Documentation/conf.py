@@ -15,7 +15,7 @@ extensions = [
     "sphinx.ext.napoleon", "sphinx.ext.mathjax",
 ]
 root_doc = "index"
-exclude_patterns = ["_build", "README.md", "FML-dependency-audit.md"]
+exclude_patterns = ["_build", "_generated", "README.md", "FML-dependency-audit.md"]
 autosummary_generate = True
 autodoc_typehints = "description"
 napoleon_numpy_docstring = True
@@ -23,8 +23,17 @@ myst_heading_anchors = 3
 myst_enable_extensions = ["dollarmath", "colon_fence"]
 html_theme = "pydata_sphinx_theme"
 templates_path = ["_templates"]
-html_theme_options = {"navbar_start": ["navbar-logo", "release-switcher"]}
-html_static_path = ["_static"]
+html_theme_options = {
+    "navbar_start": ["navbar-logo", "release-switcher"],
+    "logo": {
+        "image_light": "_static/Hi-COLA-light.png",
+        "image_dark": "_static/Hi-COLA-dark.png",
+        "text": "Hi-COLA",
+    },
+}
+# The repository logos are copied into _static alongside the theme assets.
+html_static_path = ["_static", "../logos"]
+html_favicon = "../logos/Hi-COLA-light.png"
 html_js_files = ["release-switcher.js"]
 repository = os.environ.get("GITHUB_REPOSITORY", "Hi-COLACode/Hi-COLA")
 source_ref = os.environ.get("DOCS_SOURCE_REF", "Hi-COLA_public")
@@ -64,3 +73,9 @@ for title, module in modules.items():
     lines.append("")
 (ROOT / "Documentation/api").mkdir(parents=True, exist_ok=True)
 (ROOT / "Documentation/api/index.rst").write_text("\n".join(lines))
+
+# Example figures are generated for each build; see figures.py.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import figures  # noqa: E402
+
+figures.generate(ROOT, ROOT / "Documentation")

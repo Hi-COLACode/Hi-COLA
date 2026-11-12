@@ -18,6 +18,22 @@ hicola_plot_pofk example-output/cubic_galileon/output \
   --reference example-output/gr/output --bands 0.01 0.025
 ```
 
+## Example figures
+
+These figures are generated each time the documentation is built.
+
+```{include} _generated/frontend.md
+```
+
+```{include} _generated/pofk.md
+```
+
+```{include} _generated/background.md
+```
+
+```{include} _generated/growth.md
+```
+
 ## Options
 
 | Option | Effect |
