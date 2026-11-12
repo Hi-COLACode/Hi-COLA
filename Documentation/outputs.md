@@ -1,83 +1,58 @@
-# Outputs and validation
-
-[Documentation home](index.md) · [Backend](backend.md) · [Troubleshooting](troubleshooting.md)
+# Outputs and plotting
 
 ## Frontend tables
 
-The Horndeski generator writes three whitespace-separated ASCII files without headers, using `%.4e` formatting (five significant digits). Rows follow the integration order: the first row is today ($a=1$) and the scale factor decreases towards the earliest integration epoch.
+The Horndeski generator writes headerless ASCII tables (`%.4e`), starting at $a=1$ and running back to the earliest epoch:
 
 | File | Columns |
 | --- | --- |
-| `*_expansion.txt` | `a`, `E = H/H0`, `E'/E = d ln H / d ln a` |
-| `*_force.txt` | `a`, `chi / delta`, coupling factor $\beta$, $G_{G_4}/G_N$ |
-| `*_full.txt` | `a`, `E`, `E'/E`, $\phi$, $\phi'$, $\Omega_m$, $\Omega_r$, $\Omega_\phi$, $\Omega_\Lambda$ |
+| `*_expansion.txt` | $a$, $E=H/H_0$, $E'/E=d\ln H/d\ln a$ |
+| `*_force.txt` | $a$, $\chi/\delta$, coupling $\beta$, $G_{G_4}/G_N$ |
+| `*_full.txt` | $a$, $E$, $E'/E$, $\phi$, $\phi'$, $\Omega_m$, $\Omega_r$, $\Omega_\phi$, $\Omega_\Lambda$ (diagnostic only) |
 
-The `HiCOLA` gravity model reads the expansion table and the four-column force table and splines each against `a`. Its linear effective Newton constant is `Geff/G = 1 + coupling`; `chi/delta` controls the approximate screening function and $G_{G_4}/G_N$ scales the Poisson normalisation. The `_full` table is a diagnostic record and is not read by the backend. These tables are not functions of Fourier wavenumber.
-
-The K-mouflage and DGP generators write three-column force tables (`a`, screening quantity, coupling). The backend's `kmouflage` gravity model reads three columns; the `HiCOLA` model requires four.
-
-The [`hicola_plot_frontend`](plotting.md) command plots these tables:
-
-```{include} _generated/frontend.md
-```
-
-
-Filenames include `model_name` and `cosmo_name`. If either target exists, both names are passed through the renaming helper; inspect the printed names and update the Lua input paths. A fresh output directory per run avoids ambiguous pairs and the helper's suffix limitations.
-
-Run this structural check in your Python environment, replacing the two paths and initial redshift:
+The `HiCOLA` gravity model splines both tables against $a$ and uses $G_{\mathrm{eff}}/G_N=1+\beta$. The K-mouflage and DGP generators write three-column force tables, which the `kmouflage` gravity model reads. A quick structural check:
 
 ```python
 import numpy as np
-
-expansion = np.loadtxt("Hi-COLA_Output/cuGal_f0p2_14dp_WMAP_expansion.txt")
-force = np.loadtxt("Hi-COLA_Output/cuGal_f0p2_14dp_WMAP_force.txt")
-initial_redshift = 49.0
-for table in (expansion, force):
-    assert table.ndim == 2
-    assert np.isfinite(table).all()
-    assert (np.diff(table[:, 0]) < 0).all()
-    assert np.isclose(table[0, 0], 1.0)
-    assert 0 < table[-1, 0] <= 1 / (1 + initial_redshift)
-assert expansion.shape[1] == 3 and force.shape[1] == 4
-assert np.array_equal(expansion[:, 0], force[:, 0])
-assert (expansion[:, 1] > 0).all()
-assert np.isclose(expansion[0, 1], 1.0, rtol=1e-4)
+e = np.loadtxt("Hi-COLA_Output/cuGal_f0p2_14dp_WMAP_expansion.txt")
+f = np.loadtxt("Hi-COLA_Output/cuGal_f0p2_14dp_WMAP_force.txt")
+assert e.shape[1] == 3 and f.shape[1] == 4 and np.isfinite(e).all() and np.isfinite(f).all()
+assert np.array_equal(e[:, 0], f[:, 0]) and (np.diff(e[:, 0]) < 0).all()
+assert np.isclose(e[0, 0], 1) and np.isclose(e[0, 1], 1, rtol=1e-4)
+assert e[-1, 0] <= 1 / (1 + 49)   # covers the backend's initial redshift
 ```
 
-These checks catch malformed tables and missing time coverage. They do not establish that the equations, chosen solution branch, or screening approximation are physically correct. Compare background histories and growth to independent references, and repeat with numerical resolution changes.
+This does not show the solution is physically correct; compare with independent calculations and vary the resolution.
 
-## Backend products
+## Backend files
 
-`output_folder` selects the destination and `simulation_name` labels the run. `output_redshifts` selects output epochs. Particle snapshots are controlled by `output_particles` and `output_fileformat` (`GADGET` or `FML`). Power spectra use the `pofk` settings; halo finding, multipoles, and bispectra have separate toggles in the Lua template.
+`output_folder`, `simulation_name`, and `output_redshifts` set where, what, and when. Snapshots use `output_particles` and `output_fileformat` (`GADGET` or `FML`); power spectra, halos, multipoles, and bispectra have their own toggles. Check each file's header.
 
-Check each output's own headers and the [solver documentation](repo:HiCOLA/FML/COLASolver/README.md) before interpreting columns. Preserve the simulation log alongside the output. An exit status of zero is necessary, but also verify the requested epochs, expected files, finite statistics, and intended cosmology and gravity model.
+**`cosmology_<name>.txt`** has nine columns, although its header names six: $a$, $H/H_0$, $d\ln H/d\ln a$, $\Omega_m$, photon radiation, relativistic neutrinos, massive-neutrino approximation, exact neutrino fraction, and a legacy dark-energy column. Columns 7 and 8 are alternative neutrino representations; do not add them. Column 9 is not the scalar's density; total dark energy is $1-\Omega_m-\Omega_r$.
 
-For comparisons, match initial spectrum, random seed, phase/amplitude settings, box size, meshes, and time stepping. Establish convergence and statistical tolerances before treating differences in matter power spectra as physical effects.
+**`gravitymodel_<name>_k<k>.txt`** starts with $a$, $G_{\mathrm{eff}}/G_N$, $D_1$, and a neutrino growth term at that $k$; later columns depend on the mode, so read [GravityModel::output](repo:HiCOLA/FML/COLASolver/src/GravityModel.h).
 
-## Cosmology diagnostic table
+**`pofk*_z*.txt`** contains $k$ (h/Mpc), $P(k)$, and linear $P(k)$ ((Mpc/h)³). The header field `ShotnoiseSubtracted` follows `pofk_subtract_shotnoise`, which the template sets to true.
 
-`cosmology_<simulation_name>.txt` is written by [Cosmology::output](repo:HiCOLA/FML/COLASolver/src/Cosmology.h). Its current rows contain **nine columns**, even though the header lists only six:
+## Plotting tools
 
-| Column | Quantity |
-| --- | --- |
-| 1 | Scale factor $a$ |
-| 2 | $H/H_0$ |
-| 3 | $d\ln H/d\ln a$ |
-| 4 | $\Omega_m(a)$ |
-| 5 | Photon radiation fraction returned by `get_OmegaR` |
-| 6 | Relativistic-neutrino fraction returned by `get_OmegaNu` |
-| 7 | Massive-neutrino matter approximation returned by `get_OmegaMNu` |
-| 8 | Neutrino energy fraction returned by `get_OmegaNu_exact` |
-| 9 | Legacy dark-energy quantity returned by `get_OmegaLambda` |
+The packages install four commands, each taking the folder holding its input files:
 
-The tabulated expansion is splined from the frontend table; density diagnostics depend on consistent backend inputs. In a Hi-COLA run, column 9 is not generally the true cosmological-constant fraction and does not by itself describe an evolving scalar. For the supported massless-neutrino, flat setup, total dark energy can be reconstructed as $1-\Omega_m-\Omega_r$, with total radiation formed from photon and relativistic-neutrino contributions. Do not add the approximate and exact neutrino diagnostic columns together: they are alternative representations, not independent species.
+| Command | Reads | Plots |
+| --- | --- | --- |
+| `hicola_plot_frontend` | `*_expansion.txt`, `*_force.txt` | $E$, $E'/E$, screening coefficient, coupling, $G_{G_4}/G_N$ |
+| `hicola_plot_pofk` | `pofk*_z*.txt` | $P(k)$ at each output redshift |
+| `hicola_plot_background` | `cosmology_*.txt` | $H/H_0$, $d\ln H/d\ln a$, density fractions |
+| `hicola_plot_growth` | `gravitymodel_*_k*.txt` | $D_1$ and $G_{\mathrm{eff}}/G$ at each $k$ |
 
-## Gravity and growth diagnostics
+```sh
+hicola_plot_pofk example-output/cubic_galileon/output --reference example-output/gr/output
+```
 
-`gravitymodel_<simulation_name>_k<value>.txt` files describe gravity and growth at the indicated fixed Fourier scale. The first columns are $a$, $G_{\mathrm{eff}}/G_N$, $D_1$, and the neutrino growth diagnostic. Transfer-data growth columns may then be inserted when transfer data are present, followed by second/third-order growth and source terms. Inspect the header and [GravityModel::output](repo:HiCOLA/FML/COLASolver/src/GravityModel.h) rather than assuming the remaining columns have a single layout for every mode. The first three columns are usually the starting point for comparing expansion-driven growth and coupling.
+`--reference` overlays a second run and adds ratio panels with bands set by `--bands` (default ±1% and ±2.5%; none if given no values). `--redshifts` and `--wavenumbers` select panels; `--label`, `--reference-label`, `--out`, and `--format` (png, pdf, svg) control the figure. Figures are saved to `plots/` beside an `output` folder; no window is opened. These figures are generated from the example simulations each time this documentation is built:
 
-## Power-spectrum interpretation
+```{include} _generated/background.md
+```
 
-The ordinary matter-spectrum output identifies $k$ in `h/Mpc`, nonlinear $P(k)$, and a linear reference in `(Mpc/h)^3`. Massive-neutrino modes can write additional component spectra. The header records `ShotnoiseSubtracted`; check that field and the explicit `pofk_subtract_shotnoise` setting rather than assuming all spectra include or exclude shot noise. The supplied Lua template sets subtraction true, while other defaults or examples may differ.
-
-Use the [resolution guide](resolution.md) to decide which scales are trustworthy and estimate particle masses. Use the [paired-fixed recipe](initial-conditions.md#fixed-and-paired-runs) when comparing mean spectra with reduced sampling variance. The choice to save snapshots depends on whether later particle-level analysis or exact initial-condition reuse is required.
+```{include} _generated/growth.md
+```

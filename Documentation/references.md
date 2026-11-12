@@ -1,7 +1,5 @@
 # Citation, licence, and references
 
-[Documentation home](index.md)
-
 ## Licence
 
 Hi-COLA is licensed under the [GNU General Public License, version 3](repo:LICENSE) (`GPL-3.0-only`). Bundled third-party code under `HiCOLA/FML` keeps its own licence and notices, including `KDTree` (BSD 3-Clause) and `Plotting` (MIT).

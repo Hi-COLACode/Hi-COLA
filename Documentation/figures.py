@@ -28,7 +28,7 @@ FRONTEND_INPUTS = (
 SIMULATION_FIGURES = ("pofk", "background", "growth")
 SIMULATION_NOTE = (
     "This figure is produced when the documentation build runs the "
-    "[small example simulations](examples.md); the Documentation workflow does so. "
+    "[example simulations](quickstart.md#run-the-example-simulations); the Documentation workflow does so. "
     "Set `DOCS_SIMULATION_WORK` to the `--work` directory of a completed run "
     "to include it in a local build."
 )
