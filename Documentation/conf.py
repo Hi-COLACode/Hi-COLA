@@ -39,7 +39,7 @@ html_theme_options = {
     "home_page_in_toc": True,
     # Search lives in the sidebar rather than the page header.
     "navbar_persistent": [],
-    "primary_sidebar_end": ["release-switcher", "author"],
+    "primary_sidebar_end": ["release-switcher", "sidebar-copyright"],
     "footer_content_items": [],
 }
 # Left sidebar: logo, search, and page list; its footer holds the version
