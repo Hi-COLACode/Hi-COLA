@@ -6,3 +6,9 @@ __pycache__/
 Documentation/_build/
 Documentation/api/index.rst
 Documentation/api/generated/
+.pytest_cache/
+.coverage
+htmlcov/
+*egg-info/
+*build/
+regression-results/

@@ -4,9 +4,9 @@
 
 <p align="left">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="Hi-COLA-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="Hi-COLA-light.png">
-    <img alt="Hi-COLA logo" src="Hi-COLA-light.png" width="120">
+    <source media="(prefers-color-scheme: dark)" srcset="logos/Hi-COLA-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="logos/Hi-COLA-light.png">
+    <img alt="Hi-COLA logo" src="logos/Hi-COLA-light.png" width="120">
   </picture>
 </p>
 
@@ -23,3 +23,24 @@ Hi-COLA is set up to natively operate with Vainshtein screening. However, with a
 How does the accuracy of Hi-COLA fare relative to other approximate tools for LSS? You can find a detailed comparison exercise [in this paper](https://academic.oup.com/mnras/article/536/1/664/7903359?login=true) ([pre-print version here](https://arxiv.org/abs/2406.13667)). 
 
 Hi-COLA remains under active development. You can contact the Hi-COLA team at team.hicola@gmail.com, or at our individual emails (see papers linked above).
+
+For runnable small simulations and the Docker runtime, see
+[examples/small_simulations](examples/small_simulations/README.md).
+For baseline/MPI comparisons, see the
+[regression workflow](.github/workflows/regression-tests.yml).
+
+Regression CI covers GR, cubic Galileon (Horndeski), and manufactured K-mouflage.
+It generates baseline and candidate outputs once. Summary comparisons
+check matter power spectra, expansion/growth tables, particle counts, mean velocities
+and RMS speeds. The separate particle-reproducibility job compares
+positions, velocities and force grids and is advisory.
+Require the `Regression summary statistics` check in branch protection; leave
+`Regression particle reproducibility` optional. Particle-level comparisons use the
+explicit numerical tolerances in `tests/regression_tests/compare.py`.
+
+The K-mouflage regression uses fixed manufactured background/force tables and
+explicit screening settings. It is a reproducible backend check, including
+gradient screening, and is included in the required summary comparisons.
+Its expansion, force-table coefficients and smoothing settings must be kept
+consistent. These inputs do not represent a calibrated physical cosmology or
+test the physical-model frontend.

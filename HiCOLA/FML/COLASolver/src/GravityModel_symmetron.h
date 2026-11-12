@@ -23,6 +23,7 @@ class GravityModelSymmetron final : public GravityModel<NDIM> {
     bool use_screening_method{true};
     bool screening_enforce_largescale_linear{false};
     double screening_linear_scale_hmpc{0.0};
+    double screening_efficiency{1.0};
 
     // For solving the exact equation
     bool solve_exact_equation{false};
@@ -57,6 +58,7 @@ class GravityModelSymmetron final : public GravityModel<NDIM> {
             if (use_screening_method) {
                 std::cout << "# Enforce correct linear evolution : " << screening_enforce_largescale_linear << "\n";
                 std::cout << "# Scale for which we enforce this  : " << screening_linear_scale_hmpc << " h/Mpc\n";
+                std::cout << "# Screening efficiency             : " << screening_efficiency << "\n";
             }
             std::cout << "#=====================================================\n";
             std::cout << "\n";
@@ -86,6 +88,7 @@ class GravityModelSymmetron final : public GravityModel<NDIM> {
         double phi = phi_background(a);
         return 1.0 + 2.0 * beta * beta * phi * phi * koverH02 / (koverH02 + mass2a2);
     }
+    double GG4_GN([[maybe_unused]] double a) const override { return 1.0; }
 
     //========================================================================
     // Compute the force DPhi from the density field delta in fourier space
@@ -100,7 +103,7 @@ class GravityModelSymmetron final : public GravityModel<NDIM> {
                        std::array<FFTWGrid<NDIM>, NDIM> & force_real) const override {
 
         // Compute fifth-force
-        const double norm_poisson_equation = 1.5 * this->cosmo->get_OmegaM() * a;
+        const double norm_poisson_equation = 1.5 * this->cosmo->get_OmegaM0() * a;
         auto coupling = [&](double kBox) { return GeffOverG(a, kBox / H0Box) - 1.0; };
         FFTWGrid<NDIM> density_fifth_force;
 
@@ -115,7 +118,7 @@ class GravityModelSymmetron final : public GravityModel<NDIM> {
               
               // Set up the solver, set the settings, and solve the solution
               const bool verbose = true;
-              SymmetronSolverCosmology<NDIM, double> mgsolver(this->cosmo->get_OmegaM(), assb, beta, L_mpch, H0Box, verbose);
+              SymmetronSolverCosmology<NDIM, double> mgsolver(this->cosmo->get_OmegaM0(), assb, beta, L_mpch, H0Box, verbose);
               mgsolver.set_ngs_steps(multigrid_nsweeps, multigrid_nsweeps, multigrid_nsweeps_first_step);
               mgsolver.set_epsilon(multigrid_solver_residual_convergence);
               mgsolver.solve(a, density_real, density_fifth_force);
@@ -149,11 +152,11 @@ class GravityModelSymmetron final : public GravityModel<NDIM> {
         } else if (use_screening_method) {
 
             // Approximate screening method
-            const double OmegaM = this->cosmo->get_OmegaM();
+            const double OmegaM = this->cosmo->get_OmegaM0();
             const double PhiCrit = a < assb ? 0.0 : 3.0 * OmegaM * (this->H0_hmpc * L_mpch) * (this->H0_hmpc * L_mpch) /
                                    (assb * assb * assb);
             auto screening_function_symmetron = [=](double PhiNewton) {
-                double screenfac = std::abs(PhiCrit / PhiNewton);
+                double screenfac = std::abs(PhiCrit / PhiNewton) * screening_efficiency;
                 return screenfac > 1.0 ? 1.0 : screenfac;
             };
 
@@ -231,8 +234,28 @@ class GravityModelSymmetron final : public GravityModel<NDIM> {
         }
 
         // Compute total force
-        FML::NBODY::compute_force_from_density_fourier<NDIM>(
-            density_fifth_force, force_real, density_assignment_method_used, norm_poisson_equation);
+        if (this->force_use_finite_difference_force) {
+          // Use a by default a 4 point formula (using phi(i+/-2), phi(i+/-1) to compute DPhi)
+          // This requires 2 boundary cells (stencil_order=2,4,6 implemented so far)
+          const int stencil_order = this->force_finite_difference_stencil_order;
+          const int nboundary_cells = stencil_order/2;
+
+          FFTWGrid<NDIM> potential_real;
+          FML::NBODY::compute_potential_real_from_density_fourier<NDIM>(density_fifth_force,
+              potential_real,
+              norm_poisson_equation,
+              nboundary_cells);
+
+          FML::NBODY::compute_force_from_potential_real<NDIM>(potential_real,
+              force_real,
+              density_assignment_method_used,
+              stencil_order);
+
+        } else {
+          // Computes gravitational force using fourier-methods
+          FML::NBODY::compute_force_from_density_fourier<NDIM>(
+              density_fifth_force, force_real, density_assignment_method_used, norm_poisson_equation);
+        }
     }
 
     //========================================================================
@@ -247,6 +270,7 @@ class GravityModelSymmetron final : public GravityModel<NDIM> {
         if (use_screening_method) {
             screening_enforce_largescale_linear = param.get<bool>("gravity_model_screening_enforce_largescale_linear");
             screening_linear_scale_hmpc = param.get<double>("gravity_model_screening_linear_scale_hmpc");
+            screening_efficiency = param.get<double>("gravity_model_screening_efficiency", 1.0);
         }
         solve_exact_equation = param.get<bool>("gravity_model_symmetron_exact_solution");
         if (solve_exact_equation) {

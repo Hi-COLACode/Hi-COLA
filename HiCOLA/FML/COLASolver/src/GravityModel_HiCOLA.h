@@ -49,13 +49,15 @@ class GravityModelHiCOLA final : public GravityModel<NDIM> {
       DVector HiCOLA_a_arr;
       DVector chi_over_delta_arr;
       DVector coupling_arr;
+      DVector GG4_GN_arr;
 
-      // Fileformat: [a, chi/delta, coupling]
-      const int ncols = 3;
+      // Fileformat: [a, chi/delta, coupling, GG4/GN]
+      const int ncols = 4;
       const int col_a = 0;
       const int col_chi = 1;
       const int col_coupl = 2;
-      std::vector<int> cols_to_keep{col_a, col_chi, col_coupl};
+      const int col_GG4_GN = 3;
+      std::vector<int> cols_to_keep{col_a, col_chi, col_coupl, col_GG4_GN};
       const int nheaderlines = 0;
 
       auto HiCOLAdata = FML::FILEUTILS::read_regular_ascii(HiCOLA_preforce_filename, ncols, cols_to_keep, nheaderlines);
@@ -63,16 +65,19 @@ class GravityModelHiCOLA final : public GravityModel<NDIM> {
       HiCOLA_a_arr.resize(HiCOLAdata.size());
       chi_over_delta_arr.resize(HiCOLAdata.size());
       coupling_arr.resize(HiCOLAdata.size());
+      GG4_GN_arr.resize(HiCOLAdata.size());
 
       for (size_t i = 0; i < HiCOLA_a_arr.size(); i++) {
           HiCOLA_a_arr[i] = HiCOLAdata[i][col_a];
           chi_over_delta_arr[i] = HiCOLAdata[i][col_chi];
           coupling_arr[i] = HiCOLAdata[i][col_coupl];
+          GG4_GN_arr[i] = HiCOLAdata[i][col_GG4_GN];
           //std::cout << "# HiCOLA input: " << i << " " << HiCOLA_a_arr[i] << " " << chi_over_delta_arr[i] << " " << coupling_arr[i] << "\n";
       }
 
       chi_over_delta_spline.create(HiCOLA_a_arr, chi_over_delta_arr, "chi/delta(a)");
       coupling_spline.create(HiCOLA_a_arr, coupling_arr, "coupling(a)");
+      GG4_GN_spline.create(HiCOLA_a_arr, GG4_GN_arr, "GG4/GN(a)");
 
     }
 
@@ -83,12 +88,18 @@ class GravityModelHiCOLA final : public GravityModel<NDIM> {
     double get_coupling(double a) const {
         return coupling_spline(a);
     }
+    double get_GG4_GN(double a) const {
+        return GG4_GN_spline(a);
+    }
 
     //========================================================================
     // Effective newtonian constant
     //========================================================================
     double GeffOverG(double a, [[maybe_unused]] double koverH0 = 0.0) const override {
-        return 1.0 + get_coupling(a);
+        return 1.0 + get_coupling(a); 
+    }
+    double GG4_GN(double a) const override {
+        return get_GG4_GN(a); 
     }
 
     // For the LPT equations there is a modified >= 2LPT factor) // For HiCOLA, we do not modify the 2LPT factor in this way for now (i.e. we just use the GR 2LPT equation for D_2 but with modified D_1).
@@ -99,7 +110,7 @@ class GravityModelHiCOLA final : public GravityModel<NDIM> {
     //    // The base-class contains how to deal with massive neutrinos so we multiply this in
     //    // to avoid having to also implement it here
     //    return GravityModel<NDIM>::source_factor_2LPT(a, koverH0) *
-    //           (1.0 - (2.0 * rcH0_DGP * rcH0_DGP * this->cosmo->get_OmegaM()) /
+    //           (1.0 - (2.0 * rcH0_DGP * rcH0_DGP * this->cosmo->get_OmegaM0()) /
     //                      (9.0 * a * a * a * (betadgp * betadgp * betadgp) * (1 + 1.0 / (3.0 * betadgp))));
     //}
 
@@ -116,19 +127,21 @@ class GravityModelHiCOLA final : public GravityModel<NDIM> {
                        std::array<FFTWGrid<NDIM>, NDIM> & force_real) const override {
 
         // Compute fifth-force
-        const double norm_poisson_equation = 1.5 * this->cosmo->get_OmegaM() * a;
-        auto coupling = [&]([[maybe_unused]] double kBox) { return GeffOverG(a, kBox / H0Box) - 1.0; };
+        const double norm_poisson_equation = 1.5 * get_GG4_GN(a) *this->cosmo->get_OmegaM0() * a; //insert GG4
+        auto coupling = [&]([[maybe_unused]] double kBox) { return GeffOverG(a, kBox / H0Box) - 1.0; }; 
         FFTWGrid<NDIM> density_fifth_force;
 
        if (use_screening_method) {
 
             // Approximate screening method
-            const double OmegaM = this->cosmo->get_OmegaM();
+            //const double OmegaM = this->cosmo->get_OmegaM0();
             auto screening_function_HiCOLA = [=](double density_contrast) {
                 double fac = get_chi_over_delta(a) * (density_contrast - 1.0);
                 return fac < 1e-5 ? 1.0 : 2.0 * (std::sqrt(1.0 + fac) - 1) / fac;
             };
-            std::cout << "At a= " << a << " chi/delta=" << get_chi_over_delta(a) << " coupling=" << coupling(a) << "\n";
+            if (FML::ThisTask == 0) {
+                std::cout << "At a= " << a << " chi/delta=" << get_chi_over_delta(a) << " coupling=" << coupling(a) << "\n";
+                }
             FML::NBODY::compute_delta_fifth_force_density_screening(density_fourier,
                                                                     density_fifth_force,
                                                                     coupling,
@@ -238,6 +251,7 @@ class GravityModelHiCOLA final : public GravityModel<NDIM> {
 
     Spline chi_over_delta_spline;//{"chi/delta(a)"};
     Spline coupling_spline;//{"coupling(a)"};
+    Spline GG4_GN_spline;
 };
 
 #endif

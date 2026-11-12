@@ -24,6 +24,7 @@ class GravityModelDGP final : public GravityModel<NDIM> {
     double smoothing_scale_over_boxsize{0.0};
     bool screening_enforce_largescale_linear{false};
     double screening_linear_scale_hmpc{0.0};
+    double screening_efficiency{1.0};
     
     // For solving the exact equation
     bool solve_exact_equation{false};
@@ -51,6 +52,7 @@ class GravityModelDGP final : public GravityModel<NDIM> {
             if (use_screening_method) {
                 std::cout << "# Enforce correct linear evolution : " << screening_enforce_largescale_linear << "\n";
                 std::cout << "# Scale for which we enforce this  : " << screening_linear_scale_hmpc << " h/Mpc\n";
+                std::cout << "# Screening efficiency             : " << screening_efficiency << "\n";
             }
             std::cout << "#=====================================================\n";
             std::cout << "\n";
@@ -72,6 +74,7 @@ class GravityModelDGP final : public GravityModel<NDIM> {
     double GeffOverG(double a, [[maybe_unused]] double koverH0 = 0.0) const override {
         return 1.0 + 1.0 / (3.0 * get_beta_dgp(a));
     }
+    double GG4_GN([[maybe_unused]] double a) const override { return 1.0; }
 
     //========================================================================
     // For the LPT equations there is a modified >= 2LPT factor
@@ -81,7 +84,7 @@ class GravityModelDGP final : public GravityModel<NDIM> {
         // The base-class contains how to deal with massive neutrinos so we multiply this in
         // to avoid having to also implement it here
         return GravityModel<NDIM>::source_factor_2LPT(a, koverH0) *
-               (1.0 - (2.0 * rcH0_DGP * rcH0_DGP * this->cosmo->get_OmegaM()) /
+               (1.0 - (2.0 * rcH0_DGP * rcH0_DGP * this->cosmo->get_OmegaM0()) /
                           (9.0 * a * a * a * (betadgp * betadgp * betadgp) * (1 + 1.0 / (3.0 * betadgp))));
     }
 
@@ -98,7 +101,7 @@ class GravityModelDGP final : public GravityModel<NDIM> {
                        std::array<FFTWGrid<NDIM>, NDIM> & force_real) const override {
 
         // Compute fifth-force
-        const double norm_poisson_equation = 1.5 * this->cosmo->get_OmegaM() * a;
+        const double norm_poisson_equation = 1.5 * this->cosmo->get_OmegaM0() * a;
         auto coupling = [&]([[maybe_unused]] double kBox) { return GeffOverG(a, kBox / H0Box) - 1.0; };
         FFTWGrid<NDIM> density_fifth_force;
 
@@ -113,7 +116,7 @@ class GravityModelDGP final : public GravityModel<NDIM> {
               
               // Set up the solver, set the settings, and solve the solution
               const bool verbose = true;
-              DGPSolverCosmology<NDIM, double> mgsolver(this->cosmo->get_OmegaM(), rcH0_DGP, get_beta_dgp(a), H0Box, verbose);
+              DGPSolverCosmology<NDIM, double> mgsolver(this->cosmo->get_OmegaM0(), rcH0_DGP, get_beta_dgp(a), H0Box, verbose);
               mgsolver.set_ngs_steps(multigrid_nsweeps, multigrid_nsweeps, multigrid_nsweeps_first_step);
               mgsolver.set_epsilon(multigrid_solver_residual_convergence);
               mgsolver.solve(a, density_real, density_fifth_force);
@@ -147,9 +150,10 @@ class GravityModelDGP final : public GravityModel<NDIM> {
         } else if (use_screening_method) {
 
             // Approximate screening method
-            const double OmegaM = this->cosmo->get_OmegaM();
+            const double OmegaM = this->cosmo->get_OmegaM0();
             auto screening_function_dgp = [=](double density_contrast) {
                 double fac = 8.0 * OmegaM * std::pow(rcH0_DGP * (GeffOverG(a) - 1.0), 2) * (density_contrast);
+                fac *= screening_efficiency;
                 return fac < 1e-5 ? 1.0 : 2.0 * (std::sqrt(1.0 + fac) - 1) / fac;
             };
 
@@ -224,8 +228,28 @@ class GravityModelDGP final : public GravityModel<NDIM> {
         }
 
         // Compute total force
-        FML::NBODY::compute_force_from_density_fourier<NDIM>(
-            density_fifth_force, force_real, density_assignment_method_used, norm_poisson_equation);
+        if (this->force_use_finite_difference_force) {
+          // Use a by default a 4 point formula (using phi(i+/-2), phi(i+/-1) to compute DPhi)
+          // This requires 2 boundary cells (stencil_order=2,4,6 implemented so far)
+          const int stencil_order = this->force_finite_difference_stencil_order;
+          const int nboundary_cells = stencil_order/2;
+
+          FFTWGrid<NDIM> potential_real;
+          FML::NBODY::compute_potential_real_from_density_fourier<NDIM>(density_fifth_force,
+              potential_real,
+              norm_poisson_equation,
+              nboundary_cells);
+
+          FML::NBODY::compute_force_from_potential_real<NDIM>(potential_real,
+              force_real,
+              density_assignment_method_used,
+              stencil_order);
+
+        } else {
+          // Computes gravitational force using fourier-methods
+          FML::NBODY::compute_force_from_density_fourier<NDIM>(
+              density_fifth_force, force_real, density_assignment_method_used, norm_poisson_equation);
+        }
     }
 
     //========================================================================
@@ -240,6 +264,7 @@ class GravityModelDGP final : public GravityModel<NDIM> {
             smoothing_filter = param.get<std::string>("gravity_model_dgp_smoothing_filter");
             screening_enforce_largescale_linear = param.get<bool>("gravity_model_screening_enforce_largescale_linear");
             screening_linear_scale_hmpc = param.get<double>("gravity_model_screening_linear_scale_hmpc");
+            screening_efficiency = param.get<double>("gravity_model_screening_efficiency", 1.0);
         }
         solve_exact_equation = param.get<bool>("gravity_model_dgp_exact_solution");
         if (solve_exact_equation) {

@@ -41,8 +41,29 @@ class GravityModelGeff : public GravityModel<NDIM> {
 
         // Computes gravitational force
         const double norm_poisson_equation = 1.5 * this->cosmo->get_OmegaM() * a * GeffOverG(a);
-        FML::NBODY::compute_force_from_density_fourier<NDIM>(
-            density_fourier, force_real, density_assignment_method_used, norm_poisson_equation);
+        
+        if (this->force_use_finite_difference_force) {
+          // Use a by default a 4 point formula (using phi(i+/-2), phi(i+/-1) to compute DPhi)
+          // This requires 2 boundary cells (stencil_order=2,4,6 implemented so far)
+          const int stencil_order = this->force_finite_difference_stencil_order;
+          const int nboundary_cells = stencil_order/2;
+
+          FFTWGrid<NDIM> potential_real;
+          FML::NBODY::compute_potential_real_from_density_fourier<NDIM>(density_fourier,
+              potential_real,
+              norm_poisson_equation,
+              nboundary_cells);
+
+          FML::NBODY::compute_force_from_potential_real<NDIM>(potential_real,
+              force_real,
+              density_assignment_method_used,
+              stencil_order);
+
+        } else {
+          // Computes gravitational force using fourier-methods
+          FML::NBODY::compute_force_from_density_fourier<NDIM>(
+              density_fourier, force_real, density_assignment_method_used, norm_poisson_equation);
+        }
     }
 
     //========================================================================
@@ -52,6 +73,7 @@ class GravityModelGeff : public GravityModel<NDIM> {
     double GeffOverG(double a, [[maybe_unused]] double koverH0 = 0) const override { 
       return geffofa_spline(a); 
     }
+    double GG4_GN([[maybe_unused]] double a) const override { return 1.0; }
 
     //========================================================================
     // Read parameters
@@ -65,7 +87,7 @@ class GravityModelGeff : public GravityModel<NDIM> {
         this->scaledependent_growth = this->cosmo->get_OmegaMNu() > 0.0;
     }
     
-    virtual void init() {
+    virtual void init() override {
       // Read file with [a,Geff/G(a)] and spline it
       std::ifstream fp(geffofa_filename.c_str());
       FML::assert_mpi(fp.good(), "GeffG file count not be opened\n");

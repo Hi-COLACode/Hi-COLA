@@ -231,7 +231,8 @@ def omega_phi(G3, G4,  K,
     term22 = 3*M_G3G4*M_sG4*X*phiprime*G3x - M_G3G4*M_sG4*X*G3phi/(E**2.) - 3*phiprime*G4phi
     term2 = term21 + term22
     omega_de = term1 + (1/(3.*G4))*term2
-    return omega_de
+    debug = {'term1':term1, 'term21':term21, 'term22':term22, 'term2':term2}
+    return omega_de, debug
 
 
 def EprimeEODERHS(G3, G4,  K,
@@ -288,9 +289,12 @@ def EprimeEODERHS(G3, G4,  K,
     term3 = (-1./2.)*( ( (omegar - 3.*omegal )/(2.*G4))*(M_pG4**2.)  + 3. ) 
     term4 = (-1./2.)*M_G3G4*M_sG4*X*G3x*(B2/(G4*A)) + (G4phi*B2)/(2*G4*A)
     RHS = term2 + term3 + term4
-
-    EprimeE =  sym.simplify((term2 + term3 + term4)/sym.simplify(term1))
-    return EprimeE
+    # print('RHS is')
+    # print(sym.latex(RHS))
+    EprimeE = sym.simplify((term2 + term3 + term4)/sym.simplify(term1))
+    debug = {'A':A, 'A1':A1, 'A2':A2, 'B1':B1, 'B2':B2, 'B21':B21, 'B22':B22, 'B23':B23, 'term1':term1, 'term21':term21, 'term22':term22, 'term2':term2,
+             'term3':term3, 'term4':term4}
+    return EprimeE, debug
 
 def EprimeEODERHS_safe(G3, G4,  K,
         threshold='threshold',
@@ -416,7 +420,7 @@ def fried_closure(G3, G4,  K,
             if isinstance(param[i],str): 
                 param[i] = sy(param[i])
     [G3, G4, K, E, Eprime, M_pG4, M_KG4, M_G3s, M_sG4, M_G3G4, M_Ks, phi, phiprime, phiprimeprime, omegar, omegam, omegal, f_phi, X] = param
-    omega_field = omega_phi(G3,G4,K,M_pG4=M_pG4, M_KG4=M_KG4, M_G3s=M_G3s, M_sG4=M_sG4, M_G3G4=M_G3G4, M_Ks=M_Ks)
+    omega_field, debug = omega_phi(G3,G4,K,M_pG4=M_pG4, M_KG4=M_KG4, M_G3s=M_G3s, M_sG4=M_sG4, M_G3G4=M_G3G4, M_Ks=M_Ks)
     fried1_RHS = omega_field + omegam + omegar + omegal -1.
     Xreal = (1./2.)*(E**2.)*(phiprime**2.)
     fried1_RHS = fried1_RHS.subs(X,Xreal)
@@ -944,6 +948,59 @@ def calC(G3, G4,  K,
             print('-------------------')
     return calC 
 
+def beta_K(G4,
+           phi='phi'):
+    parameters = [G4, phi]
+    paramnum = len(parameters)
+    for i in np.arange(0,paramnum):
+            if isinstance(parameters[i],str): #these sympy variables are prob not globally defined, so need to always make sure there are corresponding global variables with the smae names for .subs to work?
+                parameters[i] = sy(parameters[i])
+    [G4, phi] = parameters
+    betak = (-1./2./phi)*sym.ln(2*G4)
+    return betak
+
+def coupling_factor_kmou(G4,
+           phi='phi'):
+    parameters = [G4,phi]
+    paramnum = len(parameters)
+    for i in np.arange(0,paramnum):
+            if isinstance(parameters[i],str): #these sympy variables are prob not globally defined, so need to always make sure there are corresponding global variables with the smae names for .subs to work?
+                parameters[i] = sy(parameters[i])
+    [G4, phi] = parameters
+    betak = beta_K(G4, phi)
+    coupling = 2.*betak*betak
+    return coupling
+
+def coupling_factor_kmou_brax(G4, K,
+                              phi='phi'):
+    parameters = [G4,K,phi]
+    paramnum = len(parameters)
+    for i in np.arange(0,paramnum):
+            if isinstance(parameters[i],str): #these sympy variables are prob not globally defined, so need to always make sure there are corresponding global variables with the smae names for .subs to work?
+                parameters[i] = sy(parameters[i])
+    [G4, K, phi] = parameters
+    Kx, Kxx, Kxphi, Kphi = K_func(K)
+    betak = beta_K(G4, phi)
+    coupling_brax = 2.*betak*betak/Kx
+    return coupling_brax
+
+def screening_kmou(G4, E='E', H0='H_0', K0='K_0',  M_pG4 = 'M_{pG4}',M_KG4 = 'M_{KG4}'):
+    parameters = [G4, E, H0, K0, M_pG4, M_KG4]
+    paramnum = len(parameters)
+    for i in np.arange(0,paramnum):
+            if isinstance(parameters[i],str): #these sympy variables are prob not globally defined, so need to always make sure there are corresponding global variables with the smae names for .subs to work?
+                parameters[i] = sy(parameters[i])
+    [G4, E, H0, K0, M_pG4, M_KG4] = parameters
+    betak = beta_K(G4)
+    term1 = -6.*K0*((2/3)**3.)
+    term2 = 3*betak*M_pG4/2./sym.pi/H0/M_KG4
+    term2m = term2*term2
+    screening = (term1*term2m)**0.25
+
+    # term2v2 = 3*betak*4*E*M_pG4/M_sG4 #assumed that d/dt -> d/dx eventually brings factor of H in numerator
+    # term2mv2 = term2v2*term2v2
+    # screeningv2 = (term1*term2mv2)**0.25
+    return screening#, screeningv2
 
 def coupling_factor(G3, G4,  K,
         E='E',
@@ -988,18 +1045,45 @@ def coupling_factor(G3, G4,  K,
             print('-------------------')
     return coupling
 
+def GG4_over_GN(G4, 
+        M_pG4 = 'M_{pG4}'):
+    parameters = [G4, M_pG4]
+    paramnum = len(parameters)
+    for i in np.arange(0,paramnum):
+            if isinstance(parameters[i],str): #these sympy variables are prob not globally defined, so need to always make sure there are corresponding global variables with the smae names for .subs to work?
+                parameters[i] = sy(parameters[i])
+    [G4, M_pG4] = parameters
+    GG4oGN = M_pG4*M_pG4/2.0/G4
+    return GG4oGN
+
+
 def create_Horndeski(K,G3,G4,symbol_list,mass_ratio_list):
     if np.any([K,G3,G4]) is None:
         raise Exception("Horndeski functions K, G3 and G4 have not been specified.")
 
     [M_pG4_test, M_KG4_test, M_G3s_test, M_sG4_test, M_G3G4_test, M_Ks_test, M_gp_test] = mass_ratio_list
-    E_prime_E = EprimeEODERHS(G3, G4, K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test) #These are the actual equations that need to use SymPy builder script
+    E_prime_E, EpE_debug = EprimeEODERHS(G3, G4, K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test) #These are the actual equations that need to use SymPy builder script
     Xreal = 0.5*(E**2.)*phiprime**2.
+
+    Kfn = K.subs(X, Xreal)
+    Kfn_lambda = sym.lambdify([E,phi, phiprime,*symbol_list],Kfn,"scipy")
+
+    G3fn = K.subs(X, Xreal)
+    G3fn_lambda = sym.lambdify([E,phi, phiprime,*symbol_list],G3fn,"scipy")
+    
+    G4fn = K.subs(X, Xreal)
+    G4fn_lambda = sym.lambdify([E,phi, phiprime,*symbol_list],G4fn,"scipy")
 
     E_prime_E = E_prime_E.subs(X,Xreal)
     E_prime_E_safe = EprimeEODERHS_safe(G3, G4, K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     E_prime_E_safe = E_prime_E_safe.subs(X,Xreal)
 
+    EpE_debug_lambda  = {}
+    for key, term in EpE_debug.items():
+         newterm = term.subs(X, Xreal)
+         lambda_key = key
+         newtermlambda = sym.lambdify([E,phi, phiprime,omegar,omegal,*symbol_list],newterm, "scipy")
+         EpE_debug_lambda.update({lambda_key:newtermlambda})
 
     phi_primeprime = phiprimeprimeODERHS(G3, G4, K,M_pG4=M_pG4_test, M_KG4 =M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     phi_primeprime = phi_primeprime.subs(X,Xreal)
@@ -1011,54 +1095,107 @@ def create_Horndeski(K,G3,G4,symbol_list,mass_ratio_list):
 
     B2_function = B2_func(G3=G3, G4=G4, K=K,M_pG4=M_pG4_test, M_KG4 =M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     B2_function = B2_function.subs(X,Xreal)
-    B2_lambda = sym.lambdify([E,phiprime,*symbol_list],B2_function,"scipy")
+    B2_lambda = sym.lambdify([E,phi, phiprime,*symbol_list],B2_function,"scipy")
 
-    omega_field = omega_phi(G3=G3,G4=G4,K=K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test, M_G3G4=M_G3G4_test, M_Ks=M_Ks_test)
+    omega_field, omega_field_debug = omega_phi(G3=G3,G4=G4,K=K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test, M_G3G4=M_G3G4_test, M_Ks=M_Ks_test)
     omega_field = omega_field.subs(X,Xreal)
+
+    omega_field_debug_lambda  = {}
+    for key, term in omega_field_debug.items():
+         newterm = term.subs(X, Xreal)
+         lambda_key = key
+         newtermlambda = sym.lambdify([E,phi, phiprime, omegal, omegam, omegar, *symbol_list],newterm, "scipy")
+         omega_field_debug_lambda.update({lambda_key:newtermlambda})
 
     fried_RHS_lambda = fried_closure(G3, G4,  K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test, M_G3G4=M_G3G4_test, M_Ks=M_Ks_test)
     fried_RHS_lambda = fried_RHS_lambda.subs(X,Xreal)
-    fried_RHS_lambda = sym.lambdify([E, phiprime, omegar,omegam, omegal, *symbol_list],fried_RHS_lambda)
+    fried_RHS_lambda = sym.lambdify([E, phi, phiprime, omegar,omegam, omegal, *symbol_list],fried_RHS_lambda)
 
-    E_prime_E_lambda = sym.lambdify([E,phiprime,omegar,omegal,*symbol_list],E_prime_E, "scipy")
-    E_prime_E_safelambda = sym.lambdify([E,phiprime,omegar, omegal, threshold,threshold_sign,*symbol_list],E_prime_E_safe, "scipy")
+    E_prime_E_lambda = sym.lambdify([E,phi, phiprime,omegar,omegal,*symbol_list],E_prime_E, "scipy")
+    E_prime_E_safelambda = sym.lambdify([E,phi, phiprime,omegar, omegal, threshold,threshold_sign,*symbol_list],E_prime_E_safe, "scipy")
 
-    phi_primeprime_lambda = sym.lambdify([E,Eprime,phiprime,*symbol_list],phi_primeprime, "scipy")
-    phi_primeprime_safelambda = sym.lambdify([E,Eprime,phiprime,threshold,threshold_sign,*symbol_list],phi_primeprime_safe, "scipy")
-    omega_phi_lambda = sym.lambdify([E,phiprime,*symbol_list],omega_field)
-    A_lambda = sym.lambdify([E,phiprime,*symbol_list],A_function,"scipy")
+    phi_primeprime_lambda = sym.lambdify([E,Eprime, phi, phiprime,*symbol_list],phi_primeprime, "scipy")
+    phi_primeprime_safelambda = sym.lambdify([E,Eprime, phi, phiprime,threshold,threshold_sign,*symbol_list],phi_primeprime_safe, "scipy")
+    omega_phi_lambda = sym.lambdify([E,phi, phiprime, omegal, omegam, omegar, *symbol_list],omega_field)
+    A_lambda = sym.lambdify([E, phi, phiprime,*symbol_list],A_function,"scipy")
 
 
     alpha0_func = alpha0(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     alpha0_func = alpha0_func.subs(X,Xreal)
-    alpha0_lamb = sym.lambdify([E,Eprime,phiprime,phiprimeprime, *symbol_list],alpha0_func)
+    alpha0_lamb = sym.lambdify([E,Eprime, phi, phiprime,phiprimeprime, *symbol_list],alpha0_func)
 
     alpha1_func = alpha1(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     alpha1_func = alpha1_func.subs(X,Xreal)
-    alpha1_lamb = sym.lambdify([E,Eprime,phiprime,phiprimeprime, *symbol_list],alpha1_func)
+    alpha1_lamb = sym.lambdify([E,Eprime, phi, phiprime,phiprimeprime, *symbol_list],alpha1_func)
 
     alpha2_func = alpha2(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     alpha2_func = alpha2_func.subs(X,Xreal)
-    alpha2_lamb = sym.lambdify([E,Eprime,phiprime,phiprimeprime, *symbol_list],alpha2_func)
+    alpha2_lamb = sym.lambdify([E,Eprime, phi, phiprime,phiprimeprime, *symbol_list],alpha2_func)
 
     beta0_func = beta0(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
-    beta0_lamb = sym.lambdify([E,Eprime,phiprime,phiprimeprime, *symbol_list],beta0_func)
+    beta0_lamb = sym.lambdify([E,Eprime,phi, phiprime,phiprimeprime, *symbol_list],beta0_func)
 
     calB_func = calB(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     calB_func = calB_func.subs(X,Xreal)
-    calB_lamb = sym.lambdify([E,Eprime,phiprime,phiprimeprime, *symbol_list],calB_func)
+    calB_lamb = sym.lambdify([E,Eprime,phi, phiprime,phiprimeprime, *symbol_list],calB_func)
 
     calC_func = calC(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     calC_func = calC_func.subs(X,Xreal)
-    calC_lamb = sym.lambdify([E,Eprime,phiprime,phiprimeprime, *symbol_list],calC_func)
+    calC_lamb = sym.lambdify([E,Eprime,phi,phiprime,phiprimeprime, *symbol_list],calC_func)
 
 
     coupling_fac = coupling_factor(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
     coupling_fac = coupling_fac.subs([(X,Xreal)])
-    coupling_fac = sym.lambdify([E,Eprime,phiprime,phiprimeprime, *symbol_list],coupling_fac)
+    coupling_fac_sym = coupling_fac
+    coupling_fac = sym.lambdify([E,Eprime, phi, phiprime,phiprimeprime, *symbol_list],coupling_fac)
+
+    GG4oGN_func = GG4_over_GN(G4, M_pG4=M_pG4_test) #assuming no X dependence in G4
+    GG4oGN_lamb = sym.lambdify([E,Eprime, phi, phiprime,phiprimeprime, *symbol_list],GG4oGN_func)
 
     lambda_functions_dict = {'E_prime_E_lambda':E_prime_E_lambda, 'E_prime_E_safelambda':E_prime_E_safelambda, 'phi_primeprime_lambda':phi_primeprime_lambda,
                              'phi_primeprime_safelambda':phi_primeprime_safelambda, 'omega_phi_lambda':omega_phi_lambda, 'fried_RHS_lambda':fried_RHS_lambda,
                              'A_lambda':A_lambda, 'B2_lambda':B2_lambda, 'coupling_factor':coupling_fac, 'alpha0_lambda':alpha0_lamb, 'alpha1_lambda':alpha1_lamb,
-                             'alpha2_lambda':alpha2_lamb, 'beta0_lambda':beta0_lamb, 'calB_lambda':calB_lamb, 'calC_lambda':calC_lamb}
+                             'alpha2_lambda':alpha2_lamb, 'beta0_lambda':beta0_lamb, 'calB_lambda':calB_lamb, 'calC_lambda':calC_lamb, 'Horndeski_K':Kfn_lambda,
+                             'Horndeski_G3':G3fn_lambda, 'Horndeski_G4':G4fn_lambda, 'EpE_debug':EpE_debug_lambda, 'omega_phi_debug':omega_field_debug_lambda, 
+                             'coupling_factor_symbolic':coupling_fac_sym, 'GG4_over_GN':GG4oGN_lamb}
     return lambda_functions_dict
+#E_prime_E_lambda, E_prime_E_safelambda, phi_primeprime_lambda, phi_primeprime_safelambda, omega_phi_lambda, fried_RHS_lambda, A_lambda, B2_lambda, \
+ #   coupling_fac, alpha0_lamb, alpha1_lamb, alpha2_lamb, beta0_lamb, calB_lamb, calC_lamb
+
+def create_kmouflage(G4, K, symbol_list, mass_ratio_list):
+     [M_pG4_test, M_KG4_test, M_G3s_test, M_sG4_test, M_G3G4_test, M_Ks_test, M_gp_test] = mass_ratio_list
+     kmou_coupling_func = coupling_factor_kmou(G4)
+     print(kmou_coupling_func)
+     kmou_brax_coupling_func = coupling_factor_kmou_brax(G4, K)
+
+     kmou_coupling_lambda = sym.lambdify([phi,*symbol_list],kmou_coupling_func)
+     kmou_brax_coupling_lambda = sym.lambdify([phi,*symbol_list],kmou_brax_coupling_func)
+
+     kmou_screening_func = screening_kmou(G4, M_pG4 = M_pG4_test, M_KG4 = M_KG4_test)
+     kmou_screening_lambda = sym.lambdify([phi,'H_0','K_0', *symbol_list[1:]],kmou_screening_func) #symbol_list[1:] to exclude K0
+     #kmou_screening_withE_lambda = sym.lambdify([E,phi,'K_0', *symbol_list[1:]],kmou_screening_withE_func)
+
+     lambda_functions_dict = {'kmou_screening':kmou_screening_lambda, 'kmou_coupling':kmou_coupling_lambda, 'kmou_brax_coupling':kmou_brax_coupling_lambda}
+     return lambda_functions_dict
+
+
+def write_data_screencoupl(a_arr_inv, chioverdelta_arr, Coupl_arr, output_filename_as_string): #from Bill's Galileon coupling script
+    datafile_id = open(output_filename_as_string, 'wb')    #here you open the ascii file
+    data = np.array([np.array(a_arr_inv[::-1]), np.array(chioverdelta_arr[::-1]), np.array(Coupl_arr[::-1])])
+    data = data.T     #here you transpose your data, so to have it in two columns
+    np.savetxt(datafile_id, data, fmt=['%.4e','%.4e','%.4e'])    #here the ascii file is populated.
+    datafile_id.close()    #close the file
+
+
+
+#####################################
+# Horndeski function initialisations
+#####################################
+# These are the initial specifications of the Horndeski functions when this file
+# is imported into another script. It is expected that these initial specifications
+# will be overwritten. If not, these should then trigger an exception, to
+# bring attention to the fact that no choices were made for the Horndeski functions.
+# TL;DR - this is just for debugging purposes!
+K = None
+G3 = None
+G4 = None
