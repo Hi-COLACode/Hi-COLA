@@ -164,7 +164,9 @@ jobs:
               | to_entries | map({name: .value, version: .value, latest: (.key == 0)}))
           ' > "$SITE/versions.json"
           touch "$SITE/.nojekyll"
-          printf '<!doctype html><html lang="en"><meta charset="utf-8"><title>Hi-COLA documentation</title><meta http-equiv="refresh" content="0;url=current/"><a href="current/">Hi-COLA documentation</a></html>\n' > "$SITE/index.html"
+          # The site root opens the latest release, or the development docs before any release.
+          default=$(jq -r 'map(select(.latest))[0].version // "current"' "$SITE/versions.json")
+          printf '<!doctype html><html lang="en"><meta charset="utf-8"><title>Hi-COLA documentation</title><meta http-equiv="refresh" content="0;url=%s/"><a href="%s/">Hi-COLA documentation</a></html>\n' "$default" "$default" > "$SITE/index.html"
       - name: Commit the site to gh_pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:

@@ -45,7 +45,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const versions = await response.json();
     if (selector) {
       for (const entry of versions) {
-        const option = new Option(entry.name, entry.version);
+        const label = entry.latest ? `${entry.name} (latest)` : entry.name;
+        const option = new Option(label, entry.version);
         option.selected = entry.version === current;
         selector.add(option);
       }
