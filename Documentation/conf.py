@@ -37,10 +37,12 @@ html_theme_options = {
     "use_repository_button": True,
     "use_source_button": True,
     "home_page_in_toc": True,
+    # Search lives in the sidebar rather than the page header.
+    "navbar_persistent": [],
 }
-# Left sidebar: logo, version selector, then the page list.
+# Left sidebar: logo, search, page list, then the version selector.
 html_sidebars = {
-    "**": ["navbar-logo", "release-switcher", "sbt-sidebar-nav"],
+    "**": ["navbar-logo", "search-button-field", "sbt-sidebar-nav", "release-switcher"],
 }
 # The repository logos are copied into _static alongside the theme assets.
 html_static_path = ["_static", "../logos"]

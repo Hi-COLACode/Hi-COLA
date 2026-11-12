@@ -159,7 +159,7 @@ jobs:
           rm -rf "$SITE/current"
           cp -a current-build "$SITE/current"
           find "$SITE" -mindepth 2 -maxdepth 2 -name source-commit.txt -exec dirname {} \; | sed "s|^$SITE/||" | sort -Vr | jq -R -s '
-            [{name: "Current (development)", version: "current"}] +
+            [{name: "Development", version: "current"}] +
             (split("\n") | map(select(. != "" and . != "current") | {name: ., version: .}))
           ' > "$SITE/versions.json"
           touch "$SITE/.nojekyll"
