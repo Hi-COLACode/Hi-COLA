@@ -4,14 +4,19 @@
 
 ## Frontend tables
 
-The generator writes whitespace-separated ASCII files without headers. Both have three columns and use `%.4e` formatting (five significant digits). The writer reverses the integration arrays to store increasing scale factor.
+The Horndeski generator writes three whitespace-separated ASCII files without headers, using `%.4e` formatting (five significant digits). Rows follow the integration order: the first row is today ($a=1$) and the scale factor decreases towards the earliest integration epoch.
 
-| File | Column 1 | Column 2 | Column 3 |
-| --- | --- | --- | --- |
-| `*_expansion.txt` | `a` | `E = H/H0` | `d ln H / d ln a` |
-| `*_force.txt` | `a` | `chi / delta` | Coupling factor |
+| File | Columns |
+| --- | --- |
+| `*_expansion.txt` | `a`, `E = H/H0`, `E'/E = d ln H / d ln a` |
+| `*_force.txt` | `a`, `chi / delta`, coupling factor $\beta$, $G_{G_4}/G_N$ |
+| `*_full.txt` | `a`, `E`, `E'/E`, $\phi$, $\phi'$, $\Omega_m$, $\Omega_r$, $\Omega_\phi$, $\Omega_\Lambda$ |
 
-The backend splines each table against `a`. Its linear effective Newton constant is `Geff/G = 1 + coupling`; `chi/delta` controls the approximate screening function. These tables are not functions of Fourier wavenumber.
+The `HiCOLA` gravity model reads the expansion table and the four-column force table and splines each against `a`. Its linear effective Newton constant is `Geff/G = 1 + coupling`; `chi/delta` controls the approximate screening function and $G_{G_4}/G_N$ scales the Poisson normalisation. The `_full` table is a diagnostic record and is not read by the backend. These tables are not functions of Fourier wavenumber.
+
+The K-mouflage and DGP generators write three-column force tables (`a`, screening quantity, coupling). The backend's `kmouflage` gravity model reads three columns; the `HiCOLA` model requires four.
+
+The [`hicola_plot_frontend`](plotting.md) command plots these tables.
 
 Filenames include `model_name` and `cosmo_name`. If either target exists, both names are passed through the renaming helper; inspect the printed names and update the Lua input paths. A fresh output directory per run avoids ambiguous pairs and the helper's suffix limitations.
 
@@ -24,15 +29,15 @@ expansion = np.loadtxt("Hi-COLA_Output/cuGal_f0p2_14dp_WMAP_expansion.txt")
 force = np.loadtxt("Hi-COLA_Output/cuGal_f0p2_14dp_WMAP_force.txt")
 initial_redshift = 49.0
 for table in (expansion, force):
-    assert table.ndim == 2 and table.shape[1] == 3
+    assert table.ndim == 2
     assert np.isfinite(table).all()
-    assert (np.diff(table[:, 0]) > 0).all()
-    assert table[0, 0] > 0
-    assert table[0, 0] <= 1 / (1 + initial_redshift)
-    assert np.isclose(table[-1, 0], 1.0)
+    assert (np.diff(table[:, 0]) < 0).all()
+    assert np.isclose(table[0, 0], 1.0)
+    assert 0 < table[-1, 0] <= 1 / (1 + initial_redshift)
+assert expansion.shape[1] == 3 and force.shape[1] == 4
 assert np.array_equal(expansion[:, 0], force[:, 0])
 assert (expansion[:, 1] > 0).all()
-assert np.isclose(expansion[-1, 1], 1.0, rtol=1e-4)
+assert np.isclose(expansion[0, 1], 1.0, rtol=1e-4)
 ```
 
 These checks catch malformed tables and missing time coverage. They do not establish that the equations, chosen solution branch, or screening approximation are physically correct. Compare background histories and growth to independent references, and repeat with numerical resolution changes.

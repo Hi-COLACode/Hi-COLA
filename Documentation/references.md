@@ -2,7 +2,13 @@
 
 [Documentation home](index.md)
 
-Hi-COLA is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Cite the presentation paper when using the code in research:
+## Licence
+
+Hi-COLA is licensed under the [GNU General Public License, version 3](repo:LICENSE) (`GPL-3.0-only`). Bundled third-party code under `HiCOLA/FML` keeps its own licence and notices, including `KDTree` (BSD 3-Clause) and `Plotting` (MIT).
+
+## Citation
+
+Cite the presentation paper when using the code in research:
 
 Bill S. Wright, Ashim Sen Gupta, Tessa Baker, Georgios Valogiannis, Bartolomeo Fiorini, and The LSST Dark Energy Science Collaboration, *Hi-COLA: fast, approximate simulations of structure formation in Horndeski gravity*, JCAP **03** (2023) 040. [Published article](https://iopscience.iop.org/article/10.1088/1475-7516/2023/03/040), [arXiv version](https://arxiv.org/abs/2209.01666).
 

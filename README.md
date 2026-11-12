@@ -1,6 +1,6 @@
 # Hi-COLA
 
-[![Documentation](https://github.com/GarethCabournDavies/Hi-COLA/actions/workflows/documentation.yml/badge.svg)](https://github.com/GarethCabournDavies/Hi-COLA/actions/workflows/documentation.yml)
+[![Documentation](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/documentation.yml/badge.svg)](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/documentation.yml)
 
 <p align="left">
   <picture>
@@ -16,7 +16,7 @@ Hi-COLA is not hard-coded to solve specific Horndeski theories, but is designed 
 
 Start with the [documentation pages](Documentation/README.md) for installation, a runnable frontend quickstart, configuration references, backend runs, outputs, and troubleshooting. The former PDF guides are incorporated into the pages, including [theory](Documentation/theory.md), [equations](Documentation/equations.md), [initial conditions](Documentation/initial-conditions.md), and [accuracy guidance](Documentation/resolution.md).
 
-Also see [our paper introducing Hi-COLA](https://iopscience.iop.org/article/10.1088/1475-7516/2023/03/040) [(pre-print version)](https://arxiv.org/abs/2209.01666), where we detail the work gone into creating the first version of Hi-COLA. We encourage the community to use Hi-COLA for their own research, and request that you cite us using the [citation and BibTeX entry](Documentation/references.md). Hi-COLA is provided under a [CC BY 4.0 licence](https://creativecommons.org/licenses/by/4.0/).
+Also see [our paper introducing Hi-COLA](https://iopscience.iop.org/article/10.1088/1475-7516/2023/03/040) [(pre-print version)](https://arxiv.org/abs/2209.01666), where we detail the work gone into creating the first version of Hi-COLA. We encourage the community to use Hi-COLA for their own research, and request that you cite us using the [citation and BibTeX entry](Documentation/references.md).
 
 Hi-COLA is set up to natively operate with Vainshtein screening. However, with a few specific settings, K-mouflage models can also be simulated -- see our [paper on K-mouflage in Hi-COLA](https://iopscience.iop.org/article/10.1088/1475-7516/2024/11/052) ([pre-print here](https://arxiv.org/abs/2407.00855)). 
 

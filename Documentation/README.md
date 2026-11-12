@@ -4,11 +4,12 @@ Hi-COLA connects a Python solver for reduced Horndeski models to a C++ COLA N-bo
 
 ## Start here
 
-1. [Install the frontend and backend](installation.md).
+1. [Install Hi-COLA](installation.md) with `pip` or `conda`, or from source.
 2. [Generate tables with a supplied model](quickstart.md).
 3. [Configure your theory and cosmology](frontend.md).
 4. [Run a small simulation, then scale up](backend.md).
-5. [Inspect outputs](outputs.md) and [troubleshoot problems](troubleshooting.md).
+5. [Inspect outputs](outputs.md), [plot them](plotting.md), and [troubleshoot problems](troubleshooting.md).
+6. Try the [small example simulations](examples.md).
 
 These pages describe the checked-in implementation. Paths in shell examples are relative to the repository root unless stated otherwise. The quickstart and user-manual material is integrated into these pages, including the theory, equation conventions, initial conditions, accuracy guidance, and output interpretation. Where template comments disagree with executable code, these pages follow the code.
 
@@ -30,11 +31,14 @@ frontend
 theory
 equations
 backend
+examples
+plotting
 initial-conditions
 resolution
 outputs
 troubleshooting
 references
 api/index
+testing
 publishing
 ```

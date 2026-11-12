@@ -2,11 +2,13 @@
 
 [Documentation home](index.md)
 
-The site uses Sphinx, MyST Markdown, and the PyData theme. Python API pages come from source definitions and docstrings. Executable generator and plotting modules are excluded from imports. Use NumPy-style docstrings for new functions.
+The site uses Sphinx, MyST Markdown, and the PyData theme. Python API pages come from source definitions and docstrings. Executable frontend generator scripts are excluded from imports; the API reference covers the importable frontend, utility, backend-launcher, and plotting modules present in the checkout. Use NumPy-style docstrings for new functions.
 
 ## Local build
 
 Use Python 3.12.14 and the pinned documentation dependencies:
+
+`requirements-docs.lock` is compiled from `requirements-docs.txt` and the dependencies in `pyproject.toml`.
 
 ```sh
 python -m pip install -r requirements-docs.lock

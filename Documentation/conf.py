@@ -26,7 +26,7 @@ templates_path = ["_templates"]
 html_theme_options = {"navbar_start": ["navbar-logo", "release-switcher"]}
 html_static_path = ["_static"]
 html_js_files = ["release-switcher.js"]
-repository = os.environ.get("GITHUB_REPOSITORY", "GarethCabournDavies/Hi-COLA")
+repository = os.environ.get("GITHUB_REPOSITORY", "Hi-COLACode/Hi-COLA")
 source_ref = os.environ.get("DOCS_SOURCE_REF", "Hi-COLA_public")
 myst_url_schemes = {
     "http": None, "https": None, "mailto": None,
@@ -39,12 +39,22 @@ modules = {
     "Numerical solver": "HiCOLA.Frontend.numerical_solver",
     "Parameter reader": "HiCOLA.Frontend.read_parameters",
     "Utilities": "HiCOLA.Utilities.Other.support",
+    "Backend launcher": "HiCOLA.backend",
+    "Plotting: power spectrum": "HiCOLA.Plotting.pofk",
+    "Plotting: background": "HiCOLA.Plotting.background",
+    "Plotting: growth": "HiCOLA.Plotting.growth",
+    "Plotting: frontend tables": "HiCOLA.Plotting.frontend",
+    "Plotting: shared helpers": "HiCOLA.Plotting.common",
 }
 lines = ["Python API", "==========", "",
          "Signatures and docstrings are generated from the checked-out source.",
          "Functions without docstrings show their signatures only.", ""]
 for title, module in modules.items():
-    tree = ast.parse((ROOT / (module.replace(".", "/") + ".py")).read_text())
+    source = ROOT / (module.replace(".", "/") + ".py")
+    # Modules absent from this checkout are omitted from the API reference.
+    if not source.is_file():
+        continue
+    tree = ast.parse(source.read_text())
     names = [node.name for node in tree.body
              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
              and not node.name.startswith("_")]

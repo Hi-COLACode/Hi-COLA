@@ -326,7 +326,7 @@ def run_solver(read_out_dict):
         Arrays of scale factor, Hubble quantities, scalar derivatives, density
         fractions and derivatives, and force quantities, plus ``closure_value``.
         Arrays run from scale factor one toward the earliest integration epoch.
-        The exporter reverses them and normalises Hubble values for the backend.
+        The exported tables keep this order.
 
     Notes
     -----

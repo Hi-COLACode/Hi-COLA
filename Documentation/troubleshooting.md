@@ -4,7 +4,9 @@
 
 | Symptom | Check and action |
 | --- | --- |
-| `ModuleNotFoundError` | Activate the intended environment; install `requirements.txt` and the package with that environment's Python. |
+| `ModuleNotFoundError` | Activate the intended environment and install the package with that environment's Python (`python -m pip install hicola-frontend`, or `python -m pip install -e .` in a checkout). |
+| `FileNotFoundError: COLASolver is not installed` | The pip wheel has no solver. Install the conda package, build with `HICOLA_BUILD_NATIVE=1`, or set `HICOLA_BACKEND_EXECUTABLE` to a compiled `nbody`. |
+| `hicola_plot_*` command not found | Install the package into the active environment; the commands are entry points declared in `pyproject.toml`. |
 | Symbolic parsing fails | Use a complete example, fill `K`, `G3`, `G4`, use explicit multiplication, and declare constants. |
 | Wrong parameter substitution | Check that `_symbol` and `_parameter` entries have the same order and count. |
 | Closure fails or selects an unexpected branch | Inspect the guess, normalisation, and physical parameter choices; compare to the supplied example and check the printed solved value. |

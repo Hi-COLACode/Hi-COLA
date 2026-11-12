@@ -69,6 +69,22 @@ OMP_NUM_THREADS=1 mpiexec -n 2 HiCOLA/FML/COLASolver/nbody /absolute/path/run.lu
 
 Check the exit status immediately (`echo $?`), then inspect `run.log`, reported table paths, simulated epochs, and generated power-spectrum files. A successful small run should finish at the requested output redshift and produce finite output statistics. Investigate errors before increasing particle count, mesh sizes, MPI ranks, or threads. Grid memory grows roughly with the cube of mesh size, and multiple working grids add overhead.
 
+## Run from Python
+
+When COLASolver is installed with the conda package or a native source build, `HiCOLA.backend` launches it:
+
+```python
+from HiCOLA import backend
+
+backend.run("/path/to/run.lua", cwd="/path/to/simulation")
+```
+
+Relative paths inside the Lua file are resolved from `cwd`. A failed solver process raises `subprocess.CalledProcessError`; `capture_output=True` and `timeout` are passed to `subprocess.run`. `backend.is_available()` reports whether an executable is present. `HICOLA_BACKEND_EXECUTABLE=/path/to/nbody` selects a separately compiled solver, for example an MPI Makefile build; `backend.run` starts one process and does not call `mpiexec`. The Python frontend contains no N-body solver to substitute for a missing executable. EuclidEmulator2 reference predictions are available only when its optional FML header is present; the bundled sources do not include that emulator.
+
+## Example simulations
+
+The [small example simulations](examples.md) provide complete, small Lua files for GR, cubic Galileon, K-mouflage, and lightcone runs, together with a runner that builds the code, generates tables, and plots the results.
+
 ## Screening
 
 `gravity_model_screening = true` enables the Hi-COLA approximate screening prescription. Its settings include `gravity_model_HiCOLA_smoothing_filter`, `gravity_model_HiCOLA_smoothing_scale_over_boxsize`, `gravity_model_screening_enforce_largescale_linear`, and `gravity_model_screening_linear_scale_hmpc`. The smoothing scale is expressed relative to box size; the linear-transition scale is in `h/Mpc`. Disabling screening selects the linear fifth-force path.

@@ -19,7 +19,7 @@ Hi-COLA_Output/cuGal_f0p2_14dp_WMAP_expansion.txt
 Hi-COLA_Output/cuGal_f0p2_14dp_WMAP_force.txt
 ```
 
-Existing filenames trigger renaming, so use the filenames reported by the run. Both files should have three finite numeric columns, increasing scale factor, and a final scale factor of one. See [table formats and checks](outputs.md).
+Existing filenames trigger renaming, so use the filenames reported by the run. The expansion table has three finite numeric columns and the force table four; both start at scale factor one and run backwards in time. A `_full` diagnostic table is written alongside them. See [table formats and checks](outputs.md).
 
 To customise the example, copy both INI files into a working directory, change `model_name`, `cosmo_name`, and `output_directory`, then edit model and cosmology values using the [frontend reference](frontend.md). Keep the frontend cosmology consistent with backend Lua values.
 
