@@ -8,13 +8,13 @@ From a source checkout:
 
 ```sh
 python -m pip install -e '.[tests]'
-MPLBACKEND=Agg python -m unittest discover -s tests -v
+python -m unittest discover -s tests -v
 ```
 
 Measure Python statement and branch coverage with:
 
 ```sh
-MPLBACKEND=Agg python -m coverage run -m unittest discover -s tests -v
+python -m coverage run -m unittest discover -s tests -v
 python -m coverage report
 python -m coverage html
 ```

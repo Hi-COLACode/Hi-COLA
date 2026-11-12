@@ -12,7 +12,7 @@ Use Python 3.12.14 and the pinned documentation dependencies:
 
 ```sh
 python -m pip install -r requirements-docs.lock
-MPLBACKEND=Agg python -m sphinx -W --keep-going -b html Documentation Documentation/_build/html
+python -m sphinx -W --keep-going -b html Documentation Documentation/_build/html
 lychee --offline --include-fragments --no-ignore --exclude-path '(^|/)_static/' -- 'Documentation/_build/html/**/*.html'
 ```
 
@@ -26,7 +26,7 @@ To include simulation figures locally, run the examples first and point the buil
 
 ```sh
 python examples/small_simulations/run_simulations.py --work /tmp/hicola-examples --cases gr cubic_galileon
-DOCS_SIMULATION_WORK=/tmp/hicola-examples MPLBACKEND=Agg python -m sphinx -W --keep-going -b html Documentation Documentation/_build/html
+DOCS_SIMULATION_WORK=/tmp/hicola-examples python -m sphinx -W --keep-going -b html Documentation Documentation/_build/html
 ```
 
 Without `DOCS_SIMULATION_WORK`, those figures are replaced by a note. The Links workflow builds without simulations. The dropdown reads the shared `versions.json` file on the published site; a standalone local HTML build does not include that manifest.

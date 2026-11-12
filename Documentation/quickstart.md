@@ -7,7 +7,7 @@ Use a supplied cubic Galileon model before writing a new theory. The blank `horn
 Activate your [installed environment](installation.md), then run from the repository root:
 
 ```sh
-MPLBACKEND=Agg python -m HiCOLA.Frontend.generate_simulation_input \
+python -m HiCOLA.Frontend.generate_simulation_input \
   HiCOLA/Parameter_files/Frontend_parameter_files/examples/cubic_Galileon/cuGal_f0p2.ini \
   HiCOLA/Parameter_files/Frontend_parameter_files/examples/WMAP_cosmological_parameters.ini
 ```

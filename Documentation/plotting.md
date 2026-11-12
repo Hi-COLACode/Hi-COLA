@@ -46,4 +46,4 @@ These figures are generated each time the documentation is built.
 | `--out FOLDER` | Destination folder. The default is `plots/` beside an `output` folder, otherwise inside the input folder. |
 | `--format {png,pdf,svg}` | Figure format; the default is `png`. |
 
-Run any command with `--help` for its complete options. In a headless session, set `MPLBACKEND=Agg`. The [Python API](api/index.rst) lists the `main` functions behind each command.
+Run any command with `--help` for its complete options. The tools write image files and never open a window, so they also work without a display. The [Python API](api/index.rst) lists the `main` functions behind each command.

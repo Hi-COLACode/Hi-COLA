@@ -42,7 +42,7 @@ python -c "import HiCOLA; from HiCOLA import backend; print(backend.is_available
 hicola_plot_pofk --help
 ```
 
-`backend.is_available()` prints `True` only when a solver executable is installed (conda or native source build) or selected with `HICOLA_BACKEND_EXECUTABLE`. For a headless session, prefix plotting and frontend commands with `MPLBACKEND=Agg`.
+`backend.is_available()` prints `True` only when a solver executable is installed (conda or native source build) or selected with `HICOLA_BACKEND_EXECUTABLE`.
 
 ## Install from source
 
