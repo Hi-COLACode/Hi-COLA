@@ -185,7 +185,7 @@ jobs:
           if-no-files-found: error
 
   test-matrix:
-    name: Verify wheel and source archive / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: Verify wheel and source archive
     needs: build
     # Python 3.9 requires the Ubuntu 24.04 setup-python distribution.
     runs-on: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9' && 'ubuntu-24.04' || matrix.os }}
