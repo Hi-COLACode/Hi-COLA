@@ -1068,10 +1068,10 @@ def create_Horndeski(K,G3,G4,symbol_list,mass_ratio_list):
     Kfn = K.subs(X, Xreal)
     Kfn_lambda = sym.lambdify([E,phi, phiprime,*symbol_list],Kfn,"scipy")
 
-    G3fn = K.subs(X, Xreal)
+    G3fn = sym.sympify(G3).subs(X, Xreal)
     G3fn_lambda = sym.lambdify([E,phi, phiprime,*symbol_list],G3fn,"scipy")
     
-    G4fn = K.subs(X, Xreal)
+    G4fn = sym.sympify(G4).subs(X, Xreal)
     G4fn_lambda = sym.lambdify([E,phi, phiprime,*symbol_list],G4fn,"scipy")
 
     E_prime_E = E_prime_E.subs(X,Xreal)
@@ -1133,6 +1133,7 @@ def create_Horndeski(K,G3,G4,symbol_list,mass_ratio_list):
     alpha2_lamb = sym.lambdify([E,Eprime, phi, phiprime,phiprimeprime, *symbol_list],alpha2_func)
 
     beta0_func = beta0(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
+    beta0_func = beta0_func.subs(X,Xreal)
     beta0_lamb = sym.lambdify([E,Eprime,phi, phiprime,phiprimeprime, *symbol_list],beta0_func)
 
     calB_func = calB(G3,G4,K, M_pG4=M_pG4_test, M_KG4=M_KG4_test, M_G3s=M_G3s_test, M_sG4=M_sG4_test,M_G3G4=M_G3G4_test,M_Ks=M_Ks_test)
