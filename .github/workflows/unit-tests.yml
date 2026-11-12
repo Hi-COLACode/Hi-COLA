@@ -51,10 +51,11 @@ jobs:
           retention-days: 14
           if-no-files-found: error
       - name: Upload coverage to Codecov
-        if: ${{ !cancelled() && matrix.python-version == '3.11' && env.CODECOV_TOKEN_AVAILABLE == 'true' && hashFiles('coverage.xml') != '' }}
+        if: ${{ !cancelled() && matrix.python-version == '3.11' && hashFiles('coverage.xml') != '' }}
         uses: codecov/codecov-action@v7
         with:
+          # Empty on pull requests from forks, which then upload tokenlessly
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           disable_search: true
-          fail_ci_if_error: true
+          fail_ci_if_error: ${{ env.CODECOV_TOKEN_AVAILABLE == 'true' }}
