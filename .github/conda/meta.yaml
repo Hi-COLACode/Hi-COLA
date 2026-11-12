@@ -10,6 +10,7 @@ source:
 
 build:
   number: 0
+  skip: true  # [win]
   script_env:
     - HICOLA_BUILD_NATIVE=1
     - PKG_VERSION={{ version }}

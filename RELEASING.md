@@ -22,7 +22,7 @@ Secrets and variables → Actions → Secrets. Do not define the same secret in 
 environment: environment secrets override repository secrets. When the token
 expires, create a replacement in Anaconda.org and update this one repository
 secret; the development publishing job uses it.
-The workflow builds and tests on Linux, macOS and Windows before uploading each
+The workflow builds and tests on Linux and macOS before uploading each
 platform's package to the account's `test` label on default-branch pushes.
 Version tags do not build or upload conda packages in this workflow. Without `ANACONDA_OWNER`, these jobs are
 skipped. Development packages can be installed with:
