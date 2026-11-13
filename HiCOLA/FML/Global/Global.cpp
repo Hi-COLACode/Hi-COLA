@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -6,10 +7,13 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <thread>
+#if defined(_WIN32)
+#include <direct.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "Global.h"
-#include "SystemMemory.h"
 
 static std::string processor_name{"NameIsOnlyKnownWithMPI"};
 
@@ -207,7 +211,11 @@ namespace FML {
     bool create_folder(std::string foldername) {
         bool ok = true;
         if (FML::ThisTask == 0) {
+#if defined(_WIN32)
+            int status = _mkdir(foldername.c_str());
+#else
             int status = mkdir(foldername.c_str(), 0777);
+#endif
             ok = not((status < 0) && (errno != EEXIST));
             if (not ok) {
                 throw std::runtime_error("Failed to create snapshot folder [" + foldername + "]");
@@ -217,43 +225,6 @@ namespace FML {
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
         return ok;
-    }
-
-    //============================================
-    /// Fetch the resident set size currently and
-    /// the peak value so far of it. Returns bytes
-    //============================================
-    std::pair<double, double> get_system_memory_use() {
-        double currentSize_bytes = getCurrentRSS();
-        double peakSize_bytes = getPeakRSS();
-        return {currentSize_bytes, peakSize_bytes};
-    }
-    
-    //============================================
-    /// Print the resident set size and the peak
-    /// value of it so far
-    //============================================
-    void print_system_memory_use() {
-        auto sysmem = FML::get_system_memory_use();
-        double cur_rss = sysmem.first / 1e6;
-        double peak_rss = sysmem.second / 1e6;
-        double min_cur_rss = cur_rss;
-        double max_cur_rss = cur_rss;
-        double min_peak = peak_rss;
-        double max_peak = peak_rss;
-        FML::MinOverTasks(&min_cur_rss);
-        FML::MaxOverTasks(&max_cur_rss);
-        FML::MinOverTasks(&min_peak);
-        FML::MaxOverTasks(&max_peak);
-        if (FML::ThisTask == 0) {
-            std::cout << "#=====================================================\n";
-            std::cout << "# System memory use (resident set size): \n";
-            std::cout << "# Current RSS: " << std::setw(15) << min_cur_rss << " MB (min over tasks)\n";
-            std::cout << "# Current RSS: " << std::setw(15) << max_cur_rss << " MB (max over tasks)\n";
-            std::cout << "# Peak RSS:    " << std::setw(15) << min_peak << " MB (min over tasks)\n";
-            std::cout << "# Peak RSS:    " << std::setw(15) << max_peak << " MB (max over tasks)\n";
-            std::cout << "#=====================================================\n";
-        }
     }
 
     // Make sure the most common types we use for comm gets instansiated

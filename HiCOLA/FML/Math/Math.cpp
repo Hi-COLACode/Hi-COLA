@@ -228,8 +228,8 @@ namespace FML {
         }
 #endif
 
-#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || (__cplusplus >= 201703L))
-        // Standard library implementation. Only for C++17 onwards
+#if defined(__cpp_lib_math_special_functions) && __cpp_lib_math_special_functions >= 201603L
+        // Use the standard implementation when the library provides special functions.
         double j_ell_cxx(const int ell, const double arg) {
             // For x=0 we have 0/0
             if (arg == 0.0)
@@ -251,7 +251,7 @@ namespace FML {
             if (ell >= 10 && arg < (1.0 - 2.6 / std::sqrt(ell)) * ell)
                 return 0.0;
 
-#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || (__cplusplus >= 201703L))
+#if defined(__cpp_lib_math_special_functions) && __cpp_lib_math_special_functions >= 201603L
             return j_ell_cxx(ell, arg);
 #else
 #ifdef USE_GSL
