@@ -1,0 +1,19 @@
+/* Keep the logo at sidebar scale; the source images are 1583 px wide. */
+.navbar-brand img.logo__image {
+  max-height: 6rem;
+  width: auto;
+}
+/* The version selector spans the sidebar width. */
+#release-switcher {
+  width: 100%;
+  margin: 1rem 0 0.5rem;
+}
+/* Notice shown on development and superseded versions. */
+.hicola-version-banner {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--pst-color-warning);
+  background: var(--pst-color-warning-bg);
+  color: var(--pst-color-text-base);
+  border-radius: 0.25rem;
+}

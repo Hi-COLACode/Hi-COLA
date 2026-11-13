@@ -311,6 +311,29 @@ def screening_kmou(a,K0,H0,betaK,M_pG4,M_KG4):
 
 
 def run_solver(read_out_dict):
+    """Solve closure and integrate the background from today to earlier times.
+
+    Parameters
+    ----------
+    read_out_dict : dict
+        Inputs returned by the parameter reader, augmented with functions from
+        ``create_Horndeski`` and the ``odeint_parameter_symbols`` list. Hubble
+        quantities follow the model's chosen normalisation.
+
+    Returns
+    -------
+    dict
+        Arrays of scale factor, Hubble quantities, scalar derivatives, density
+        fractions and derivatives, and force quantities, plus ``closure_value``.
+        Arrays run from scale factor one toward the earliest integration epoch.
+        The exported tables keep this order.
+
+    Notes
+    -----
+    Integration uses ``solve_ivp`` with RK45 and log scale factor as the time
+    variable. Model-parameter closure updates the input parameter list in place.
+    Check numerical convergence and finite outputs before using the result.
+    """
 
 
     [Omega_r0, Omega_m0, Omega_l0] = read_out_dict['cosmological_parameters']

@@ -43,6 +43,23 @@ def write_all_data(a_arr_inv, E_arr, E_prime_arr, phi_prime_arr, phi_primeprime_
     datafile_id.close()    #close the file
 
 def write_data_flex(data, output_filename_as_string, datanames=''):
+    """Export equal-length arrays as columns in an ASCII table.
+
+    Parameters
+    ----------
+    data : sequence of array-like
+        One array per column. Column order and row order are preserved.
+    output_filename_as_string : str or path-like
+        Destination file. Its parent directory must exist. An existing file is
+        overwritten; collision avoidance is handled by the caller.
+    datanames : str, optional
+        Header text written by :func:`numpy.savetxt` as a ``#``-prefixed
+        first line. The default empty string writes no header.
+
+    Notes
+    -----
+    Values use ``%.4e`` formatting, retaining five significant digits.
+    """
     datafile_id = open(output_filename_as_string, 'wb')    #here you open the ascii file
     format_list = list(np.repeat('%.4e',len(data)))
     newdata = []
@@ -346,16 +363,32 @@ def growth_factor_breakdown(mg_bg_file, mg_preforce_file, Omega_m0, a_lcdm, E_lc
     return a_mg, Eeffect, Eprimeeffect, couplingeffect, backgroundeffect
 
 def import_pofk_by_z(root_directory,redshifts=["49.000","0.140","0.000"],dataheadings=['k','pofk','pofklin']):
-    '''
-    Imports FML power spectra files into a pandas dataframe.
-    Expected directory structure:
-    root_directory/
-                   pofk*z<redshifts[0]>.txt
-                   pofk*z<redshifts[1]>.txt
-        .
-        .
-    Output: pandas dataframe, access through data[<float:redshift>][<string:"k"/"pofk"/"pofklin"]
-    '''
+    """Import every FML power-spectrum file in a directory.
+
+    Parameters
+    ----------
+    root_directory : str or path-like
+        Directory containing files named ``pofk*_z<redshift>.txt``, for
+        example::
+
+            root_directory/
+                pofk_run_z0.000.txt
+                pofk_run_z0.140.txt
+
+    redshifts : sequence of str, optional
+        Accepted for interface compatibility. Every file containing ``pofk``
+        in its name is read, whatever this argument holds.
+    dataheadings : sequence of str, optional
+        Column names for each file. One name must be ``"k"``, which becomes
+        the index. Each file's first line is skipped as a header.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Indexed by ``k``, with two-level columns ``(redshift, heading)``
+        where the redshift is a float parsed from the filename. For example,
+        ``data[0.0]["pofk"]``.
+    """
     root_directory = Path(root_directory).resolve()
     files = os.listdir(root_directory)
     files = [file for file in files if "pofk" in file]
@@ -375,18 +408,32 @@ def import_pofk_by_z(root_directory,redshifts=["49.000","0.140","0.000"],datahea
     return data
 
 def import_breakdown(root_directory, categories=["Full","QCDM","5thforcelinear","5thforceonly"],grlcdm=True,redshifts=["49.000","0.140","0.000"],dataheadings=['k','pofk','pofklin']):
-    '''
-    Imports FML power spectra files into a panda dataframe.
-    Expected directory structure:
-    root_directory/
-                  /categories[0]/
-                                /pofk*z<redshifts[0]>.txt
-                                /pofk*z<redshifts[1]>.txt
-                                .
-                 /categories[1]
-                               /pofk*z*<redshifts[0]>.txt etc.
-    Output: pandas dataframe, access through data[<string: category>][<float: redshift>][<string: "k/pofk/pofklin">]                      
-    '''
+    """Import power spectra for several run categories.
+
+    Parameters
+    ----------
+    root_directory : str or path-like
+        Directory with one subdirectory per category, each read by
+        :func:`import_pofk_by_z`, for example::
+
+            root_directory/
+                Full/pofk_run_z0.000.txt
+                QCDM/pofk_run_z0.000.txt
+
+    categories : sequence of str, optional
+        Subdirectory names to read.
+    grlcdm : bool, optional
+        Also read ``../GRLCDM`` relative to ``root_directory``, stored under
+        the category ``"GRLCDM"``.
+    redshifts, dataheadings : optional
+        Passed to :func:`import_pofk_by_z`.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns indexed by ``(category, redshift, heading)``, for example
+        ``data["Full"][0.0]["pofk"]``.
+    """
     root_directory = Path(root_directory).resolve()
     dfs={}
     for category in categories:
