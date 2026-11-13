@@ -16,10 +16,12 @@ rather than every internal module.
 | Tier | Contents | Guarantee |
 |------|----------|-----------|
 | **Stable** | Python frontend (`HiCOLA.Frontend`), the `hicola-frontend` pip package, the COLASolver backend in the `hi-cola` conda packages and native builds (`HICOLA_BUILD_NATIVE=1`), `HiCOLA.backend`, and the frontend and backend parameter-file formats | Breaking changes only in a MAJOR release. |
-| **Reference / legacy** | `TestData` submodule, bundled example datasets | Not a runtime dependency. Provided for reference and regression work only. |
+| **Reference / legacy** | Bundled example datasets and the FML library's own example programs | Not a runtime dependency. Provided for reference and regression work only. |
 
-## Submodules
+## FML example data
 
-Installing Hi-COLA does not need `--recurse-submodules`. The `TestData`
-submodule is reference data and is not used by the Python frontend, the native
-build or the standard test suite.
+Hi-COLA has no git submodules. The example programs under `HiCOLA/FML/*/example`
+are part of the bundled FML library and read sample data from `HiCOLA/TestData`,
+which is not included. To run them, clone
+[HAWinther/TestData](https://github.com/HAWinther/TestData) into `HiCOLA/TestData`.
+The frontend, COLASolver and the test suites do not use this data.
