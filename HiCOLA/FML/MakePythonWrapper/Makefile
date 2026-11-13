@@ -29,20 +29,24 @@ USE_PYTHON       = true
 # Include and library paths
 #===================================================
 
-# Main library include (path to folder containin FML/)
-FML_INCLUDE    = /Users/hansw/local/FML
+# Main library include (path to folder containin FML/).
+# Default: the parent of this directory, so the wrapper builds in-tree without
+# editing. Override on the command line for a separately-installed FML:
+#   make FML_INCLUDE=/path/to/FML
+FML_INCLUDE    ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
-# Python and numpy includes
-PYTHON_INCLUDE = /opt/local/Library/Frameworks/Python.framework/Versions/3.8/include/python3.8/
-PYTHON_LIB     = /opt/local/Library/Frameworks/Python.framework/Versions/3.8/lib/
-NUMPY_INCLUDE  = /opt/local/Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/site-packages/numpy/core/include
-PYTHON_LINK    = -lpython3.8 -ldl -framework CoreFoundation
-
-# For Python 3
-#PYTHON_INCLUDE = /astro/local/anaconda3/include/python3.6m
-#PYTHON_LIB     = /astro/local/anaconda3/lib
-#NUMPY_INCLUDE  = /astro/local/anaconda3/lib/python3.6/site-packages/numpy/core/include
-#PYTHON_LINK    = -lpython3.6m -ldl
+# Python and numpy includes/libs.
+# Detected from the active interpreter at build time (no hardcoded framework
+# paths). Override any of these on the command line if your setup differs:
+#   make PYTHON_INCLUDE=/opt/python/include PYTHON_LIB=/opt/python/lib \
+#        NUMPY_INCLUDE=$(python -c "import numpy; print(numpy.get_include())") \
+#        PYTHON_LINK="-lpython3.10 -ldl"
+PYTHON_BIN     ?= python3
+PYTHON_VERSION ?= $(shell $(PYTHON_BIN) -c "import sys; print('python%d.%d' % sys.version_info[:2])")
+PYTHON_INCLUDE ?= $(shell $(PYTHON_BIN) -c "import sysconfig; print(sysconfig.get_paths()['include'])")
+PYTHON_LIB     ?= $(shell $(PYTHON_BIN) -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR') or '')")
+NUMPY_INCLUDE  ?= $(shell $(PYTHON_BIN) -c "import numpy; print(numpy.get_include())")
+PYTHON_LINK    ?= -l$(PYTHON_VERSION) -ldl
 
 #===================================================
 # Compile up all library defines from options above

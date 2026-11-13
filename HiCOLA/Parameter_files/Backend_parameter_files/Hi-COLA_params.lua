@@ -68,10 +68,23 @@ cosmology_ns = 0.9665
 -- Pivot scale in 1/Mpc
 cosmology_kpivot_mpc = 0.05
 
+------------------------------------------------------------
+-- HiCOLA input tables produced by the Python frontend.
+-- The frontend (readbg_generate_simulation_input.py) writes these into the
+-- "output_directory" given in the .ini file, naming them
+--   {model_name}_{cosmo_name}_expansion.txt   [a, E, dE/dloga]
+--   {model_name}_{cosmo_name}_force.txt       [a, chi/delta, coupling]
+-- Override HICOLA_INPUT_DIR / HICOLA_MODEL_NAME / HICOLA_COSMO_NAME below to
+-- point at your own run (e.g. pass "-s" on the command line, or edit here).
+------------------------------------------------------------
+HICOLA_INPUT_DIR  = "./Hi-COLA_Output"
+HICOLA_MODEL_NAME = "my_new_Horndeski_model"
+HICOLA_COSMO_NAME = "LCDM"
+
 -- HiCOLA model, read background from file
 if cosmology_model == "HiCOLA" then
   -- Name of file that contains [k, E, dlogH/dloga]
-  HiCOLA_expansion_filename = "<install_dir>/Hi-COLA/Output/my_new_Horndeski_model_expansion.txt"
+  HiCOLA_expansion_filename = HICOLA_INPUT_DIR .. "/" .. HICOLA_MODEL_NAME .. "_" .. HICOLA_COSMO_NAME .. "_expansion.txt"
 end
 
 -- The w0wa parametrization
@@ -114,8 +127,11 @@ gravity_model = "HiCOLA"
 
 -- HiCOLA model
 if gravity_model == "HiCOLA" then
-  -- Name of file that contains [k, chi/delta, coupling]
-  HiCOLA_preforce_filename = "<install_dir>/Hi-COLA/Output/my_new_Horndeski_model_force.txt"
+  -- Name of file that contains [k, chi/delta, coupling].
+  -- The C++ backend reads this key as "HiCOLA_preforce_filename"
+  -- (see COLASolver/src/ReadParameters.h). It must point at the frontend's
+  -- {model_name}_{cosmo_name}_force.txt output.
+  HiCOLA_preforce_filename = HICOLA_INPUT_DIR .. "/" .. HICOLA_MODEL_NAME .. "_" .. HICOLA_COSMO_NAME .. "_force.txt"
   -- Approximate screening model (otherwise linear)
   gravity_model_screening = true
   -- For screening approx: smoothing filter for density (tophat, gaussian, sharpk)
