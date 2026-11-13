@@ -30,6 +30,31 @@ python examples/small_simulations/run_simulations.py \
   --make-arg 'LUA_LINK=-llua5.4 -ldl'
 ```
 
+After each simulation the script draws its plots into `<case>/plots/` with the
+`hicola_plot_*` tools installed with the package:
+
+| Tool | Reads | Draws |
+|---|---|---|
+| `hicola_plot_pofk` | `pofk*_z*.txt` | P(k) at every output redshift |
+| `hicola_plot_background` | `cosmology_*.txt` | H/H0, d ln H / d ln a and density fractions against a |
+| `hicola_plot_growth` | `gravitymodel_*_k*.txt` | D1(a, k) and G_eff/G against a for each k |
+| `hicola_plot_frontend` | frontend `*_expansion.txt`, `*_force.txt` | E, E'/E, screening coefficient, coupling and G_G4/G_N against a |
+
+Modified-gravity cases are plotted with `--reference` set to the GR run. With a
+reference, each panel overlays the run (solid blue) and the reference (dashed orange),
+P(k) and growth get one panel per redshift or k, and ratio panels (the boost P/P_GR,
+H/H_GR, D1/D1_GR) show ±1% and ±2.5% bands. `--redshifts` and `--wavenumbers` select
+which redshifts or k values to plot. Each tool also runs on its own, for example:
+
+```sh
+hicola_plot_pofk example-output/cubic_galileon/output \
+  --reference example-output/gr/output --bands 0.01 0.025
+```
+
+`--bands` takes at most two fractions; give it no values to draw none. Run any tool
+with `--help` for its options. Frontend plots are written to
+`frontend/<model>/plots/`.
+
 `--work` must be a new directory. Use `--cases gr` to run one example or
 `--ranks 2` for two MPI processes. Build commands, process IDs, logs and simulation
 outputs are written under `--work`. Compilation writes build products into the

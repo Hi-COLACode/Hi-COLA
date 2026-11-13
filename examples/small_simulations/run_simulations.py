@@ -112,6 +112,27 @@ def lua(source, folder, case, tables):
 
 
 
+def plot_case(source, folder, reference=None):
+    """Plot one simulation with the hicola_plot_* tools into ``folder/plots``.
+
+    ``reference`` is another case folder (for example GR); its outputs are used
+    for the ratio panels.
+    """
+    output = folder/'output'
+    tools = ('pofk', 'background', 'growth') if any(output.glob('pofk*_z*.txt')) else ('background', 'growth')
+    for tool in tools:
+        argv = [f'hicola_plot_{tool}', output, '--out', folder/'plots']
+        if reference is not None:
+            argv += ['--reference', reference/'output']
+        command(argv, source, folder/'plots'/f'{tool}.log')
+
+
+def plot_frontend(source, tables):
+    """Plot a model's frontend expansion and force tables beside them."""
+    folder = Path(tables['expansion']).parent
+    command(['hicola_plot_frontend', folder], source, folder/'plots'/'frontend.log')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, default=HERE.parents[1])
@@ -133,6 +154,8 @@ def main():
     command(values, source, work/'build.log', timeout=1200)
     tables = {model: frontend(source, work, model)
               for model in ('cubic_galileon', 'kmouflage') if model in args.cases}
+    for paths in tables.values():
+        plot_frontend(source, paths)
     for case in args.cases:
         folder = work/case
         folder.mkdir()
@@ -140,6 +163,9 @@ def main():
         command(['mpiexec', '-n', args.ranks, backend/'nbody', config], source, folder/'run.log')
         if 'Doing output 0 at redshift z = 0' not in (folder/'run.log').read_text():
             raise RuntimeError(f'{case}: missing final output')
+        # Modified-gravity cases are also shown relative to GR (the boost P/P_GR).
+        modified = case in ('cubic_galileon', 'kmouflage') and 'gr' in args.cases
+        plot_case(source, folder, work/'gr' if modified else None)
     print(f'Completed {len(args.cases)} simulations; outputs: {work}')
 
 
