@@ -8,7 +8,7 @@ python -m unittest discover -s tests -v
 python -m coverage run -m unittest discover -s tests && python -m coverage html
 ```
 
-The unit tests cover the Python frontend, plotting tools, and backend launcher, not the C++ code; CI runs them on Python 3.11 to 3.15. [tests/README.md](repo:tests/README.md) explains the references, tolerances, expected failures, and Codecov.
+The unit tests cover the Python frontend, plotting tools, and backend launcher, not the C++ code; CI runs them on Python 3.11. [tests/README.md](repo:tests/README.md) explains the references, tolerances, and expected failures.
 
 The **Regression tests** workflow runs the GR, cubic Galileon, and K-mouflage [examples](quickstart.md#run-the-example-simulations) on a pinned baseline and on the candidate revision. **Regression summary statistics** compares power spectra, expansion and growth tables, particle counts, and velocities within explicit tolerances and should be a required check; **Regression particle reproducibility** compares particles and force grids and is advisory.
 
