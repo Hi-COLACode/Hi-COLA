@@ -15,8 +15,7 @@ rather than every internal module.
 
 | Tier | Contents | Guarantee |
 |------|----------|-----------|
-| **Stable** | Python frontend (`HiCOLA.Frontend`), frontend parameter-file formats, the `hicola-frontend` pip package | Breaking changes only in a MAJOR release. |
-| **Experimental** | COLASolver backend: native builds (`HICOLA_BUILD_NATIVE=1`), the `hi-cola` conda packages, `HiCOLA.backend`, backend Lua parameter files, MPI builds | Packaged and tested in CI, but options, file formats and the Python interface may change in a MINOR release. |
+| **Stable** | Python frontend (`HiCOLA.Frontend`), the `hicola-frontend` pip package, the COLASolver backend in the `hi-cola` conda packages and native builds (`HICOLA_BUILD_NATIVE=1`), `HiCOLA.backend`, and the frontend and backend parameter-file formats | Breaking changes only in a MAJOR release. |
 | **Reference / legacy** | `TestData` submodule, bundled example datasets | Not a runtime dependency. Provided for reference and regression work only. |
 
 ## Submodules
