@@ -1,14 +1,25 @@
 # Hi-COLA
 
-[![Documentation](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/documentation.yml/badge.svg)](https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/documentation.yml)
-
-<p align="left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="logos/Hi-COLA-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="logos/Hi-COLA-light.png">
-    <img alt="Hi-COLA logo" src="logos/Hi-COLA-light.png" width="120">
-  </picture>
-</p>
+<table align="center">
+  <tr>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="logos/Hi-COLA-dark.png">
+        <source media="(prefers-color-scheme: light)" srcset="logos/Hi-COLA-light.png">
+        <img alt="Hi-COLA logo" src="logos/Hi-COLA-light.png" width="160">
+      </picture>
+    </td>
+    <td align="left">
+      <a href="https://github.com/Hi-COLACode/Hi-COLA/blob/Hi-COLA_public/pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/python-%E2%89%A53.9-blue"></a><br>
+      <a href="https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml"><img alt="Unit tests" src="https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml/badge.svg"></a><br>
+      <a href="https://codecov.io/gh/Hi-COLACode/Hi-COLA"><img alt="Coverage" src="https://codecov.io/gh/Hi-COLACode/Hi-COLA/branch/Hi-COLA_public/graph/badge.svg"></a><br>
+      <a href="https://pypi.org/project/Hi-COLA/"><img alt="PyPI" src="https://img.shields.io/pypi/v/Hi-COLA"></a><br>
+      <a href="https://anaconda.org/conda-forge/hi-cola"><img alt="Conda" src="https://img.shields.io/conda/vn/conda-forge/hi-cola"></a><br>
+      <a href="https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/documentation.yml"><img alt="Documentation" src="https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/documentation.yml/badge.svg"></a><br>
+      <a href="https://github.com/Hi-COLACode/Hi-COLA/tags"><img alt="Latest tag" src="https://img.shields.io/github/v/tag/Hi-COLACode/Hi-COLA?sort=semver"></a>
+    </td>
+  </tr>
+</table>
 
 Hi-COLA is a package that runs fast, approximate N-body simulations of non-linear structure formation in reduced Horndeski gravity (Horndeski theories with luminal gravitational waves). 
 
