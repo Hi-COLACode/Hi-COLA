@@ -16,7 +16,7 @@
       <a href="https://pypi.org/project/Hi-COLA/"><img alt="PyPI" src="https://img.shields.io/pypi/v/Hi-COLA"></a><br>
       <a href="https://anaconda.org/conda-forge/hi-cola"><img alt="Conda" src="https://img.shields.io/conda/vn/conda-forge/hi-cola"></a><br>
       <a href="https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/documentation.yml"><img alt="Documentation" src="https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/documentation.yml/badge.svg"></a><br>
-      <a href="https://github.com/Hi-COLACode/Hi-COLA/tags"><img alt="Latest tag" src="https://img.shields.io/github/v/tag/Hi-COLACode/Hi-COLA?sort=semver"></a>
+      <a href="https://github.com/Hi-COLACode/Hi-COLA/tags"><img alt="Latest tag" src="https://img.shields.io/github/v/tag/Hi-COLACode/Hi-COLA?sort=semver&label=latest%20tag"></a>
     </td>
   </tr>
 </table>
