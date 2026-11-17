@@ -74,3 +74,17 @@ wrapper: check exit status and error diagnostics, parse the generated expansion
 and force tables, compare against analytic GR limits, then compare power
 spectra statistically with explicit tolerances. Do not compare stochastic
 simulation outputs byte-for-byte or replace the simulator with a mock.
+
+## Command line tests
+
+The tests in `tests/command_line/` start every command line tool in a subprocess
+and check that it answers `--help`. Unit test discovery skips that folder, which
+has no `__init__.py`; run it on its own with:
+
+```sh
+python -m pip install -e .
+MPLBACKEND=Agg python -m unittest discover -s tests/command_line -v
+```
+
+`test_version.py` is a placeholder for `--version` checks, which the tools do
+not support yet.
