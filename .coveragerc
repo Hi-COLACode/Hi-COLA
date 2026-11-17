@@ -1,0 +1,15 @@
+[run]
+branch = True
+source = HiCOLA
+omit =
+    HiCOLA/FML/*
+
+[report]
+show_missing = True
+skip_empty = True
+
+[xml]
+output = coverage.xml
+
+[html]
+directory = htmlcov
