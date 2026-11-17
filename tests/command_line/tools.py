@@ -1,13 +1,12 @@
+"""Find Hi-COLA's command line tools and run them in a subprocess."""
 import os
 import re
 import subprocess
 import sys
 import tomllib
-import unittest
-from importlib.metadata import version
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / 'HiCOLA'
 # A module-level parse_args() call marks a file that is run directly as a script
 SCRIPT_PATTERN = re.compile(r'^\S.*\.parse_args\(', re.MULTILINE)
@@ -45,28 +44,3 @@ def run_tool(command, *args):
         [*command, *args],
         cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=120,
     )
-
-
-class CliHelpTests(unittest.TestCase):
-    def test_tools_found(self):
-        self.assertTrue(find_scripts())
-        self.assertTrue(find_entry_points())
-
-    def test_help(self):
-        for label, command in find_tools():
-            with self.subTest(tool=label):
-                result = run_tool(command, '--help')
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn('usage:', result.stdout)
-
-    @unittest.skip('--version is not implemented for the command line tools yet')
-    def test_version(self):
-        for label, command in find_tools():
-            with self.subTest(tool=label):
-                result = run_tool(command, '--version')
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn(version('Hi_COLA'), result.stdout)
-
-
-if __name__ == '__main__':
-    unittest.main()
