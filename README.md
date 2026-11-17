@@ -10,7 +10,7 @@
       </picture>
     </td>
     <td align="left">
-      <a href="https://github.com/Hi-COLACode/Hi-COLA/blob/Hi-COLA_public/pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/python-%E2%89%A53.9-blue"></a><br>
+      <a href="https://github.com/Hi-COLACode/Hi-COLA/blob/Hi-COLA_public/.github/workflows/unit-tests.yml"><img alt="Python" src="https://img.shields.io/badge/python-3.11%E2%80%933.15-blue"></a><br>
       <a href="https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml"><img alt="Unit tests" src="https://github.com/Hi-COLACode/Hi-COLA/actions/workflows/unit-tests.yml/badge.svg"></a><br>
       <a href="https://codecov.io/gh/Hi-COLACode/Hi-COLA"><img alt="Coverage" src="https://codecov.io/gh/Hi-COLACode/Hi-COLA/branch/Hi-COLA_public/graph/badge.svg"></a><br>
       <a href="https://pypi.org/project/Hi-COLA/"><img alt="PyPI" src="https://img.shields.io/pypi/v/Hi-COLA"></a><br>
