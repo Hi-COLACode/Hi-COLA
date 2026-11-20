@@ -1,11 +1,13 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Hi_COLA"
-version = "0.0.0"
-requires-python = ">=3.9"
+name = "hicola-frontend"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+dynamic = ["version"]
+requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.26",
     "scipy>=1.11",
@@ -32,3 +34,16 @@ include-package-data = false
 [tool.setuptools.packages.find]
 include = ["HiCOLA", "HiCOLA.*"]
 namespaces = false
+
+[tool.setuptools.package-data]
+HiCOLA = ["Parameter_files/**/*.ini", "Parameter_files/**/*.lua", "Parameter_files/**/*.txt", "Parameter_files/**/*.dat"]
+
+[tool.setuptools_scm]
+# The version comes from the latest vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH.devN
+# tag; untagged commits count commits since it as .devN. Other tags are ignored.
+tag_regex = "^v(?P<version>\\d+\\.\\d+\\.\\d+(?:\\.dev\\d+)?)$"
+git_describe_command = "git describe --dirty --tags --long --match 'v[0-9]*'"
+# Used only without git metadata or a version in PKG-INFO.
+fallback_version = "0.0.0"
+# Package indexes reject local versions such as +g<hash>.
+local_scheme = "no-local-version"

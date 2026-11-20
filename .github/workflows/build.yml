@@ -1,0 +1,452 @@
+# Build, verify and publish Hi-COLA distributions.
+# Builds a pure-Python wheel + sdist, rebuilds the same-named wheel from the
+# sdist (with build isolation), validates both wheels, and runs an installed
+# smoke test of the built wheel on 3 OS / 3 Python versions. Native conda
+# packages are built on Linux and macOS.
+#
+# Default-branch pushes publish Python artifacts to TestPyPI and native conda
+# packages to the configured Anaconda.org account's test label.
+# Version-tag pushes publish verified Python artifacts to PyPI.
+
+name: Build and verify Python distributions
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+    # Release tags only; vX.Y.Z.devN tags set development numbering and do not publish.
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+# Read-only at the top level: only the publishing jobs grant scoped
+# id-token write permissions, and they are conditional. Pull requests build
+# and test but do not publish.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build wheel and source archive
+    if: >-
+      github.event_name != 'push' ||
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+      startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          # setuptools-scm reads the version from release tags.
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip build twine
+
+      - name: Check release tag format
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must have the form vMAJOR.MINOR.PATCH, got $TAG"
+            exit 1
+          fi
+
+      - name: Build wheel and sdist
+        run: |
+          python -m build
+
+      - name: Check artifact metadata
+        run: |
+          twine check dist/*.whl dist/*.tar.gz
+
+      - name: Check release version matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          expected="hicola_frontend-${TAG#v}-py3-none-any.whl"
+          actual="$(basename dist/*.whl)"
+          if [ "$actual" != "$expected" ]; then
+            echo "Built $actual, expected $expected"
+            exit 1
+          fi
+
+      - name: Check conda run requirements match pyproject.toml
+        run: |
+          python .github/conda/check_dependencies.py
+
+      - name: Rebuild wheel from sdist in a temporary source directory
+        # Uses build isolation so the build dependencies declared in
+        # pyproject.toml are installed by pip wheel. The rebuilt wheel keeps
+        # the same filename as the original and is stored in a separate
+        # directory so the original wheel in dist/ is never overwritten.
+        # The sdist has no git metadata, so the filename check below confirms
+        # it supplies its own version.
+        run: |
+          set -euo pipefail
+          TMP="$(mktemp -d)"
+          SDIST="$(ls dist/*.tar.gz)"
+          tar -xzf "$SDIST" -C "$TMP"
+          SRC="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d)"
+          mkdir -p dist-sdist
+          python -m pip wheel --no-deps --no-cache-dir -w dist-sdist "$SRC"
+          echo "rebuilt sdist-derived wheel: $(ls dist-sdist/*.whl)"
+
+      - name: Validate both wheels are pure python and compiled-binary free
+        # Single validation pass, after the rebuild, over the original wheel
+        # (dist/) and the sdist-rebuilt wheel (dist-sdist/): the WHEEL
+        # metadata must be Root-Is-Purelib true with Tag py3-none-any, the
+        # filename must use the -py3-none-any.whl delimiter, and no
+        # compiled/native files (including versioned .so.N) may appear.
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob, pathlib, zipfile
+
+          NATIVE_SUFFIXES = (".so", ".pyd", ".dll", ".dylib", ".exe", ".a", ".lib", ".o")
+
+          def check(name: str, whl: pathlib.Path) -> None:
+              print(f"[check] {name}: {whl.name}")
+              # Filename must use the -py3-none-any.whl delimiter, e.g.
+              # hicola_frontend-2.0.0-py3-none-any.whl.
+              assert name.endswith("-py3-none-any.whl"), \
+                  f"unexpected wheel filename: {name}"
+              zf = zipfile.ZipFile(whl)
+              names = zf.namelist()
+              wheel_meta = [n for n in names if n.endswith("WHEEL")]
+              assert len(wheel_meta) == 1, "missing WHEEL metadata"
+              meta = {
+                  line.split(":", 1)[0].strip(): line.split(":", 1)[1].strip()
+                  for line in zf.read(wheel_meta[0]).decode("utf-8").splitlines()
+                  if ":" in line
+              }
+              assert meta.get("Root-Is-Purelib") == "true", \
+                  f"wheel is not purelib: {meta.get('Root-Is-Purelib')}"
+              assert meta.get("Tag") == "py3-none-any", \
+                  f"wheel tag is not py3-none-any: {meta.get('Tag')}"
+              for n in names:
+                  lc = n.lower()
+                  for suffix in NATIVE_SUFFIXES:
+                      assert not lc.endswith(suffix), \
+                          f"compiled/native artifact found in {name}: {n}"
+                  # Versioned shared objects, e.g. libfoo.so.1 or libfoo.so.1.2
+                  # (a plain ".so" file is already rejected above).
+                  if ".so." in lc:
+                      raise AssertionError(
+                          f"versioned shared object found in {name}: {n}")
+              print(f"[check] {name}: OK ({len(names)} files)")
+
+          original = sorted(glob.glob("dist/*.whl"))
+          rebuilt = sorted(glob.glob("dist-sdist/*.whl"))
+          assert len(original) == 1, \
+              f"expected exactly one original wheel, got: {original}"
+          assert len(rebuilt) == 1, \
+              f"expected exactly one sdist-rebuilt wheel, got: {rebuilt}"
+          # The rebuilt wheel must have the SAME filename as the original.
+          assert pathlib.Path(original[0]).name == pathlib.Path(rebuilt[0]).name, \
+              f"filenames differ: {original[0]} vs {rebuilt[0]}"
+          check(pathlib.Path(original[0]).name, pathlib.Path(original[0]))
+          check(pathlib.Path(rebuilt[0]).name, pathlib.Path(rebuilt[0]))
+          print("wheel validation OK: both wheels are pure python, "
+                "same filename, no compiled binaries")
+          PY
+
+      - name: Upload original artifacts (original wheel + sdist)
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-original
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+
+  test-matrix:
+    name: Verify wheel and source archive
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      # No checkout: artifacts only, so the installed package cannot be
+      # shadowed by a source tree.
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download built wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-original
+          path: ci-artifacts/original
+
+      - name: Install compatible runtime dependencies
+        run: |
+          python -m pip install --quiet --no-cache-dir \
+            "numpy>=1.26,<2" \
+            "scipy>=1.11,<2" \
+            "sympy>=1.12,<2" \
+            "matplotlib>=3.8,<4" \
+            "configobj>=5,<6" \
+            "pandas>=2,<3"
+
+      - name: Verify the built wheel with the installed frontend calculation
+        working-directory: ${{ runner.temp }}
+        env:
+          PYTHONPATH: ""
+          MPLBACKEND: Agg
+          ARTIFACT_DIRECTORY: ${{ github.workspace }}/ci-artifacts
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import textwrap
+
+          # The calculation runs in a fresh interpreter so it imports the
+          # installed wheel.
+          calculation = textwrap.dedent('''\
+          import os, pathlib, sys
+          assert os.environ.get("MPLBACKEND") == "Agg"
+          from HiCOLA.Frontend import expression_builder as eb
+          # Imported module must resolve beneath the active sys.prefix,
+          # i.e. it is the installed package, not a stray source copy.
+          prefix = pathlib.Path(sys.prefix).resolve()
+          pathlib.Path(eb.__file__).resolve().relative_to(prefix)
+          # Frontend symbolic calculation exercise:
+          # d/dX (X^3 * phi^2) == 3 X^2 phi^2
+          import sympy as sym
+          expr = eb.K_func(eb.X**3 * eb.phi**2, "X")
+          assert sym.expand(expr - 3*eb.X**2*eb.phi**2) == 0, \
+              "unexpected derivative: " + str(expr)
+          print("smoke OK:", eb.__file__)
+          ''')
+
+          artifact_directory = Path(os.environ['ARTIFACT_DIRECTORY']).resolve()
+          wheels = list((artifact_directory / 'original').glob('*.whl'))
+          if len(wheels) != 1:
+              raise RuntimeError(f'Expected one built wheel, found {wheels}')
+          subprocess.run([
+              sys.executable, '-m', 'pip', 'install', '--no-deps', str(wheels[0]),
+          ], check=True)
+          subprocess.run([sys.executable, '-c', calculation], check=True)
+          PY
+
+  # TestPyPI publication.
+  # - Runs only on push to the repository's current default branch, never on
+  #   pull requests, tags, or manual dispatch.
+  # - Requires BOTH build and test-matrix to succeed.
+  # - Uses Trusted Publishing (OIDC id-token; no password secrets).
+  # - Uploads the original wheel and sdist.
+  # - Reruns reuse the same development version and skip existing uploads.
+  publish-testpypi:
+    name: Publish to Test PyPI
+    needs: [build, test-matrix]
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: testpypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # No checkout: only the original build artifacts are uploaded.
+      - name: Download original artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-original
+          path: dist
+
+      - name: Publish original artifacts to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  # Production PyPI publication from version tags.
+  # Requires Trusted Publishing on pypi.org and the pypi GitHub environment.
+  #
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build, test-matrix]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download original artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-original
+          path: dist
+      - name: Publish original artifacts to PyPI (production)
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # Native conda build and installed-simulation test from the tested sdist.
+  # Runs on pull requests, manual runs and default-branch pushes.
+  conda-build:
+    name: Build native conda package
+    needs: [build, test-matrix]
+    if: >-
+      github.event_name != 'push' ||
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      MPLBACKEND: Agg
+      CMAKE_GENERATOR: Ninja
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download tested Python distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-original
+          path: dist
+      - name: Set up conda build environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: conda-build
+          python-version: '3.11'
+          channels: conda-forge
+          channel-priority: strict
+      - name: Install conda build tools
+        run: |
+          conda install --override-channels -c conda-forge -y conda-build
+      - name: Use the tested source archive and version
+        run: |
+          python - <<'PY'
+          from email.parser import Parser
+          import hashlib
+          import os
+          from pathlib import Path
+          import zipfile
+          from packaging.version import Version
+
+          wheels = list(Path('dist').glob('*.whl'))
+          archives = list(Path('dist').glob('*.tar.gz'))
+          if len(wheels) != 1 or len(archives) != 1:
+              raise RuntimeError('Expected exactly one tested wheel and source archive')
+          with zipfile.ZipFile(wheels[0]) as wheel:
+              metadata = [name for name in wheel.namelist() if name.endswith('.dist-info/METADATA')]
+              if len(metadata) != 1:
+                  raise RuntimeError('Expected exactly one distribution metadata file')
+              version = str(Version(Parser().parsestr(wheel.read(metadata[0]).decode())['Version']))
+          archive = archives[0].resolve()
+          settings = {
+              'HICOLA_VERSION': version,
+              'HICOLA_SDIST_URL': archive.as_uri(),
+              'HICOLA_SDIST_SHA256': hashlib.sha256(archive.read_bytes()).hexdigest(),
+          }
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
+              for key, value in settings.items():
+                  stream.write(f'{key}={value}\n')
+          PY
+      - name: Build native conda package and run installed simulation
+        run: |
+          conda-build .github/conda --override-channels -c conda-forge --no-anaconda-upload --output-folder conda-dist
+      - name: Retain tested native conda package
+        uses: actions/upload-artifact@v4
+        with:
+          name: conda-package-${{ matrix.os }}
+          path: |
+            conda-dist/**/*.conda
+            conda-dist/**/*.tar.bz2
+          if-no-files-found: error
+
+  # Uploads the conda packages built above to the Anaconda.org test label.
+  # Configure repository variable ANACONDA_OWNER and repository secret
+  # ANACONDA_API_TOKEN. Keep that secret out of the conda-test environment
+  # so token rotation requires updating only the repository secret.
+  # Without an owner, this job remains disabled.
+  publish-conda:
+    name: Publish native conda packages
+    needs: conda-build
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      vars.ANACONDA_OWNER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: conda-test
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Download tested native conda packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: conda-package-*
+          path: conda-dist
+          merge-multiple: true
+      - name: Set up conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: conda-upload
+          python-version: '3.11'
+          channels: conda-forge
+          channel-priority: strict
+      - name: Install upload client
+        run: |
+          conda install --override-channels -c conda-forge -y anaconda-client
+      - name: Upload native packages to Anaconda.org
+        env:
+          ANACONDA_CLIENT_FORCE_STANDALONE: '1'
+          BINSTAR_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+          ANACONDA_OWNER: ${{ vars.ANACONDA_OWNER }}
+          ANACONDA_LABEL: test
+        run: |
+          set -euo pipefail
+          if [ -z "$BINSTAR_API_TOKEN" ]; then
+            echo 'Set the ANACONDA_API_TOKEN repository secret.'
+            exit 1
+          fi
+          # Artifact downloads may flatten the platform subdirectory.
+          shopt -s nullglob globstar
+          packages=(conda-dist/**/*.conda conda-dist/**/*.tar.bz2)
+          if [ "${#packages[@]}" -eq 0 ]; then
+            echo 'Expected tested native conda packages.'
+            exit 1
+          fi
+          anaconda upload --user "$ANACONDA_OWNER" --label "$ANACONDA_LABEL" --skip-existing "${packages[@]}"

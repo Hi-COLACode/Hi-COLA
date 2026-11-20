@@ -1,0 +1,14 @@
+# setuptools-scm adds every tracked file to the sdist; keep it to the Python
+# package, the solver build files and sources, and their licences.
+prune .github
+prune Documentation
+prune examples
+prune logos
+prune HiCOLA/FML
+prune HiCOLA/Output
+prune HiCOLA/clang
+prune HiCOLA/doxygen
+exclude .coveragerc .dockerignore .gitignore .gitmodules Dockerfile RELEASING.md
+include CMakeLists.txt
+recursive-include HiCOLA/FML *.h *.cpp LICENSE LICENSE.*
+recursive-include HiCOLA/Parameter_files *.ini *.lua *.txt *.dat
